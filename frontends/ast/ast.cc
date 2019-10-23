@@ -30,6 +30,7 @@
 #include "kernel/yosys.h"
 #include "libs/sha1/sha1.h"
 #include "ast.h"
+#include "json.hpp"
 
 YOSYS_NAMESPACE_BEGIN
 
@@ -278,6 +279,39 @@ AstNode::~AstNode()
 	delete_children();
 }
 
+static void
+AstNodeDump(nlohmann::json& ast, const AstNode& node)
+{
+	nlohmann::json& n = ast;
+
+	n["type"] = type2str(node.type);
+
+	if (!node.str.empty())
+		n["name"] = node.str;
+
+	if (node.is_reg)
+		n["reg"] = true;
+	if (node.is_input)
+		n["input"] = true;
+	if (node.is_output)
+		n["output"] = true;
+
+	if (node.children.size()) {
+		// list
+		// arrays are ordered, objects not
+		// source: http://www.rfc-editor.org/rfc/rfc7159.txt
+		std::vector<nlohmann::json> nodes;
+
+		for (size_t i = 0 ; i < node.children.size() ; ++i) {
+			nlohmann::json subnode;
+			AstNodeDump(subnode, *node.children[i]);
+			nodes.push_back(subnode);
+		}
+
+		n["nodes"] = nodes;
+	}
+}
+
 // create a nice text representation of the node
 // (traverse tree by recursion, use 'other' pointer for diffing two AST trees)
 void AstNode::dumpAst(FILE *f, std::string indent) const
@@ -285,6 +319,14 @@ void AstNode::dumpAst(FILE *f, std::string indent) const
 	if (f == NULL) {
 		for (auto f : log_files)
 			dumpAst(f, indent);
+
+		nlohmann::json jastroot;
+		AstNodeDump(jastroot, *this);
+		std::ofstream fileout("dump.json");
+		std::stringstream ss;
+		ss << jastroot.dump(2);
+		fileout << ss.str();
+
 		return;
 	}
 
