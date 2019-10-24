@@ -286,8 +286,11 @@ AstNodeDump(nlohmann::json& ast, const AstNode& node)
 
 	n["type"] = type2str(node.type);
 
-	if (!node.str.empty())
-		n["name"] = node.str;
+	if (!node.str.empty()) {
+        std::string str = node.str;
+        str.erase(0, str.find_first_not_of("\\"));
+		n["name"] = str;
+    }
 
 	if (node.is_reg)
 		n["reg"] = true;
