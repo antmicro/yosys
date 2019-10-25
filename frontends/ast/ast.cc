@@ -294,10 +294,13 @@ AstNodeDump(nlohmann::json& ast, const AstNode& node)
 
 	if (node.is_reg)
 		n["reg"] = true;
-	if (node.is_input)
-		n["input"] = true;
-	if (node.is_output)
-		n["output"] = true;
+
+	if (node.is_input || node.is_output) {
+		if (node.is_input)
+			n["port"] = "input";
+		else
+			n["port"] = "output";
+	}
 
 	if (node.children.size()) {
 		// list
