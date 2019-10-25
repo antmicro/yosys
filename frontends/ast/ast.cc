@@ -304,6 +304,9 @@ AstNodeDump(nlohmann::json& ast, const AstNode& node)
 			n["port"] = "output";
 	}
 
+	if (n["type"] == "AST_CONSTANT")
+		n["value"] = node.integer;
+
 	if (node.children.size()) {
 		// list
 		// arrays are ordered, objects not
