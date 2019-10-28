@@ -302,8 +302,18 @@ AstNodeDump(nlohmann::json& ast, const AstNode& node)
 			n["port"] = "output";
 	}
 
-	if (n["type"] == "AST_CONSTANT")
+	if (n["type"] == "AST_CONSTANT") {
 		n["value"] = node.integer;
+
+		if (node.range_valid) {
+			n["range"]["left"]  = node.range_left;
+			n["range"]["right"] = node.range_right;
+		}
+
+		if (!node.bits.empty()) {
+			n["width"] = GetSize(node.bits);
+		}
+	}
 
 	if (node.children.size()) {
 		// list
