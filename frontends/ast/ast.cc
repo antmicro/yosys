@@ -339,12 +339,17 @@ void AstNode::dumpAst(FILE *f, std::string indent) const
 		for (auto f : log_files)
 			dumpAst(f, indent);
 
-		nlohmann::json jastroot;
-		AstNodeDump(jastroot, *this);
-		std::ofstream fileout("dump.json");
-		std::stringstream ss;
-		ss << jastroot.dump(2);
-		fileout << ss.str();
+		if (!this->str.empty()) {
+			std::string str = this->str;
+			str.erase(0, str.find_first_not_of("\\"));
+
+			nlohmann::json jastroot;
+			AstNodeDump(jastroot, *this);
+			std::ofstream fileout(str + ".json");
+			std::stringstream ss;
+			ss << jastroot.dump(2);
+			fileout << ss.str();
+		}
 
 		return;
 	}
