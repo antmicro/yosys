@@ -38,17 +38,18 @@ void UhdmAst::visit_one_to_one (const std::vector<int> childrenNodeTypes,
 AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 
 	// Current object data
-	int lineNo = 0;
 	std::string objectName = "";
+	auto *current_node = new AST::AstNode(AST::AST_NONE);
 
-	if (const char* s = vpi_get_str(vpiName, obj_h)) {
+	if (auto s = vpi_get_str(vpiName, obj_h)) {
 		objectName = s;
 		// symbol names must begin with '\'
 		objectName.insert(0, "\\");
 		std::replace(objectName.begin(), objectName.end(), '@','_');
+		current_node->str = objectName;
 	}
 	if (unsigned int l = vpi_get(vpiLineNo, obj_h)) {
-		lineNo = l;
+		current_node->linenum = l;
 	}
 
 	const unsigned int objectType = vpi_get(vpiType, obj_h);
@@ -59,7 +60,6 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 	switch(objectType) {
 		case vpiDesign: {
 
-			auto *design = new AST::AstNode(AST::AST_DESIGN);
 			// Unhandled relationships: will visit (and print) the object
 			visit_one_to_many({UHDM::uhdmtopModules,
 					UHDM::uhdmallPrograms,
@@ -70,15 +70,14 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 					obj_h,
 					[](AST::AstNode*){});
 
+			current_node->type = AST::AST_DESIGN;
 			visit_one_to_many({UHDM::uhdmallModules},
 					obj_h,
 					[&](AST::AstNode* module) {
 						if (module != nullptr) {
-							design->children.push_back(module);
-							design = module;
+							current_node->children.push_back(module);
 						}
 					});
-			return design;
 
 			break;
 		}
@@ -94,20 +93,18 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 					vpiLowConn},
 					obj_h,
 					[](AST::AstNode*){});
-			auto *port = new AST::AstNode(AST::AST_WIRE);
+			current_node->type = AST::AST_WIRE;
 
 			if (const int n = vpi_get(vpiDirection, obj_h)) {
 				if (n == vpiInput) {
-					port->is_input = true;
+					current_node->is_input = true;
 				} else if (n == vpiOutput) {
-					port->is_output = true;
+					current_node->is_output = true;
 				} else if (n == vpiInout) {
-					port->is_input = true;
-					port->is_output = true;
+					current_node->is_input = true;
+					current_node->is_output = true;
 				}
 			}
-			port->str = objectName;
-			return port;
 
 			break;
 		}
@@ -163,18 +160,15 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 					obj_h,
 					[](AST::AstNode*){});
 
-			auto *module = new AST::AstNode(AST::AST_MODULE);
-			module->str = objectName;
-			visit_one_to_many({vpiPort, vpiContAssign}, obj_h, [&](AST::AstNode* port){
+			current_node->type = AST::AST_MODULE;
+			visit_one_to_many({vpiPort, vpiModule, vpiContAssign}, obj_h, [&](AST::AstNode* port){
 				if(port) {
-					module->children.push_back(port);
+					current_node->children.push_back(port);
 				}
 			});
-			return module;
 			break;
 		}
 		case vpiContAssign: {
-			auto *assign = new AST::AstNode(AST::AST_ASSIGN);
 			// Unhandled relationships: will visit (and print) the object
 			visit_one_to_one({vpiDelay},
 					obj_h,
@@ -183,15 +177,14 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 					obj_h,
 					[](AST::AstNode*){});
 
+			current_node->type = AST::AST_ASSIGN;
 			visit_one_to_one({vpiRhs, vpiLhs},
 					obj_h,
 					[&](AST::AstNode* node){
 						if (node) {
-							assign->children.push_back(node);
-							}
+							current_node->children.push_back(node);
+						}
 					});
-
-			return assign;
 
 			break;
 		}
@@ -206,9 +199,7 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 			visit_one_to_many({vpiPortInst},
 					obj_h,
 					[](AST::AstNode*){});
-			auto *reference = new AST::AstNode(AST::AST_IDENTIFIER);
-			reference->str = objectName;
-			return reference;
+			current_node->type = AST::AST_IDENTIFIER;
 
 			break;
 		}
@@ -274,14 +265,23 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 		}
 	}
 
-	return nullptr;
+	// Check if we initialized the node in switch-case
+	if (current_node->type != AST::AST_NONE) {
+	  return current_node;
+	} else {
+	  return nullptr;
+	}
 }
 
 AST::AstNode* UhdmAst::visit_designs (const std::vector<vpiHandle>& designs) {
 	auto *top_design = new AST::AstNode(AST::AST_DESIGN);
 
 	for (auto design : designs) {
-		top_design->children.push_back(visit_object(design));
+		auto *nodes = visit_object(design);
+		// Flatten multiple designs into one
+		for (auto child : nodes->children) {
+		  top_design->children.push_back(child);
+		}
 	}
 	return top_design;
 }
