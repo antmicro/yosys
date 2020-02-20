@@ -43,6 +43,8 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 
 	if (const char* s = vpi_get_str(vpiName, obj_h)) {
 		objectName = s;
+		// symbol names must begin with '\'
+		objectName.insert(0, "\\");
 		std::replace(objectName.begin(), objectName.end(), '@','_');
 	}
 	if (unsigned int l = vpi_get(vpiLineNo, obj_h)) {
@@ -73,6 +75,7 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 					[&](AST::AstNode* module) {
 						if (module != nullptr) {
 							design->children.push_back(module);
+							design = module;
 						}
 					});
 			return design;
@@ -103,6 +106,7 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 					port->is_output = true;
 				}
 			}
+			port->str = objectName;
 			return port;
 
 			break;
@@ -110,41 +114,41 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 		case vpiModule: {
 			// Unhandled relationships: will visit (and print) the object
 			visit_one_to_many({vpiProcess,
-					 vpiPrimitive,
-					 vpiPrimitiveArray,
-					 vpiInterface,
-					 vpiInterfaceArray,
-					 //vpiModule,
-					 vpiModuleArray,
-					 vpiModPath,
-					 vpiTchk,
-					 vpiDefParam,
-					 vpiIODecl,
-					 vpiAliasStmt,
-					 vpiClockingBlock,
-					 vpiTaskFunc,
-					 vpiNet,
-					 vpiArrayNet,
-					 vpiAssertion,
-					 vpiClassDefn,
-					 vpiProgram,
-					 vpiProgramArray,
-					 vpiSpecParam,
-					 vpiConcurrentAssertions,
-					 vpiVariables,
-					 vpiParameter,
-					 vpiInternalScope,
-					 vpiTypedef,
-					 vpiPropertyDecl,
-					 vpiSequenceDecl,
-					 vpiNamedEvent,
-					 vpiNamedEventArray,
-					 vpiVirtualInterfaceVar,
-					 vpiReg,
-					 vpiRegArray,
-					 vpiMemory,
-					 vpiLetDecl,
-					 vpiImport
+					vpiPrimitive,
+					vpiPrimitiveArray,
+					vpiInterface,
+					vpiInterfaceArray,
+					//vpiModule,
+					vpiModuleArray,
+					vpiModPath,
+					vpiTchk,
+					vpiDefParam,
+					vpiIODecl,
+					vpiAliasStmt,
+					vpiClockingBlock,
+					vpiTaskFunc,
+					vpiNet,
+					vpiArrayNet,
+					vpiAssertion,
+					vpiClassDefn,
+					vpiProgram,
+					vpiProgramArray,
+					vpiSpecParam,
+					vpiConcurrentAssertions,
+					vpiVariables,
+					vpiParameter,
+					vpiInternalScope,
+					vpiTypedef,
+					vpiPropertyDecl,
+					vpiSequenceDecl,
+					vpiNamedEvent,
+					vpiNamedEventArray,
+					vpiVirtualInterfaceVar,
+					vpiReg,
+					vpiRegArray,
+					vpiMemory,
+					vpiLetDecl,
+					vpiImport
 					},
 					obj_h,
 					[](AST::AstNode*){});
@@ -160,11 +164,17 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 					[](AST::AstNode*){});
 
 			auto *module = new AST::AstNode(AST::AST_MODULE);
-			module->name = objectName;
+			module->str = objectName;
+			visit_one_to_many({vpiPort, vpiContAssign}, obj_h, [&](AST::AstNode* port){
+				if(port) {
+					module->children.push_back(port);
+				}
+			});
 			return module;
 			break;
 		}
 		case vpiContAssign: {
+			auto *assign = new AST::AstNode(AST::AST_ASSIGN);
 			// Unhandled relationships: will visit (and print) the object
 			visit_one_to_one({vpiDelay},
 					obj_h,
@@ -173,48 +183,32 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 					obj_h,
 					[](AST::AstNode*){});
 
-			// Right
-			visit_one_to_one({vpiRhs},
+			visit_one_to_one({vpiRhs, vpiLhs},
 					obj_h,
-					[&](AST::AstNode*){
+					[&](AST::AstNode* node){
+						if (node) {
+							assign->children.push_back(node);
+							}
 					});
 
-			// Left
-			visit_one_to_one({vpiLhs},
-					obj_h,
-					[&](AST::AstNode*){
-					});
+			return assign;
 
 			break;
 		}
 		case vpiRefObj: {
-			bool isLvalue = false;
 			// Unhandled relationships: will visit (and print) the object
 			visit_one_to_one({vpiInstance,
 					vpiTaskFunc,
+					vpiActual,
 					vpiTypespec},
 					obj_h,
 					[](AST::AstNode*){});
 			visit_one_to_many({vpiPortInst},
 					obj_h,
 					[](AST::AstNode*){});
-
-			vpiHandle actual = vpi_handle(vpiActual, obj_h);
-			if (actual) {
-				auto actual_type = vpi_get(vpiType, actual);
-				if (actual_type == vpiPort) {
-					if (const int n = vpi_get(vpiDirection, actual)) {
-						if (n == vpiInput) {
-							isLvalue = false;
-						} else if (n == vpiOutput) {
-							isLvalue = true;
-						} else if (n == vpiInout) {
-							isLvalue = true;
-						}
-					}
-				}
-				vpi_free_object(actual);
-			}
+			auto *reference = new AST::AstNode(AST::AST_IDENTIFIER);
+			reference->str = objectName;
+			return reference;
 
 			break;
 		}
