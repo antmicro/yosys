@@ -61,7 +61,7 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 		case vpiDesign: {
 
 			// Unhandled relationships: will visit (and print) the object
-			visit_one_to_many({UHDM::uhdmtopModules,
+			visit_one_to_many({UHDM::uhdmallModules,
 					UHDM::uhdmallPrograms,
 					UHDM::uhdmallPackages,
 					UHDM::uhdmallClasses,
@@ -71,7 +71,7 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h) {
 					[](AST::AstNode*){});
 
 			current_node->type = AST::AST_DESIGN;
-			visit_one_to_many({UHDM::uhdmallModules},
+			visit_one_to_many({UHDM::uhdmtopModules},
 					obj_h,
 					[&](AST::AstNode* module) {
 						if (module != nullptr) {
