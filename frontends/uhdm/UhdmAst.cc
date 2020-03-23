@@ -72,23 +72,25 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 		case vpiDesign: {
 
 			// Unhandled relationships: will visit (and print) the object
-			visit_one_to_many({UHDM::uhdmallModules,
+			visit_one_to_many({
 					UHDM::uhdmallPrograms,
 					UHDM::uhdmallPackages,
 					UHDM::uhdmallClasses,
-					UHDM::uhdmallInterfaces,
 					UHDM::uhdmallUdps},
 					obj_h,
 					visited,
 					[](AST::AstNode*){});
 
 			current_node->type = AST::AST_DESIGN;
-			visit_one_to_many({UHDM::uhdmtopModules},
+			visit_one_to_many({
+					UHDM::uhdmallInterfaces,
+					UHDM::uhdmallModules
+					},
 					obj_h,
 					visited,
-					[&](AST::AstNode* module) {
-						if (module != nullptr) {
-							current_node->children.push_back(module);
+					[&](AST::AstNode* object) {
+						if (object != nullptr) {
+							current_node->children.push_back(object);
 						}
 					});
 
@@ -128,7 +130,6 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 			visit_one_to_many({vpiProcess,
 					vpiPrimitive,
 					vpiPrimitiveArray,
-					vpiInterface,
 					vpiInterfaceArray,
 					//vpiModule,
 					vpiModuleArray,
@@ -178,7 +179,11 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 					[](AST::AstNode*){});
 
 			current_node->type = AST::AST_MODULE;
-			visit_one_to_many({vpiPort, vpiModule, vpiContAssign},
+			visit_one_to_many({
+					vpiPort,
+					vpiModule,
+					vpiInterface,
+					vpiContAssign},
 					obj_h,
 					visited,
 					[&](AST::AstNode* port){
@@ -228,9 +233,7 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 
 			break;
 		}
-		case vpiLogicNet: {
-			// Handling of this node is not functional yet
-			break;
+		case vpiNet: {
 			// Unhandled relationships: will visit (and print) the object
 			visit_one_to_one({vpiLeftRange,
 					vpiRightRange,
@@ -257,6 +260,10 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 					visited,
 					[](AST::AstNode*){});
 
+			current_node->type = AST::AST_WIRE;
+
+			//TODO: Check type
+			current_node->is_logic = true;
 			break;
 		}
 		case vpiClassDefn: {
@@ -284,6 +291,93 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 					visited,
 					[](AST::AstNode*){});
 
+			break;
+		}
+		case vpiInterface: {
+			current_node->type = AST::AST_INTERFACE;
+			visit_one_to_many({
+					vpiNet,
+					vpiModport
+					},
+					obj_h,
+					visited,
+					[&](AST::AstNode* port){
+				if(port) {
+					current_node->children.push_back(port);
+				}
+			});
+			visit_one_to_one({
+					vpiParent,
+					vpiInstanceArray,
+					vpiGlobalClocking,
+					vpiDefaultClocking,
+					vpiDefaultDisableIff,
+					vpiInstance,
+					vpiModule
+					},
+					obj_h,
+					visited,
+					[](AST::AstNode*){});
+			visit_one_to_many({
+					vpiProcess,
+					vpiInterfaceTfDecl,
+					vpiModPath,
+					vpiContAssign,
+					vpiInterface,
+					vpiInterfaceArray,
+					vpiPort,
+					vpiTaskFunc,
+					vpiArrayNet,
+					vpiAssertion,
+					vpiClassDefn,
+					vpiProgram,
+					vpiProgramArray,
+					vpiSpecParam,
+					vpiConcurrentAssertions,
+					vpiVariables,
+					vpiParameter,
+					vpiInternalScope,
+					vpiTypedef,
+					vpiPropertyDecl,
+					vpiSequenceDecl,
+					vpiNamedEvent,
+					vpiNamedEventArray,
+					vpiVirtualInterfaceVar,
+					vpiReg,
+					vpiRegArray,
+					vpiMemory,
+					vpiLetDecl,
+					vpiImport,
+					},
+					obj_h,
+					visited,
+					[](AST::AstNode*){});
+			break;
+		}
+		case vpiModport: {
+			current_node->type = AST::AST_MODPORT;
+			visit_one_to_many({vpiIODecl},
+					obj_h,
+					visited,
+					[&](AST::AstNode* net){
+				if(net) {
+					current_node->children.push_back(net);
+				}
+			});
+			break;
+		}
+		case vpiIODecl: {
+			current_node->type = AST::AST_MODPORTMEMBER;
+			if (const int n = vpi_get(vpiDirection, obj_h)) {
+				if (n == vpiInput) {
+					current_node->is_input = true;
+				} else if (n == vpiOutput) {
+					current_node->is_output = true;
+				} else if (n == vpiInout) {
+					current_node->is_input = true;
+					current_node->is_output = true;
+				}
+			}
 			break;
 		}
 		// Explicitly unsupported
