@@ -51,6 +51,10 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 
 	if (auto s = vpi_get_str(vpiName, obj_h)) {
 		objectName = s;
+	} else if (auto s = vpi_get_str(vpiDefName, obj_h)) {
+		objectName = s;
+	}
+	if (objectName != "") {
 		// symbol names must begin with '\'
 		objectName.insert(0, "\\");
 		std::replace(objectName.begin(), objectName.end(), '@','_');
@@ -84,6 +88,7 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 			current_node->type = AST::AST_DESIGN;
 			visit_one_to_many({
 					UHDM::uhdmallInterfaces,
+					UHDM::uhdmtopModules,
 					UHDM::uhdmallModules
 					},
 					obj_h,
