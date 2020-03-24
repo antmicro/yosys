@@ -143,10 +143,12 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 					// Nested module declaration
 					current_node->type = AST::AST_CELL;
 					auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
-					auto type = vpi_get_str(vpiDefName, parent_h);
+					std::string type = vpi_get_str(vpiDefName, obj_h);
 					if (type != "") {
+						sanitize_symbol_name(type);
 						typeNode->str = type;
 						current_node->children.push_back(typeNode);
+						break;
 					}
 				}
 				else {
