@@ -35,6 +35,12 @@ void UhdmAst::visit_one_to_one (const std::vector<int> childrenNodeTypes,
 	}
 }
 
+void sanitize_symbol_name(std::string &name) {
+		// symbol names must begin with '\'
+		name.insert(0, "\\");
+		std::replace(name.begin(), name.end(), '@','_');
+}
+
 AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseClass*> visited) {
 
 	// Current object data
@@ -55,9 +61,7 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 		objectName = s;
 	}
 	if (objectName != "") {
-		// symbol names must begin with '\'
-		objectName.insert(0, "\\");
-		std::replace(objectName.begin(), objectName.end(), '@','_');
+		sanitize_symbol_name(objectName);
 		current_node->str = objectName;
 	}
 	if (unsigned int l = vpi_get(vpiLineNo, obj_h)) {
@@ -183,7 +187,27 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 					visited,
 					[](AST::AstNode*){});
 
+			vpiHandle parent_h = vpi_handle(vpiParent, obj_h);
+			if (parent_h) {
+				const unsigned int parentType = vpi_get(vpiType, obj_h);
+				std::string s = vpi_get_str(vpiName, parent_h);
+				sanitize_symbol_name(s);
+				if (parentType == vpiModule && s != objectName) {
+					// Nested module declaration
+					current_node->type = AST::AST_CELL;
+					auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
+					auto type = vpi_get_str(vpiDefName, parent_h);
+					if (type != "") {
+						typeNode->str = type;
+						current_node->children.push_back(typeNode);
+					}
+				}
+				else {
 			current_node->type = AST::AST_MODULE;
+				}
+			}
+			vpi_free_object(parent_h);
+
 			visit_one_to_many({
 					vpiPort,
 					vpiModule,
