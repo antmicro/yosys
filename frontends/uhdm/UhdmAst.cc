@@ -78,17 +78,6 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 	}
 	switch(objectType) {
 		case vpiDesign: {
-
-			// Unhandled relationships: will visit (and print) the object
-			visit_one_to_many({
-					UHDM::uhdmallPrograms,
-					UHDM::uhdmallPackages,
-					UHDM::uhdmallClasses,
-					UHDM::uhdmallUdps},
-					obj_h,
-					visited,
-					[](AST::AstNode*){});
-
 			current_node->type = AST::AST_DESIGN;
 			visit_one_to_many({
 					UHDM::uhdmallInterfaces,
@@ -103,22 +92,18 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 						}
 					});
 
+			// Unhandled relationships: will visit (and print) the object
+			//visit_one_to_many({
+			//		UHDM::uhdmallPrograms,
+			//		UHDM::uhdmallPackages,
+			//		UHDM::uhdmallClasses,
+			//		UHDM::uhdmallUdps},
+			//		obj_h,
+			//		visited,
+			//		[](AST::AstNode*){});
 			break;
 		}
 		case vpiPort: {
-			// Unhandled relationships: will visit (and print) the object
-			visit_one_to_many({vpiBit},
-					obj_h,
-					visited,
-					[](AST::AstNode*){});
-			visit_one_to_one({vpiTypedef,
-					vpiInstance,
-					vpiModule,
-					vpiHighConn,
-					vpiLowConn},
-					obj_h,
-					visited,
-					[](AST::AstNode*){});
 			current_node->type = AST::AST_WIRE;
 
 			if (const int n = vpi_get(vpiDirection, obj_h)) {
@@ -132,60 +117,22 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 				}
 			}
 
+			// Unhandled relationships: will visit (and print) the object
+			//visit_one_to_many({vpiBit},
+			//		obj_h,
+			//		visited,
+			//		[](AST::AstNode*){});
+			//visit_one_to_one({vpiTypedef,
+			//		vpiInstance,
+			//		vpiModule,
+			//		vpiHighConn,
+			//		vpiLowConn},
+			//		obj_h,
+			//		visited,
+			//		[](AST::AstNode*){});
 			break;
 		}
 		case vpiModule: {
-			// Unhandled relationships: will visit (and print) the object
-			visit_one_to_many({vpiProcess,
-					vpiPrimitive,
-					vpiPrimitiveArray,
-					vpiInterfaceArray,
-					//vpiModule,
-					vpiModuleArray,
-					vpiModPath,
-					vpiTchk,
-					vpiDefParam,
-					vpiIODecl,
-					vpiAliasStmt,
-					vpiClockingBlock,
-					vpiTaskFunc,
-					vpiNet,
-					vpiArrayNet,
-					vpiAssertion,
-					vpiClassDefn,
-					vpiProgram,
-					vpiProgramArray,
-					vpiSpecParam,
-					vpiConcurrentAssertions,
-					vpiVariables,
-					vpiParameter,
-					vpiInternalScope,
-					vpiTypedef,
-					vpiPropertyDecl,
-					vpiSequenceDecl,
-					vpiNamedEvent,
-					vpiNamedEventArray,
-					vpiVirtualInterfaceVar,
-					vpiReg,
-					vpiRegArray,
-					vpiMemory,
-					vpiLetDecl,
-					vpiImport
-					},
-					obj_h,
-					visited,
-					[](AST::AstNode*){});
-			visit_one_to_one({vpiDefaultDisableIff,
-					vpiInstanceArray,
-					vpiGlobalClocking,
-					vpiDefaultClocking,
-					vpiModuleArray,
-					vpiInstance,
-					vpiModule  // TODO: Both here and in one-to-many?
-					},
-					obj_h,
-					visited,
-					[](AST::AstNode*){});
 
 			vpiHandle parent_h = vpi_handle(vpiParent, obj_h);
 			if (parent_h) {
@@ -220,19 +167,60 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 					current_node->children.push_back(port);
 				}
 			});
+			// Unhandled relationships: will visit (and print) the object
+			//visit_one_to_many({vpiProcess,
+			//		vpiPrimitive,
+			//		vpiPrimitiveArray,
+			//		vpiInterfaceArray,
+			//		//vpiModule,
+			//		vpiModuleArray,
+			//		vpiModPath,
+			//		vpiTchk,
+			//		vpiDefParam,
+			//		vpiIODecl,
+			//		vpiAliasStmt,
+			//		vpiClockingBlock,
+			//		vpiTaskFunc,
+			//		vpiNet,
+			//		vpiArrayNet,
+			//		vpiAssertion,
+			//		vpiClassDefn,
+			//		vpiProgram,
+			//		vpiProgramArray,
+			//		vpiSpecParam,
+			//		vpiConcurrentAssertions,
+			//		vpiVariables,
+			//		vpiParameter,
+			//		vpiInternalScope,
+			//		vpiTypedef,
+			//		vpiPropertyDecl,
+			//		vpiSequenceDecl,
+			//		vpiNamedEvent,
+			//		vpiNamedEventArray,
+			//		vpiVirtualInterfaceVar,
+			//		vpiReg,
+			//		vpiRegArray,
+			//		vpiMemory,
+			//		vpiLetDecl,
+			//		vpiImport
+			//		},
+			//		obj_h,
+			//		visited,
+			//		[](AST::AstNode*){});
+			//visit_one_to_one({vpiDefaultDisableIff,
+			//		vpiInstanceArray,
+			//		vpiGlobalClocking,
+			//		vpiDefaultClocking,
+			//		vpiModuleArray,
+			//		vpiInstance,
+			//		vpiModule  // TODO: Both here and in one-to-many?
+			//		},
+			//		obj_h,
+			//		visited,
+			//		[](AST::AstNode*){});
 			break;
 		}
 		case vpiContAssign: {
-			// Unhandled relationships: will visit (and print) the object
-			visit_one_to_one({vpiDelay},
-					obj_h,
-					visited,
-					[](AST::AstNode*){});
-			visit_one_to_many({vpiBit},
-					obj_h,
-					visited,
-					[](AST::AstNode*){});
-
 			current_node->type = AST::AST_ASSIGN;
 			visit_one_to_one({vpiRhs, vpiLhs},
 					obj_h,
@@ -243,6 +231,15 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 						}
 					});
 
+			// Unhandled relationships: will visit (and print) the object
+			//visit_one_to_one({vpiDelay},
+			//		obj_h,
+			//		visited,
+			//		[](AST::AstNode*){});
+			//visit_one_to_many({vpiBit},
+			//		obj_h,
+			//		visited,
+			//		[](AST::AstNode*){});
 			break;
 		}
 		case vpiRefObj: {
@@ -263,36 +260,36 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 			break;
 		}
 		case vpiNet: {
-			// Unhandled relationships: will visit (and print) the object
-			visit_one_to_one({vpiLeftRange,
-					vpiRightRange,
-					vpiSimNet,
-					vpiModule,
-					vpiTypespec
-					},
-					obj_h,
-					visited,
-					[](AST::AstNode*){});
-			visit_one_to_many({vpiRange,
-					vpiBit,
-					vpiPortInst,
-					vpiDriver,
-					vpiLoad,
-					vpiLocalDriver,
-					vpiLocalLoad,
-					vpiPrimTerm,
-					vpiContAssign,
-					vpiPathTerm,
-					vpiTchkTerm
-					},
-					obj_h,
-					visited,
-					[](AST::AstNode*){});
-
 			current_node->type = AST::AST_WIRE;
 
 			//TODO: Check type
 			current_node->is_logic = true;
+
+			// Unhandled relationships: will visit (and print) the object
+			//visit_one_to_one({vpiLeftRange,
+			//		vpiRightRange,
+			//		vpiSimNet,
+			//		vpiModule,
+			//		vpiTypespec
+			//		},
+			//		obj_h,
+			//		visited,
+			//		[](AST::AstNode*){});
+			//visit_one_to_many({vpiRange,
+			//		vpiBit,
+			//		vpiPortInst,
+			//		vpiDriver,
+			//		vpiLoad,
+			//		vpiLocalDriver,
+			//		vpiLocalLoad,
+			//		vpiPrimTerm,
+			//		vpiContAssign,
+			//		vpiPathTerm,
+			//		vpiTchkTerm
+			//		},
+			//		obj_h,
+			//		visited,
+			//		[](AST::AstNode*){});
 			break;
 		}
 		case vpiClassDefn: {
@@ -301,25 +298,24 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 			}
 
 			// Unhandled relationships: will visit (and print) the object
-			visit_one_to_many({vpiConcurrentAssertions,
-					vpiVariables,
-					vpiParameter,
-					vpiInternalScope,
-					vpiTypedef,
-					vpiPropertyDecl,
-					vpiSequenceDecl,
-					vpiNamedEvent,
-					vpiNamedEventArray,
-					vpiVirtualInterfaceVar,
-					vpiReg,
-					vpiRegArray,
-					vpiMemory,
-					vpiLetDecl,
-					vpiImport},
-					obj_h,
-					visited,
-					[](AST::AstNode*){});
-
+			//visit_one_to_many({vpiConcurrentAssertions,
+			//		vpiVariables,
+			//		vpiParameter,
+			//		vpiInternalScope,
+			//		vpiTypedef,
+			//		vpiPropertyDecl,
+			//		vpiSequenceDecl,
+			//		vpiNamedEvent,
+			//		vpiNamedEventArray,
+			//		vpiVirtualInterfaceVar,
+			//		vpiReg,
+			//		vpiRegArray,
+			//		vpiMemory,
+			//		vpiLetDecl,
+			//		vpiImport},
+			//		obj_h,
+			//		visited,
+			//		[](AST::AstNode*){});
 			break;
 		}
 		case vpiInterface: {
@@ -335,52 +331,54 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 					current_node->children.push_back(port);
 				}
 			});
-			visit_one_to_one({
-					vpiParent,
-					vpiInstanceArray,
-					vpiGlobalClocking,
-					vpiDefaultClocking,
-					vpiDefaultDisableIff,
-					vpiInstance,
-					vpiModule
-					},
-					obj_h,
-					visited,
-					[](AST::AstNode*){});
-			visit_one_to_many({
-					vpiProcess,
-					vpiInterfaceTfDecl,
-					vpiModPath,
-					vpiContAssign,
-					vpiInterface,
-					vpiInterfaceArray,
-					vpiPort,
-					vpiTaskFunc,
-					vpiArrayNet,
-					vpiAssertion,
-					vpiClassDefn,
-					vpiProgram,
-					vpiProgramArray,
-					vpiSpecParam,
-					vpiConcurrentAssertions,
-					vpiVariables,
-					vpiParameter,
-					vpiInternalScope,
-					vpiTypedef,
-					vpiPropertyDecl,
-					vpiSequenceDecl,
-					vpiNamedEvent,
-					vpiNamedEventArray,
-					vpiVirtualInterfaceVar,
-					vpiReg,
-					vpiRegArray,
-					vpiMemory,
-					vpiLetDecl,
-					vpiImport,
-					},
-					obj_h,
-					visited,
-					[](AST::AstNode*){});
+
+			// Unhandled relationships: will visit (and print) the object
+			//visit_one_to_one({
+			//		vpiParent,
+			//		vpiInstanceArray,
+			//		vpiGlobalClocking,
+			//		vpiDefaultClocking,
+			//		vpiDefaultDisableIff,
+			//		vpiInstance,
+			//		vpiModule
+			//		},
+			//		obj_h,
+			//		visited,
+			//		[](AST::AstNode*){});
+			//visit_one_to_many({
+			//		vpiProcess,
+			//		vpiInterfaceTfDecl,
+			//		vpiModPath,
+			//		vpiContAssign,
+			//		vpiInterface,
+			//		vpiInterfaceArray,
+			//		vpiPort,
+			//		vpiTaskFunc,
+			//		vpiArrayNet,
+			//		vpiAssertion,
+			//		vpiClassDefn,
+			//		vpiProgram,
+			//		vpiProgramArray,
+			//		vpiSpecParam,
+			//		vpiConcurrentAssertions,
+			//		vpiVariables,
+			//		vpiParameter,
+			//		vpiInternalScope,
+			//		vpiTypedef,
+			//		vpiPropertyDecl,
+			//		vpiSequenceDecl,
+			//		vpiNamedEvent,
+			//		vpiNamedEventArray,
+			//		vpiVirtualInterfaceVar,
+			//		vpiReg,
+			//		vpiRegArray,
+			//		vpiMemory,
+			//		vpiLetDecl,
+			//		vpiImport,
+			//		},
+			//		obj_h,
+			//		visited,
+			//		[](AST::AstNode*){});
 			break;
 		}
 		case vpiModport: {
