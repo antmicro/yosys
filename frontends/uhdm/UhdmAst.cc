@@ -10,11 +10,12 @@ YOSYS_NAMESPACE_BEGIN
 
 void UhdmAst::visit_one_to_many (const std::vector<int> childrenNodeTypes,
 		vpiHandle parentHandle, std::set<const UHDM::BaseClass*> visited,
+		AST::AstNode* parent_node,
 		const std::function<void(AST::AstNode*)> &f) {
 	for (auto child : childrenNodeTypes) {
 		vpiHandle itr = vpi_iterate(child, parentHandle);
 		while (vpiHandle vpi_child_obj = vpi_scan(itr) ) {
-			auto *childNode = visit_object(vpi_child_obj, visited);
+			auto *childNode = visit_object(vpi_child_obj, visited, parent_node);
 			f(childNode);
 			vpi_free_object(vpi_child_obj);
 		}
@@ -24,11 +25,12 @@ void UhdmAst::visit_one_to_many (const std::vector<int> childrenNodeTypes,
 
 void UhdmAst::visit_one_to_one (const std::vector<int> childrenNodeTypes,
 		vpiHandle parentHandle, std::set<const UHDM::BaseClass*> visited,
+		AST::AstNode* parent_node,
 		const std::function<void(AST::AstNode*)> &f) {
 	for (auto child : childrenNodeTypes) {
 		vpiHandle itr = vpi_handle(child, parentHandle);
 		if (itr) {
-			auto *childNode = visit_object(itr, visited);
+			auto *childNode = visit_object(itr, visited, parent_node);
 			f(childNode);
 		}
 		vpi_free_object(itr);
@@ -41,7 +43,10 @@ void sanitize_symbol_name(std::string &name) {
 		std::replace(name.begin(), name.end(), '@','_');
 }
 
-AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseClass*> visited) {
+AST::AstNode* UhdmAst::visit_object (
+		vpiHandle obj_h,
+		std::set<const UHDM::BaseClass*> visited,
+		AST::AstNode* parent_node) {
 
 	// Current object data
 	std::string objectName = "";
@@ -81,11 +86,11 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 			current_node->type = AST::AST_DESIGN;
 			visit_one_to_many({
 					UHDM::uhdmallInterfaces,
-					UHDM::uhdmtopModules,
-					UHDM::uhdmallModules
+					UHDM::uhdmtopModules
 					},
 					obj_h,
 					visited,
+					current_node,  // Will be used to add module definitions
 					[&](AST::AstNode* object) {
 						if (object != nullptr) {
 							current_node->children.push_back(object);
@@ -133,29 +138,17 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 			break;
 		}
 		case vpiModule: {
-
-			vpiHandle parent_h = vpi_handle(vpiParent, obj_h);
-			if (parent_h) {
-				const unsigned int parentType = vpi_get(vpiType, obj_h);
-				std::string s = vpi_get_str(vpiName, parent_h);
-				sanitize_symbol_name(s);
-				if (parentType == vpiModule && s != objectName) {
-					// Nested module declaration
-					current_node->type = AST::AST_CELL;
-					auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
-					std::string type = vpi_get_str(vpiDefName, obj_h);
-					if (type != "") {
-						sanitize_symbol_name(type);
-						typeNode->str = type;
-						current_node->children.push_back(typeNode);
-						break;
-					}
-				}
-				else {
-			current_node->type = AST::AST_MODULE;
-				}
+			current_node->type = AST::AST_CELL;
+			auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
+			std::string type = vpi_get_str(vpiDefName, obj_h);
+			if (type != "") {
+				sanitize_symbol_name(type);
+				typeNode->str = type;
+				current_node->children.push_back(typeNode);
 			}
-			vpi_free_object(parent_h);
+
+			AST::AstNode* elaboratedModule = new AST::AstNode(AST::AST_MODULE);
+			elaboratedModule->str = objectName;
 
 			visit_one_to_many({
 					vpiPort,
@@ -164,11 +157,17 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 					vpiContAssign},
 					obj_h,
 					visited,
+					parent_node,
 					[&](AST::AstNode* port){
 				if(port) {
-					current_node->children.push_back(port);
+					elaboratedModule->children.push_back(port);
 				}
 			});
+			// Find the design node
+			if (parent_node != nullptr) {
+				parent_node->children.push_back(elaboratedModule);
+			}
+
 			// Unhandled relationships: will visit (and print) the object
 			//visit_one_to_many({vpiProcess,
 			//		vpiPrimitive,
@@ -227,6 +226,7 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 			visit_one_to_one({vpiRhs, vpiLhs},
 					obj_h,
 					visited,
+					current_node,
 					[&](AST::AstNode* node){
 						if (node) {
 							current_node->children.push_back(node);
@@ -252,10 +252,12 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 					vpiTypespec},
 					obj_h,
 					visited,
+					parent_node,
 					[](AST::AstNode*){});
 			visit_one_to_many({vpiPortInst},
 					obj_h,
 					visited,
+					parent_node,
 					[](AST::AstNode*){});
 			current_node->type = AST::AST_IDENTIFIER;
 
@@ -321,18 +323,33 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 			break;
 		}
 		case vpiInterface: {
-			current_node->type = AST::AST_INTERFACE;
+			AST::AstNode* elaboratedInterface = new AST::AstNode(AST::AST_INTERFACE);
 			visit_one_to_many({
 					vpiNet,
 					vpiModport
 					},
 					obj_h,
 					visited,
+					parent_node,
 					[&](AST::AstNode* port){
 				if(port) {
-					current_node->children.push_back(port);
+					elaboratedInterface->children.push_back(port);
 				}
 			});
+			elaboratedInterface->str = objectName;
+			if (parent_node != nullptr) {
+				parent_node->children.push_back(elaboratedInterface);
+			}
+
+			current_node->type = AST::AST_CELL;
+			auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
+			std::string type = vpi_get_str(vpiDefName, obj_h);
+			if (type != "") {
+				sanitize_symbol_name(type);
+				typeNode->str = type;
+				current_node->children.push_back(typeNode);
+				break;
+			}
 
 			// Unhandled relationships: will visit (and print) the object
 			//visit_one_to_one({
@@ -388,6 +405,7 @@ AST::AstNode* UhdmAst::visit_object (vpiHandle obj_h, std::set<const UHDM::BaseC
 			visit_one_to_many({vpiIODecl},
 					obj_h,
 					visited,
+					parent_node,
 					[&](AST::AstNode* net){
 				if(net) {
 					current_node->children.push_back(net);
@@ -429,7 +447,7 @@ AST::AstNode* UhdmAst::visit_designs (const std::vector<vpiHandle>& designs) {
 
 	for (auto design : designs) {
 		std::set<const UHDM::BaseClass*> visited;
-		auto *nodes = visit_object(design, visited);
+		auto *nodes = visit_object(design, visited, nullptr);
 		// Flatten multiple designs into one
 		for (auto child : nodes->children) {
 		  top_design->children.push_back(child);
