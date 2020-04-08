@@ -18,7 +18,7 @@ class UhdmAst {
 		void visit_one_to_many (const std::vector<int> childrenNodeTypes,
 				vpiHandle parentHandle,
 				std::set<const UHDM::BaseClass*> visited,
-				AST::AstNode* parent_node,
+				std::map<std::string, AST::AstNode*>* top_nodes,
 				const std::function<void(AST::AstNode*)> &f);
 
 		// Walks through one-to-one relationships from given parent
@@ -27,7 +27,7 @@ class UhdmAst {
 		void visit_one_to_one (const std::vector<int> childrenNodeTypes,
 				vpiHandle parentHandle,
 				std::set<const UHDM::BaseClass*> visited,
-				AST::AstNode* parent_node,
+				std::map<std::string, AST::AstNode*>* top_nodes,
 				const std::function<void(AST::AstNode*)> &f);
 
 	public:
@@ -35,7 +35,7 @@ class UhdmAst {
 		// Visits single VPI object and creates proper AST node
 		AST::AstNode* visit_object (vpiHandle obj_h,
 				std::set<const UHDM::BaseClass*> visited,
-				AST::AstNode* parent_node);
+				std::map<std::string, AST::AstNode*>* top_nodes);
 
 		// Visits all VPI design objects and returns created ASTs
 		AST::AstNode* visit_designs (const std::vector<vpiHandle>& designs);
