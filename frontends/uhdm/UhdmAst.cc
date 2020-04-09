@@ -220,21 +220,29 @@ AST::AstNode* UhdmAst::visit_object (
 				typeNode->str = type;
 				current_node->children.push_back(typeNode);
 				// Add port connections as arguments
-				visit_one_to_many({
-					vpiPort,
-					},
-					obj_h,
-					visited,
-					top_nodes,
-					[&](AST::AstNode* node){
-					if (node != nullptr)
-						auto argNode = new AST::AstNode(AST::AST_ARGUMENT);
-						auto identifierNode = new AST::AstNode(AST::AST_IDENTIFIER);
-						// Discard the actual node, but take identifier
-						identifierNode->str = node->str;
-						argNode->children.push_back(identifierNode);
-						current_node->children.push_back(argNode);
-					});
+				vpiHandle port_itr = vpi_iterate(vpiPort, obj_h);
+				while (vpiHandle portHandle = vpi_scan(port_itr) ) {
+					auto highConn_h = vpi_handle(vpiHighConn, portHandle);
+					auto lowConn_h = vpi_handle(vpiLowConn, portHandle);
+					auto actual_h = vpi_handle(vpiActual, lowConn_h);
+					std::string argumentName, identifierName;
+					if (auto s = vpi_get_str(vpiName, highConn_h)) {
+						identifierName = s;
+						sanitize_symbol_name(identifierName);
+					}
+					if (auto s = vpi_get_str(vpiName, actual_h)) {
+						argumentName = s;
+						sanitize_symbol_name(argumentName);
+					}
+					auto argNode = new AST::AstNode(AST::AST_ARGUMENT);
+					auto identifierNode = new AST::AstNode(AST::AST_IDENTIFIER);
+					argNode->str = argumentName;
+					identifierNode->str = identifierName;
+					argNode->children.push_back(identifierNode);
+					current_node->children.push_back(argNode);
+					vpi_free_object(portHandle);
+				}
+				vpi_free_object(port_itr);
 			}
 
 			// Unhandled relationships: will visit (and print) the object
