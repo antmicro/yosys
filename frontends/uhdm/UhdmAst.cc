@@ -116,7 +116,34 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiPort: {
 			current_node->type = AST::AST_WIRE;
+			vpiHandle lowConn_h = vpi_handle(vpiLowConn, obj_h);
+			if (lowConn_h != nullptr) {
+				vpiHandle actual_h = vpi_handle(vpiActual, lowConn_h);
+				auto actual_type = vpi_get(vpiType, actual_h);
+				if (actual_type == vpiModport) {
+					vpiHandle iface_h = vpi_handle(vpiInterface, actual_h);
 
+					std::string cellName, ifaceName;
+					if (auto s = vpi_get_str(vpiName, actual_h)) {
+						cellName = s;
+						sanitize_symbol_name(cellName);
+					}
+					if (auto s = vpi_get_str(vpiDefName, iface_h)) {
+						ifaceName = s;
+						sanitize_symbol_name(ifaceName);
+					}
+					current_node->type = AST::AST_INTERFACEPORT;
+					current_node->str = objectName;
+					auto typeNode = new AST::AstNode(AST::AST_INTERFACEPORTTYPE);
+					// Skip '\' in cellName
+					typeNode->str = ifaceName + '.' + cellName.substr(1, cellName.length());
+					current_node->children.push_back(typeNode);
+					break;
+				}
+			}
+
+			// For non-interface ports
+			current_node->type = AST::AST_WIRE;
 			if (const int n = vpi_get(vpiDirection, obj_h)) {
 				if (n == vpiInput) {
 					current_node->is_input = true;
