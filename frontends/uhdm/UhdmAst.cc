@@ -170,7 +170,7 @@ AST::AstNode* UhdmAst::visit_object (
 			} else {
 				// Encountered for the first time
 				elaboratedModule = new AST::AstNode(AST::AST_MODULE);
-				elaboratedModule->str = objectName;
+				elaboratedModule->str = type;
 				visit_one_to_many({
 					vpiInterface,
 					vpiPort,
