@@ -221,16 +221,14 @@ AST::AstNode* UhdmAst::visit_object (
 				current_node->children.push_back(typeNode);
 				// Add port connections as arguments
 				vpiHandle port_itr = vpi_iterate(vpiPort, obj_h);
-				while (vpiHandle portHandle = vpi_scan(port_itr) ) {
-					auto highConn_h = vpi_handle(vpiHighConn, portHandle);
-					auto lowConn_h = vpi_handle(vpiLowConn, portHandle);
-					auto actual_h = vpi_handle(vpiActual, lowConn_h);
+				while (vpiHandle port_h = vpi_scan(port_itr) ) {
+					auto highConn_h = vpi_handle(vpiHighConn, port_h);
 					std::string argumentName, identifierName;
 					if (auto s = vpi_get_str(vpiName, highConn_h)) {
 						identifierName = s;
 						sanitize_symbol_name(identifierName);
 					}
-					if (auto s = vpi_get_str(vpiName, actual_h)) {
+					if (auto s = vpi_get_str(vpiName, port_h)) {
 						argumentName = s;
 						sanitize_symbol_name(argumentName);
 					}
@@ -240,7 +238,7 @@ AST::AstNode* UhdmAst::visit_object (
 					identifierNode->str = identifierName;
 					argNode->children.push_back(identifierNode);
 					current_node->children.push_back(argNode);
-					vpi_free_object(portHandle);
+					vpi_free_object(port_h);
 				}
 				vpi_free_object(port_itr);
 			}
