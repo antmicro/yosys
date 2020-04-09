@@ -172,6 +172,7 @@ AST::AstNode* UhdmAst::visit_object (
 				elaboratedModule = new AST::AstNode(AST::AST_MODULE);
 				elaboratedModule->str = objectName;
 				visit_one_to_many({
+					vpiInterface,
 					vpiPort,
 					vpiModule,
 					vpiContAssign,
@@ -191,6 +192,22 @@ AST::AstNode* UhdmAst::visit_object (
 				auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
 				typeNode->str = type;
 				current_node->children.push_back(typeNode);
+				// Add port connections as arguments
+				visit_one_to_many({
+					vpiPort,
+					},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+					if (node != nullptr)
+						auto argNode = new AST::AstNode(AST::AST_ARGUMENT);
+						auto identifierNode = new AST::AstNode(AST::AST_IDENTIFIER);
+						// Discard the actual node, but take identifier
+						identifierNode->str = node->str;
+						argNode->children.push_back(identifierNode);
+						current_node->children.push_back(argNode);
+					});
 			}
 
 			// Unhandled relationships: will visit (and print) the object
@@ -348,27 +365,48 @@ AST::AstNode* UhdmAst::visit_object (
 			break;
 		}
 		case vpiInterface: {
-			AST::AstNode* elaboratedInterface = new AST::AstNode(AST::AST_INTERFACE);
-			visit_one_to_many({
+			std::string type = vpi_get_str(vpiDefName, obj_h);
+			if (type != "") {
+				sanitize_symbol_name(type);
+			}
+
+			AST::AstNode* elaboratedInterface;
+			// Check if we have encountered this object before
+			auto it = top_nodes->find(type);
+			if (it != top_nodes->end()) {
+				// Was created before, fill missing
+				elaboratedInterface = it->second;
+				visit_one_to_many({
+					},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+					if (node != nullptr)
+						elaboratedInterface->children.push_back(node);
+					});
+			} else {
+				// Encountered for the first time
+				elaboratedInterface = new AST::AstNode(AST::AST_INTERFACE);
+				elaboratedInterface->str = objectName;
+				visit_one_to_many({
 					vpiNet,
 					vpiModport
 					},
 					obj_h,
 					visited,
 					top_nodes,
-					[&](AST::AstNode* port){
-				if(port) {
-					elaboratedInterface->children.push_back(port);
-				}
-			});
-			elaboratedInterface->str = objectName;
+					[&](AST::AstNode* node){
+					if (node != nullptr)
+						elaboratedInterface->children.push_back(node);
+					});
+			}
 			(*top_nodes)[elaboratedInterface->str] = elaboratedInterface;
 
-			current_node->type = AST::AST_CELL;
-			auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
-			std::string type = vpi_get_str(vpiDefName, obj_h);
-			if (type != "") {
-				sanitize_symbol_name(type);
+			if (objectName != type) {
+				// Not a top module, create instance
+				current_node->type = AST::AST_CELL;
+				auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
 				typeNode->str = type;
 				current_node->children.push_back(typeNode);
 				break;
