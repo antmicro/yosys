@@ -76,9 +76,13 @@ struct UhdmAstFrontend : public Frontend {
 
 		current_ast = parser.visit_designs(restoredDesigns);
 
+		bool dump_ast1 = true;
+		bool dump_ast2 = true;
+		bool dont_redefine = false;
+		bool default_nettype_wire = true;
 		AST::process(design, current_ast,
-			false, false, false, false, false, false, false, false, false, false,
-			false, false, false, false, false, false, false, false, false, false
+			dump_ast1, dump_ast2, false, false, false, false, false, false, false, false,
+			false, false, false, false, false, false, dont_redefine, false, false, default_nettype_wire
 		);
 	}
 } UhdmAstFrontend;
