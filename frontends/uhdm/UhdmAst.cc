@@ -186,6 +186,7 @@ AST::AstNode* UhdmAst::visit_object (
 					vpiInterface,
 					vpiModule,
 					vpiContAssign,
+					vpiProcess,
 					},
 					obj_h,
 					visited,
@@ -203,6 +204,7 @@ AST::AstNode* UhdmAst::visit_object (
 					vpiPort,
 					vpiModule,
 					vpiContAssign,
+					vpiProcess,
 					},
 					obj_h,
 					visited,
@@ -317,6 +319,19 @@ AST::AstNode* UhdmAst::visit_object (
 			//		obj_h,
 			//		visited,
 			//		[](AST::AstNode*){});
+			break;
+		}
+		case vpiAssignment: {
+			current_node->type = AST::AST_ASSIGN_LE;
+			visit_one_to_one({vpiLhs, vpiRhs},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+						if (node) {
+							current_node->children.push_back(node);
+						}
+					});
 			break;
 		}
 		case vpiRefObj: {
@@ -517,6 +532,107 @@ AST::AstNode* UhdmAst::visit_object (
 				} else if (n == vpiInout) {
 					current_node->is_input = true;
 					current_node->is_output = true;
+				}
+			}
+			break;
+		}
+		case vpiAlways: {
+			current_node->type = AST::AST_ALWAYS;
+			auto event_control_h = vpi_handle(vpiStmt, obj_h);
+			visit_one_to_one({
+				vpiCondition,
+				vpiStmt,
+				},
+				event_control_h,
+				visited,
+				top_nodes,
+				[&](AST::AstNode* node){
+					current_node->children.push_back(node);
+				});
+			break;
+		}
+		case vpiBegin: {
+			current_node->type = AST::AST_BLOCK;
+			visit_one_to_many({
+				vpiStmt,
+				},
+				obj_h,
+				visited,
+				top_nodes,
+				[&](AST::AstNode* node){
+					current_node->children.push_back(node);
+				});
+			break;
+		}
+		case vpiOperation: {
+			auto operation = vpi_get(vpiOpType, obj_h);
+			switch (operation) {
+				case vpiNotOp: {
+					current_node->type = AST::AST_REDUCE_BOOL;
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							auto *negate = new AST::AstNode(AST::AST_LOGIC_NOT);
+							negate->children.push_back(node);
+							current_node->children.push_back(negate);
+						});
+					break;
+				}
+				case vpiPosedgeOp: {
+					current_node->type = AST::AST_POSEDGE;
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							current_node->children.push_back(node);
+						});
+					break;
+				}
+				default: {
+					break;
+				}
+			}
+			break;
+		}
+		case vpiIfElse: {
+			current_node->type = AST::AST_CASE;
+			visit_one_to_one({vpiCondition}, obj_h, visited, top_nodes,
+				[&](AST::AstNode* node){
+					current_node->children.push_back(node);
+				});
+			// If true:
+			auto *condition = new AST::AstNode(AST::AST_COND);
+			auto *constant = AST::AstNode::mkconst_int(1, false, 1);
+			condition->children.push_back(constant);
+			visit_one_to_one({vpiStmt}, obj_h, visited, top_nodes,
+				[&](AST::AstNode* node){
+					auto *statements = new AST::AstNode(AST::AST_BLOCK);
+					statements->children.push_back(node);
+					condition->children.push_back(statements);
+				});
+			current_node->children.push_back(condition);
+			if (objectType == vpiIfElse) {
+				auto *condition = new AST::AstNode(AST::AST_COND);
+				auto *elseBlock = new AST::AstNode(AST::AST_DEFAULT);
+				condition->children.push_back(elseBlock);
+				visit_one_to_one({vpiElseStmt}, obj_h, visited, top_nodes,
+					[&](AST::AstNode* node){
+						auto *statements = new AST::AstNode(AST::AST_BLOCK);
+						statements->children.push_back(node);
+						condition->children.push_back(statements);
+					});
+				current_node->children.push_back(condition);
+			}
+			break;
+		}
+		case vpiConstant: {
+			current_node->type = AST::AST_CONSTANT;
+			s_vpi_value val;
+			vpi_get_value(obj_h, &val);
+			switch (val.format) {
+				case vpiIntVal: {
+					current_node = AST::AstNode::mkconst_int(val.value.integer, false, 1);
+					break;
+				}
+				default: {
+					break;
 				}
 			}
 			break;
