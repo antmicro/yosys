@@ -621,16 +621,18 @@ AST::AstNode* UhdmAst::visit_object (
 					break;
 				}
 				default: {
+					std::cout << "\t! Encountered unhandled operation" << std::endl;
 					break;
 				}
 			}
 			break;
 		}
 		case vpiIfElse: {
-			current_node->type = AST::AST_CASE;
+			current_node->type = AST::AST_BLOCK;
+			auto* case_node = new AST::AstNode(AST::AST_CASE);
 			visit_one_to_one({vpiCondition}, obj_h, visited, top_nodes,
 				[&](AST::AstNode* node){
-					current_node->children.push_back(node);
+					case_node->children.push_back(node);
 				});
 			// If true:
 			auto *condition = new AST::AstNode(AST::AST_COND);
@@ -642,7 +644,7 @@ AST::AstNode* UhdmAst::visit_object (
 					statements->children.push_back(node);
 					condition->children.push_back(statements);
 				});
-			current_node->children.push_back(condition);
+			case_node->children.push_back(condition);
 			if (objectType == vpiIfElse) {
 				auto *condition = new AST::AstNode(AST::AST_COND);
 				auto *elseBlock = new AST::AstNode(AST::AST_DEFAULT);
@@ -653,8 +655,9 @@ AST::AstNode* UhdmAst::visit_object (
 						statements->children.push_back(node);
 						condition->children.push_back(statements);
 					});
-				current_node->children.push_back(condition);
+				case_node->children.push_back(condition);
 			}
+			current_node->children.push_back(case_node);
 			break;
 		}
 		case vpiConstant: {
