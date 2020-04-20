@@ -539,8 +539,16 @@ AST::AstNode* UhdmAst::visit_object (
 		case vpiAlways: {
 			current_node->type = AST::AST_ALWAYS;
 			auto event_control_h = vpi_handle(vpiStmt, obj_h);
+
+			// Some shenanigans to allow writing multiple conditions without intermediary node
+			std::map<std::string, AST::AstNode*> nodes;
+			nodes["process_node"] = current_node;
+			visit_one_to_one({vpiCondition}, event_control_h, visited, &nodes,
+				[](AST::AstNode*){
+					// is added inside vpiOperation
+				});
+
 			visit_one_to_one({
-				vpiCondition,
 				vpiStmt,
 				},
 				event_control_h,
@@ -577,8 +585,31 @@ AST::AstNode* UhdmAst::visit_object (
 						});
 					break;
 				}
+				case vpiEventOrOp: {
+					// Add all operands as children of process node
+					auto it = top_nodes->find("process_node");
+					if (it != top_nodes->end()) {
+						AST::AstNode* processNode = it->second;
+						visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+							[&](AST::AstNode* node){
+								// add directly to process node
+								processNode->children.push_back(node);
+							});
+					}
+					// Do not return a node
+					// Parent should not use returned value
+					return nullptr;
+				}
 				case vpiPosedgeOp: {
 					current_node->type = AST::AST_POSEDGE;
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							current_node->children.push_back(node);
+						});
+					break;
+				}
+				case vpiNegedgeOp: {
+					current_node->type = AST::AST_NEGEDGE;
 					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
 						[&](AST::AstNode* node){
 							current_node->children.push_back(node);
