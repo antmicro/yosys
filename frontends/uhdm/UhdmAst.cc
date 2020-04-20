@@ -116,6 +116,9 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiPort: {
 			current_node->type = AST::AST_WIRE;
+			static int portId = 1;
+			current_node->port_id = portId++;
+
 			vpiHandle lowConn_h = vpi_handle(vpiLowConn, obj_h);
 			if (lowConn_h != nullptr) {
 				vpiHandle actual_h = vpi_handle(vpiActual, lowConn_h);
@@ -149,6 +152,7 @@ AST::AstNode* UhdmAst::visit_object (
 					current_node->is_input = true;
 				} else if (n == vpiOutput) {
 					current_node->is_output = true;
+					current_node->is_reg = true;
 				} else if (n == vpiInout) {
 					current_node->is_input = true;
 					current_node->is_output = true;
