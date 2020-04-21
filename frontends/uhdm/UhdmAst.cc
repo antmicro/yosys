@@ -114,6 +114,21 @@ AST::AstNode* UhdmAst::visit_object (
 			//		[](AST::AstNode*){});
 			break;
 		}
+		case vpiParameter: {
+			s_vpi_value val;
+			vpi_get_value(obj_h, &val);
+			switch (val.format) {
+				case vpiIntVal: {
+					current_node->type = AST::AST_PARAMETER;
+					current_node->children.push_back(AST::AstNode::mkconst_int(val.value.integer, false, 1));
+					break;
+				}
+				default: {
+					break;
+				}
+			}
+			break;
+		}
 		case vpiPort: {
 			current_node->type = AST::AST_WIRE;
 			static int portId = 1;
@@ -250,7 +265,7 @@ AST::AstNode* UhdmAst::visit_object (
 			}
 
 			// Unhandled relationships: will visit (and print) the object
-			//visit_one_to_many({vpiProcess,
+			visit_one_to_many({//vpiProcess,
 			//		vpiPrimitive,
 			//		vpiPrimitiveArray,
 			//		vpiInterfaceArray,
@@ -272,7 +287,7 @@ AST::AstNode* UhdmAst::visit_object (
 			//		vpiSpecParam,
 			//		vpiConcurrentAssertions,
 			//		vpiVariables,
-			//		vpiParameter,
+					vpiParameter
 			//		vpiInternalScope,
 			//		vpiTypedef,
 			//		vpiPropertyDecl,
@@ -285,10 +300,15 @@ AST::AstNode* UhdmAst::visit_object (
 			//		vpiMemory,
 			//		vpiLetDecl,
 			//		vpiImport
-			//		},
-			//		obj_h,
-			//		visited,
-			//		[](AST::AstNode*){});
+					},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+						if (node != nullptr) {
+							elaboratedModule->children.push_back(node);
+						}
+					});
 			//visit_one_to_one({vpiDefaultDisableIff,
 			//		vpiInstanceArray,
 			//		vpiGlobalClocking,
@@ -614,6 +634,38 @@ AST::AstNode* UhdmAst::visit_object (
 				}
 				case vpiNegedgeOp: {
 					current_node->type = AST::AST_NEGEDGE;
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							current_node->children.push_back(node);
+						});
+					break;
+				}
+				case vpiBitAndOp: {
+					current_node->type = AST::AST_BIT_AND;
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							current_node->children.push_back(node);
+						});
+					break;
+				}
+				case vpiBitOrOp: {
+					current_node->type = AST::AST_BIT_OR;
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							current_node->children.push_back(node);
+						});
+					break;
+				}
+				case vpiBitXorOp: {
+					current_node->type = AST::AST_BIT_XOR;
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							current_node->children.push_back(node);
+						});
+					break;
+				}
+				case vpiBitXnorOp: {
+					current_node->type = AST::AST_BIT_XNOR;
 					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
 						[&](AST::AstNode* node){
 							current_node->children.push_back(node);
