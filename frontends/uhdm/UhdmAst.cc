@@ -79,7 +79,7 @@ AST::AstNode* UhdmAst::visit_object (
 		<< std::endl;
 
 	if (alreadyVisited) {
-		return current_node;
+		return nullptr;
 	}
 	switch(objectType) {
 		case vpiDesign: {
@@ -112,6 +112,25 @@ AST::AstNode* UhdmAst::visit_object (
 			//		obj_h,
 			//		visited,
 			//		[](AST::AstNode*){});
+			break;
+		}
+		case vpiParamAssign: {
+			vpiHandle lhs = vpi_handle(vpiLhs, obj_h);
+			vpiHandle rhs = vpi_handle(vpiRhs, obj_h);
+			auto param_name = vpi_get_str(vpiName, lhs);
+			current_node->str = param_name;
+			s_vpi_value val;
+			vpi_get_value(rhs, &val);
+			switch (val.format) {
+				case vpiIntVal: {
+					current_node->type = AST::AST_PARAMETER;
+					current_node->children.push_back(AST::AstNode::mkconst_int(val.value.integer, false, 1));
+					break;
+				}
+				default: {
+					break;
+				}
+			}
 			break;
 		}
 		case vpiParameter: {
@@ -287,6 +306,7 @@ AST::AstNode* UhdmAst::visit_object (
 			//		vpiSpecParam,
 			//		vpiConcurrentAssertions,
 			//		vpiVariables,
+					vpiParamAssign,
 					vpiParameter
 			//		vpiInternalScope,
 			//		vpiTypedef,
