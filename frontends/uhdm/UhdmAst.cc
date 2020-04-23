@@ -120,7 +120,7 @@ AST::AstNode* UhdmAst::visit_object (
 			switch (val.format) {
 				case vpiIntVal: {
 					current_node->type = AST::AST_PARAMETER;
-					current_node->children.push_back(AST::AstNode::mkconst_int(val.value.integer, false, 1));
+					current_node->children.push_back(AST::AstNode::mkconst_int(val.value.integer, true));
 					break;
 				}
 				default: {
