@@ -656,38 +656,6 @@ AST::AstNode* UhdmAst::visit_object (
 						});
 					break;
 				}
-				case vpiBitAndOp: {
-					current_node->type = AST::AST_BIT_AND;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
-						[&](AST::AstNode* node){
-							current_node->children.push_back(node);
-						});
-					break;
-				}
-				case vpiBitOrOp: {
-					current_node->type = AST::AST_BIT_OR;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
-						[&](AST::AstNode* node){
-							current_node->children.push_back(node);
-						});
-					break;
-				}
-				case vpiBitXorOp: {
-					current_node->type = AST::AST_BIT_XOR;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
-						[&](AST::AstNode* node){
-							current_node->children.push_back(node);
-						});
-					break;
-				}
-				case vpiBitXnorOp: {
-					current_node->type = AST::AST_BIT_XNOR;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
-						[&](AST::AstNode* node){
-							current_node->children.push_back(node);
-						});
-					break;
-				}
 				default: {
 					std::cout << "\t! Encountered unhandled operation" << std::endl;
 					break;
