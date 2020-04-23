@@ -174,6 +174,22 @@ AST::AstNode* UhdmAst::visit_object (
 				}
 			}
 
+			if (lowConn_h != nullptr) {
+				vpiHandle actual_h = vpi_handle(vpiActual, lowConn_h);
+				if (vpi_get(vpiType, actual_h) == vpiLogicNet) {
+					vpiHandle left_range = vpi_handle(vpiLeftRange, actual_h);
+					vpiHandle right_range = vpi_handle(vpiRightRange, actual_h);
+					s_vpi_value left_range_val;
+					s_vpi_value right_range_val;
+					vpi_get_value(left_range, &left_range_val);
+					vpi_get_value(right_range, &right_range_val);
+					if (left_range_val.format == vpiIntVal && right_range_val.format == vpiIntVal) {
+						current_node->type = AST::AST_RANGE;
+						current_node->children.push_back(AST::AstNode::mkconst_int(left_range_val.value.integer, true));
+						current_node->children.push_back(AST::AstNode::mkconst_int(right_range_val.value.integer, true));
+					}
+				}
+			}
 			// Unhandled relationships: will visit (and print) the object
 			//visit_one_to_many({vpiBit},
 			//		obj_h,
