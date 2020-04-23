@@ -184,9 +184,9 @@ AST::AstNode* UhdmAst::visit_object (
 					vpi_get_value(left_range, &left_range_val);
 					vpi_get_value(right_range, &right_range_val);
 					if (left_range_val.format == vpiIntVal && right_range_val.format == vpiIntVal) {
-						current_node->type = AST::AST_RANGE;
-						current_node->children.push_back(AST::AstNode::mkconst_int(left_range_val.value.integer, true));
-						current_node->children.push_back(AST::AstNode::mkconst_int(right_range_val.value.integer, true));
+						current_node->children.push_back(new AST::AstNode(AST::AST_RANGE,
+																		  AST::AstNode::mkconst_int(left_range_val.value.integer, true),
+																		  AST::AstNode::mkconst_int(right_range_val.value.integer, true)));
 					}
 				}
 			}
