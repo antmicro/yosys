@@ -138,58 +138,57 @@ AST::AstNode* UhdmAst::visit_object (
 			if (lowConn_h != nullptr) {
 				vpiHandle actual_h = vpi_handle(vpiActual, lowConn_h);
 				auto actual_type = vpi_get(vpiType, actual_h);
-				if (actual_type == vpiModport) {
-					vpiHandle iface_h = vpi_handle(vpiInterface, actual_h);
-
-					std::string cellName, ifaceName;
-					if (auto s = vpi_get_str(vpiName, actual_h)) {
-						cellName = s;
-						sanitize_symbol_name(cellName);
+				switch (actual_type) {
+					case vpiModport:
+					case vpiInterface: {
+						vpiHandle iface_h = vpi_handle(vpiInterface, actual_h);
+						std::string cellName, ifaceName;
+						if (auto s = vpi_get_str(vpiName, actual_h)) {
+							cellName = s;
+							sanitize_symbol_name(cellName);
+						}
+						if (auto s = vpi_get_str(vpiDefName, iface_h)) {
+							ifaceName = s;
+							sanitize_symbol_name(ifaceName);
+						}
+						current_node->type = AST::AST_INTERFACEPORT;
+						current_node->str = objectName;
+						auto typeNode = new AST::AstNode(AST::AST_INTERFACEPORTTYPE);
+						// Skip '\' in cellName
+						typeNode->str = ifaceName + '.' + cellName.substr(1, cellName.length());
+						current_node->children.push_back(typeNode);
+						break;
 					}
-					if (auto s = vpi_get_str(vpiDefName, iface_h)) {
-						ifaceName = s;
-						sanitize_symbol_name(ifaceName);
+					case vpiLogicNet: {
+						vpiHandle left_range = vpi_handle(vpiLeftRange, actual_h);
+						vpiHandle right_range = vpi_handle(vpiRightRange, actual_h);
+						s_vpi_value left_range_val;
+						s_vpi_value right_range_val;
+						vpi_get_value(left_range, &left_range_val);
+						vpi_get_value(right_range, &right_range_val);
+						if (left_range_val.format == vpiIntVal && right_range_val.format == vpiIntVal) {
+							current_node->children.push_back(new AST::AstNode(AST::AST_RANGE,
+																			  AST::AstNode::mkconst_int(left_range_val.value.integer, true),
+																			  AST::AstNode::mkconst_int(right_range_val.value.integer, true)));
+						}
 					}
-					current_node->type = AST::AST_INTERFACEPORT;
-					current_node->str = objectName;
-					auto typeNode = new AST::AstNode(AST::AST_INTERFACEPORTTYPE);
-					// Skip '\' in cellName
-					typeNode->str = ifaceName + '.' + cellName.substr(1, cellName.length());
-					current_node->children.push_back(typeNode);
-					break;
 				}
-			}
-
-			// For non-interface ports
-			current_node->type = AST::AST_WIRE;
-			if (const int n = vpi_get(vpiDirection, obj_h)) {
-				if (n == vpiInput) {
-					current_node->is_input = true;
-				} else if (n == vpiOutput) {
-					current_node->is_output = true;
-					current_node->is_reg = true;
-				} else if (n == vpiInout) {
-					current_node->is_input = true;
-					current_node->is_output = true;
-				}
-			}
-
-			if (lowConn_h != nullptr) {
-				vpiHandle actual_h = vpi_handle(vpiActual, lowConn_h);
-				if (vpi_get(vpiType, actual_h) == vpiLogicNet) {
-					vpiHandle left_range = vpi_handle(vpiLeftRange, actual_h);
-					vpiHandle right_range = vpi_handle(vpiRightRange, actual_h);
-					s_vpi_value left_range_val;
-					s_vpi_value right_range_val;
-					vpi_get_value(left_range, &left_range_val);
-					vpi_get_value(right_range, &right_range_val);
-					if (left_range_val.format == vpiIntVal && right_range_val.format == vpiIntVal) {
-						current_node->children.push_back(new AST::AstNode(AST::AST_RANGE,
-																		  AST::AstNode::mkconst_int(left_range_val.value.integer, true),
-																		  AST::AstNode::mkconst_int(right_range_val.value.integer, true)));
+			} else {
+				// For non-interface ports
+				current_node->type = AST::AST_WIRE;
+				if (const int n = vpi_get(vpiDirection, obj_h)) {
+					if (n == vpiInput) {
+						current_node->is_input = true;
+					} else if (n == vpiOutput) {
+						current_node->is_output = true;
+						current_node->is_reg = true;
+					} else if (n == vpiInout) {
+						current_node->is_input = true;
+						current_node->is_output = true;
 					}
 				}
 			}
+
 			// Unhandled relationships: will visit (and print) the object
 			//visit_one_to_many({vpiBit},
 			//		obj_h,
