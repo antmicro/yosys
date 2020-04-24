@@ -174,18 +174,17 @@ AST::AstNode* UhdmAst::visit_object (
 					}
 				}
 			} else {
-				// For non-interface ports
 				current_node->type = AST::AST_WIRE;
-				if (const int n = vpi_get(vpiDirection, obj_h)) {
-					if (n == vpiInput) {
-						current_node->is_input = true;
-					} else if (n == vpiOutput) {
-						current_node->is_output = true;
-						current_node->is_reg = true;
-					} else if (n == vpiInout) {
-						current_node->is_input = true;
-						current_node->is_output = true;
-					}
+			}
+			if (const int n = vpi_get(vpiDirection, obj_h)) {
+				if (n == vpiInput) {
+					current_node->is_input = true;
+				} else if (n == vpiOutput) {
+					current_node->is_output = true;
+					current_node->is_reg = true;
+				} else if (n == vpiInout) {
+					current_node->is_input = true;
+					current_node->is_output = true;
 				}
 			}
 
