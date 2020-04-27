@@ -162,19 +162,19 @@ AST::AstNode* UhdmAst::visit_object (
 					case vpiLogicNet: {
 						vpiHandle left_range = vpi_handle(vpiLeftRange, actual_h);
 						vpiHandle right_range = vpi_handle(vpiRightRange, actual_h);
-						s_vpi_value left_range_val;
-						s_vpi_value right_range_val;
-						vpi_get_value(left_range, &left_range_val);
-						vpi_get_value(right_range, &right_range_val);
-						if (left_range_val.format == vpiIntVal && right_range_val.format == vpiIntVal) {
-							current_node->children.push_back(new AST::AstNode(AST::AST_RANGE,
-																			  AST::AstNode::mkconst_int(left_range_val.value.integer, true),
-																			  AST::AstNode::mkconst_int(right_range_val.value.integer, true)));
+						if (left_range && right_range) {
+							s_vpi_value left_range_val;
+							s_vpi_value right_range_val;
+							vpi_get_value(left_range, &left_range_val);
+							vpi_get_value(right_range, &right_range_val);
+							if (left_range_val.format == vpiIntVal && right_range_val.format == vpiIntVal) {
+								current_node->children.push_back(new AST::AstNode(AST::AST_RANGE,
+																				AST::AstNode::mkconst_int(left_range_val.value.integer, true),
+																				AST::AstNode::mkconst_int(right_range_val.value.integer, true)));
+							}
 						}
 					}
 				}
-			} else {
-				current_node->type = AST::AST_WIRE;
 			}
 			if (const int n = vpi_get(vpiDirection, obj_h)) {
 				if (n == vpiInput) {
