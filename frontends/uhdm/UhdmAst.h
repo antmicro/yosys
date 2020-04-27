@@ -39,6 +39,8 @@ class UhdmAst {
 
 		// Visits all VPI design objects and returns created ASTs
 		AST::AstNode* visit_designs (const std::vector<vpiHandle>& designs);
+
+		void make_cell(vpiHandle obj_h, AST::AstNode* node, const std::string& type);
 };
 #endif	// Guard
 
