@@ -139,9 +139,8 @@ AST::AstNode* UhdmAst::visit_object (
 				vpiHandle actual_h = vpi_handle(vpiActual, lowConn_h);
 				auto actual_type = vpi_get(vpiType, actual_h);
 				switch (actual_type) {
-					case vpiModport:
-					case vpiInterface: {
-						vpiHandle iface_h = vpi_handle(vpiInterface, actual_h);
+                case vpiModport: {
+                        vpiHandle iface_h = vpi_handle(vpiInterface, actual_h);
 						std::string cellName, ifaceName;
 						if (auto s = vpi_get_str(vpiName, actual_h)) {
 							cellName = s;
@@ -156,6 +155,17 @@ AST::AstNode* UhdmAst::visit_object (
 						auto typeNode = new AST::AstNode(AST::AST_INTERFACEPORTTYPE);
 						// Skip '\' in cellName
 						typeNode->str = ifaceName + '.' + cellName.substr(1, cellName.length());
+						current_node->children.push_back(typeNode);
+						break;
+                    }
+					case vpiInterface: {
+						auto typeNode = new AST::AstNode(AST::AST_INTERFACEPORTTYPE);
+						if (auto s = vpi_get_str(vpiDefName, actual_h)) {
+							typeNode->str = s;
+							sanitize_symbol_name(typeNode->str);
+						}
+						current_node->type = AST::AST_INTERFACEPORT;
+						current_node->str = objectName;
 						current_node->children.push_back(typeNode);
 						break;
 					}
