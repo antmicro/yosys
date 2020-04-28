@@ -444,13 +444,15 @@ AST::AstNode* UhdmAst::visit_object (
 					top_nodes,
 					[&](AST::AstNode* node){
 					if (node != nullptr)
-						elaboratedInterface->children.push_back(node);
+						std::replace_if(elaboratedInterface->children.begin(), elaboratedInterface->children.end(),
+										[&node](AST::AstNode* x) {return x->str == node->str;}, node);
 					});
 			} else {
 				// Encountered for the first time
 				elaboratedInterface = new AST::AstNode(AST::AST_INTERFACE);
 				elaboratedInterface->str = objectName;
 				visit_one_to_many({
+					vpiNet,
 					vpiModport
 					},
 					obj_h,
@@ -743,31 +745,31 @@ AST::AstNode* UhdmAst::visit_designs (const std::vector<vpiHandle>& designs) {
 
 void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::string& type) {
 	current_node->type = AST::AST_CELL;
-				auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
-				typeNode->str = type;
-				current_node->children.push_back(typeNode);
-				// Add port connections as arguments
-				vpiHandle port_itr = vpi_iterate(vpiPort, obj_h);
-				while (vpiHandle port_h = vpi_scan(port_itr) ) {
-					auto highConn_h = vpi_handle(vpiHighConn, port_h);
-					std::string argumentName, identifierName;
-					if (auto s = vpi_get_str(vpiName, highConn_h)) {
-						identifierName = s;
-						sanitize_symbol_name(identifierName);
-					}
-					if (auto s = vpi_get_str(vpiName, port_h)) {
-						argumentName = s;
-						sanitize_symbol_name(argumentName);
-					}
-					auto argNode = new AST::AstNode(AST::AST_ARGUMENT);
-					auto identifierNode = new AST::AstNode(AST::AST_IDENTIFIER);
-					argNode->str = argumentName;
-					identifierNode->str = identifierName;
-					argNode->children.push_back(identifierNode);
-					current_node->children.push_back(argNode);
-					vpi_free_object(port_h);
-				}
-				vpi_free_object(port_itr);
+	auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
+	typeNode->str = type;
+	current_node->children.push_back(typeNode);
+	// Add port connections as arguments
+	vpiHandle port_itr = vpi_iterate(vpiPort, obj_h);
+	while (vpiHandle port_h = vpi_scan(port_itr) ) {
+		auto highConn_h = vpi_handle(vpiHighConn, port_h);
+		std::string argumentName, identifierName;
+		if (auto s = vpi_get_str(vpiName, highConn_h)) {
+			identifierName = s;
+			sanitize_symbol_name(identifierName);
+		}
+		if (auto s = vpi_get_str(vpiName, port_h)) {
+			argumentName = s;
+			sanitize_symbol_name(argumentName);
+		}
+		auto argNode = new AST::AstNode(AST::AST_ARGUMENT);
+		auto identifierNode = new AST::AstNode(AST::AST_IDENTIFIER);
+		argNode->str = argumentName;
+		identifierNode->str = identifierName;
+		argNode->children.push_back(identifierNode);
+		current_node->children.push_back(argNode);
+		vpi_free_object(port_h);
+	}
+	vpi_free_object(port_itr);
 }
 
 YOSYS_NAMESPACE_END
