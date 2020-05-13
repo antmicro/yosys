@@ -604,8 +604,10 @@ AST::AstNode* UhdmAst::visit_object (
 				event_control_h,
 				visited,
 				top_nodes,
-				[&](AST::AstNode* node){
-					current_node->children.push_back(node);
+				[&](AST::AstNode* node) {
+					if (node) {
+						current_node->children.push_back(node);
+					}
 				});
 			break;
 		}
