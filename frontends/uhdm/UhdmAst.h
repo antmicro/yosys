@@ -30,6 +30,9 @@ class UhdmAst {
 				std::map<std::string, AST::AstNode*>* top_nodes,
 				const std::function<void(AST::AstNode*)> &f);
 
+		// Makes the passed node a cell node of the specified type
+		void make_cell(vpiHandle obj_h, AST::AstNode* node, const std::string& type);
+
 	public:
 		UhdmAst(){};
 		// Visits single VPI object and creates proper AST node
@@ -39,8 +42,6 @@ class UhdmAst {
 
 		// Visits all VPI design objects and returns created ASTs
 		AST::AstNode* visit_designs (const std::vector<vpiHandle>& designs);
-
-		void make_cell(vpiHandle obj_h, AST::AstNode* node, const std::string& type);
 };
 #endif	// Guard
 
