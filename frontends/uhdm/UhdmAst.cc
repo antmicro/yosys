@@ -43,6 +43,35 @@ void sanitize_symbol_name(std::string &name) {
 		std::replace(name.begin(), name.end(), '@','_');
 }
 
+void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::string& type) {
+	current_node->type = AST::AST_CELL;
+	auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
+	typeNode->str = type;
+	current_node->children.push_back(typeNode);
+	// Add port connections as arguments
+	vpiHandle port_itr = vpi_iterate(vpiPort, obj_h);
+	while (vpiHandle port_h = vpi_scan(port_itr) ) {
+		auto highConn_h = vpi_handle(vpiHighConn, port_h);
+		std::string argumentName, identifierName;
+		if (auto s = vpi_get_str(vpiName, highConn_h)) {
+			identifierName = s;
+			sanitize_symbol_name(identifierName);
+		}
+		if (auto s = vpi_get_str(vpiName, port_h)) {
+			argumentName = s;
+			sanitize_symbol_name(argumentName);
+		}
+		auto argNode = new AST::AstNode(AST::AST_ARGUMENT);
+		auto identifierNode = new AST::AstNode(AST::AST_IDENTIFIER);
+		argNode->str = argumentName;
+		identifierNode->str = identifierName;
+		argNode->children.push_back(identifierNode);
+		current_node->children.push_back(argNode);
+		vpi_free_object(port_h);
+	}
+	vpi_free_object(port_itr);
+}
+
 AST::AstNode* UhdmAst::visit_object (
 		vpiHandle obj_h,
 		std::set<const UHDM::BaseClass*> visited,
@@ -139,8 +168,8 @@ AST::AstNode* UhdmAst::visit_object (
 				vpiHandle actual_h = vpi_handle(vpiActual, lowConn_h);
 				auto actual_type = vpi_get(vpiType, actual_h);
 				switch (actual_type) {
-                case vpiModport: {
-                        vpiHandle iface_h = vpi_handle(vpiInterface, actual_h);
+				case vpiModport: {
+						vpiHandle iface_h = vpi_handle(vpiInterface, actual_h);
 						std::string cellName, ifaceName;
 						if (auto s = vpi_get_str(vpiName, actual_h)) {
 							cellName = s;
@@ -157,7 +186,7 @@ AST::AstNode* UhdmAst::visit_object (
 						typeNode->str = ifaceName + '.' + cellName.substr(1, cellName.length());
 						current_node->children.push_back(typeNode);
 						break;
-                    }
+					}
 					case vpiInterface: {
 						auto typeNode = new AST::AstNode(AST::AST_INTERFACEPORTTYPE);
 						if (auto s = vpi_get_str(vpiDefName, actual_h)) {
@@ -263,8 +292,9 @@ AST::AstNode* UhdmAst::visit_object (
 				make_cell(obj_h, current_node, type);
 			}
 
-			// Unhandled relationships: will visit (and print) the object
-			visit_one_to_many({//vpiProcess,
+			visit_one_to_many({vpiParameter
+			// Unhandled relationships:
+			//		vpiProcess,
 			//		vpiPrimitive,
 			//		vpiPrimitiveArray,
 			//		vpiInterfaceArray,
@@ -286,7 +316,6 @@ AST::AstNode* UhdmAst::visit_object (
 			//		vpiSpecParam,
 			//		vpiConcurrentAssertions,
 			//		vpiVariables,
-					vpiParameter
 			//		vpiInternalScope,
 			//		vpiTypedef,
 			//		vpiPropertyDecl,
@@ -753,34 +782,6 @@ AST::AstNode* UhdmAst::visit_designs (const std::vector<vpiHandle>& designs) {
 	return top_design;
 }
 
-void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::string& type) {
-	current_node->type = AST::AST_CELL;
-	auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
-	typeNode->str = type;
-	current_node->children.push_back(typeNode);
-	// Add port connections as arguments
-	vpiHandle port_itr = vpi_iterate(vpiPort, obj_h);
-	while (vpiHandle port_h = vpi_scan(port_itr) ) {
-		auto highConn_h = vpi_handle(vpiHighConn, port_h);
-		std::string argumentName, identifierName;
-		if (auto s = vpi_get_str(vpiName, highConn_h)) {
-			identifierName = s;
-			sanitize_symbol_name(identifierName);
-		}
-		if (auto s = vpi_get_str(vpiName, port_h)) {
-			argumentName = s;
-			sanitize_symbol_name(argumentName);
-		}
-		auto argNode = new AST::AstNode(AST::AST_ARGUMENT);
-		auto identifierNode = new AST::AstNode(AST::AST_IDENTIFIER);
-		argNode->str = argumentName;
-		identifierNode->str = identifierName;
-		argNode->children.push_back(identifierNode);
-		current_node->children.push_back(argNode);
-		vpi_free_object(port_h);
-	}
-	vpi_free_object(port_itr);
-}
 
 YOSYS_NAMESPACE_END
 
