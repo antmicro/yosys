@@ -72,6 +72,23 @@ void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::
 	vpi_free_object(port_itr);
 }
 
+AST::AstNode* UhdmAst::make_range(vpiHandle obj_h) {
+	vpiHandle left_range = vpi_handle(vpiLeftRange, obj_h);
+	vpiHandle right_range = vpi_handle(vpiRightRange, obj_h);
+	if (left_range && right_range) {
+		s_vpi_value left_range_val;
+		s_vpi_value right_range_val;
+		vpi_get_value(left_range, &left_range_val);
+		vpi_get_value(right_range, &right_range_val);
+		if (left_range_val.format == vpiIntVal && right_range_val.format == vpiIntVal) {
+			return new AST::AstNode(AST::AST_RANGE,
+									AST::AstNode::mkconst_int(left_range_val.value.integer, true),
+									AST::AstNode::mkconst_int(right_range_val.value.integer, true));
+		}
+	}
+	return nullptr;
+}
+
 AST::AstNode* UhdmAst::visit_object (
 		vpiHandle obj_h,
 		std::set<const UHDM::BaseClass*> visited,
@@ -199,18 +216,9 @@ AST::AstNode* UhdmAst::visit_object (
 						break;
 					}
 					case vpiLogicNet: {
-						vpiHandle left_range = vpi_handle(vpiLeftRange, actual_h);
-						vpiHandle right_range = vpi_handle(vpiRightRange, actual_h);
-						if (left_range && right_range) {
-							s_vpi_value left_range_val;
-							s_vpi_value right_range_val;
-							vpi_get_value(left_range, &left_range_val);
-							vpi_get_value(right_range, &right_range_val);
-							if (left_range_val.format == vpiIntVal && right_range_val.format == vpiIntVal) {
-								current_node->children.push_back(new AST::AstNode(AST::AST_RANGE,
-																				AST::AstNode::mkconst_int(left_range_val.value.integer, true),
-																				AST::AstNode::mkconst_int(right_range_val.value.integer, true)));
-							}
+						auto range = make_range(actual_h);
+						if (range) {
+							current_node->children.push_back(range);
 						}
 					}
 				}
@@ -292,7 +300,8 @@ AST::AstNode* UhdmAst::visit_object (
 				make_cell(obj_h, current_node, type);
 			}
 
-			visit_one_to_many({vpiParameter
+			visit_one_to_many({vpiParameter,
+					vpiNet
 			// Unhandled relationships:
 			//		vpiProcess,
 			//		vpiPrimitive,
@@ -307,7 +316,6 @@ AST::AstNode* UhdmAst::visit_object (
 			//		vpiAliasStmt,
 			//		vpiClockingBlock,
 			//		vpiTaskFunc,
-			//		vpiNet,
 			//		vpiArrayNet,
 			//		vpiAssertion,
 			//		vpiClassDefn,
@@ -406,11 +414,14 @@ AST::AstNode* UhdmAst::visit_object (
 			break;
 		}
 		case vpiNet: {
-			current_node->type = AST::AST_WIRE;
-
-			//TODO: Check type
-			current_node->is_logic = true;
-
+			if (vpi_get(vpiNetType, obj_h) == vpiReg) {
+				current_node->type = AST::AST_WIRE;
+				auto range = make_range(obj_h);
+				if (range) {
+					current_node->children.push_back(range);
+				}
+				current_node->is_reg = true;
+			}
 			// Unhandled relationships: will visit (and print) the object
 			//visit_one_to_one({vpiLeftRange,
 			//		vpiRightRange,

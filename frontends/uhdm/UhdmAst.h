@@ -33,6 +33,9 @@ class UhdmAst {
 		// Makes the passed node a cell node of the specified type
 		void make_cell(vpiHandle obj_h, AST::AstNode* node, const std::string& type);
 
+		// Creates a range node
+		AST::AstNode* make_range(vpiHandle obj_h);
+
 	public:
 		UhdmAst(){};
 		// Visits single VPI object and creates proper AST node
