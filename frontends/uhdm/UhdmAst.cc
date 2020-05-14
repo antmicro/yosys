@@ -605,7 +605,10 @@ AST::AstNode* UhdmAst::visit_object (
 			std::map<std::string, AST::AstNode*> nodes;
 			nodes["process_node"] = current_node;
 			visit_one_to_one({vpiCondition}, event_control_h, visited, &nodes,
-				[](AST::AstNode*){
+				[&](AST::AstNode* node) {
+					if (node) {
+						current_node->children.push_back(node);
+					}
 					// is added inside vpiOperation
 				});
 
@@ -635,6 +638,7 @@ AST::AstNode* UhdmAst::visit_object (
 				});
 			break;
 		}
+		case vpiCondition:
 		case vpiOperation: {
 			auto operation = vpi_get(vpiOpType, obj_h);
 			switch (operation) {
