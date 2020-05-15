@@ -1339,7 +1339,15 @@ param_signed:
 	} | %empty;
 
 param_integer:
-	TOK_INTEGER {
+	/* We're treating TOK_INT as TOK_INTEGER but these are not same types.
+	 * TOK_INTEGER (integer) is a 4-state, 32-bit signed integer
+	 * TOK_INT (int) is a 2-state, 32-bit signed integer
+	 * We should check for TOK_INT assigned value and report incorrect ones
+	 * like HiZ or X'es
+	 */
+	TOK_INTEGER | TOK_INT {
+		if (astbuf1->children.size() != 1)
+			frontend_verilog_yyerror("Internal error in param_integer - should not happen?");
 		astbuf1->children.push_back(new AstNode(AST_RANGE));
 		astbuf1->children.back()->children.push_back(AstNode::mkconst_int(31, true));
 		astbuf1->children.back()->children.push_back(AstNode::mkconst_int(0, true));
