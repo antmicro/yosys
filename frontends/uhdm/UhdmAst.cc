@@ -815,6 +815,11 @@ AST::AstNode* UhdmAst::visit_object (
 				visited,
 				top_nodes,
 				[&](AST::AstNode* node) {
+					if (node->type != AST::AST_BLOCK) {
+						auto block_node = new AST::AstNode(AST::AST_BLOCK);
+						block_node->children.push_back(node);
+						node = block_node;
+					}
 					current_node->children.push_back(node);
 				});
 			break;
