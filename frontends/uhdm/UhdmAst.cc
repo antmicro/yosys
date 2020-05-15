@@ -652,6 +652,16 @@ AST::AstNode* UhdmAst::visit_object (
 						});
 					break;
 				}
+				case vpiEqOp: {
+					current_node->type = AST::AST_REDUCE_BOOL;
+					auto eq_node = new AST::AstNode(AST::AST_EQ);
+					current_node->children.push_back(eq_node);
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							eq_node->children.push_back(node);
+						});
+					break;
+				}
 				case vpiEventOrOp: {
 					// Add all operands as children of process node
 					auto it = top_nodes->find("process_node");
@@ -720,6 +730,21 @@ AST::AstNode* UhdmAst::visit_object (
 					break;
 				}
 			}
+			break;
+		}
+		case vpiNamedBegin: {
+			current_node->type = AST::AST_BLOCK;
+			visit_one_to_many({
+				vpiStmt,
+				},
+				obj_h,
+				visited,
+				top_nodes,
+				[&](AST::AstNode* node) {
+					if (node) {
+						current_node->children.push_back(node);
+					}
+				});
 			break;
 		}
 		case vpiIfElse: {
