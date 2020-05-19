@@ -782,10 +782,10 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiCase: {
 			current_node->type = AST::AST_CASE;
-			auto cond_h = vpi_handle(vpiCondition, obj_h);
-			auto ident_node = new AST::AstNode(AST::AST_IDENTIFIER);
-			ident_node->str = vpi_get_str(vpiName, cond_h);
-			current_node->children.push_back(ident_node);
+			visit_one_to_one({vpiCondition}, obj_h, visited, top_nodes,
+				[&](AST::AstNode* node){
+					current_node->children.push_back(node);
+				});
 			visit_one_to_many({vpiCaseItem
 				},
 				obj_h,
