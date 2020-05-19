@@ -726,6 +726,11 @@ wire_type_token_list:
 	wire_type_token |
 	wire_type_token_list wire_type_token |
 	wire_type_token_io |
+	wire_type_token_list hierarchical_type_id { // FIXME: really ugly
+		astbuf3->is_custom_type = true;
+		astbuf3->children.push_back(new AstNode(AST_WIRETYPE));
+		astbuf3->children.back()->str = *$2;
+	} |
 	hierarchical_type_id {
 		astbuf3->is_custom_type = true;
 		astbuf3->children.push_back(new AstNode(AST_WIRETYPE));
