@@ -825,17 +825,26 @@ AST::AstNode* UhdmAst::visit_object (
 			break;
 		}
 		case vpiConstant: {
-			current_node->type = AST::AST_CONSTANT;
 			s_vpi_value val;
 			vpi_get_value(obj_h, &val);
+			AST::AstNode* obsolete_node = nullptr;
 			switch (val.format) {
+				case vpiScalarVal: {
+					obsolete_node = current_node;
+					current_node = AST::AstNode::mkconst_int(val.value.scalar, false);
+					break;
+				}
 				case vpiIntVal: {
-					current_node = AST::AstNode::mkconst_int(val.value.integer, false, 1);
+					obsolete_node = current_node;
+					current_node = AST::AstNode::mkconst_int(val.value.integer, false);
 					break;
 				}
 				default: {
 					break;
 				}
+			}
+			if (obsolete_node) {
+				delete obsolete_node;
 			}
 			break;
 		}
