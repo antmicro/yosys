@@ -1229,7 +1229,7 @@ bool dump_cell_expr(std::ostream &f, std::string indent, RTLIL::Cell *cell)
 		dump_attributes(f, indent + "  ", cell->attributes);
 		if (!noattr)
 			f << stringf("%s" "  (* parallel_case *)\n", indent.c_str());
-		f << stringf("%s" "  casez (s)", indent.c_str());
+		f << stringf("%s" "  case (s)", indent.c_str());
 		f << stringf(noattr ? " // synopsys parallel_case\n" : "\n");
 
 		for (int i = 0; i < s_width; i++)
@@ -1237,7 +1237,7 @@ bool dump_cell_expr(std::ostream &f, std::string indent, RTLIL::Cell *cell)
 			f << stringf("%s" "    %d'b", indent.c_str(), s_width);
 
 			for (int j = s_width-1; j >= 0; j--)
-				f << stringf("%c", j == i ? '1' : '?');
+				f << stringf("%c", j == i ? '1' : '0');
 
 			f << stringf(":\n");
 			f << stringf("%s" "      %s = b[%d:%d];\n", indent.c_str(), func_name.c_str(), (i+1)*width-1, i*width);
