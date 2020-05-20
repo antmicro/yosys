@@ -342,6 +342,15 @@ AST::AstNode* UhdmAst::visit_object (
 					top_nodes,
 					[&](AST::AstNode* node){
 						if (node != nullptr) {
+							if (node->type == AST::AST_WIRE) {
+								// If we already have this wire, do not add it again
+								for (auto child : elaboratedModule->children) {
+									if (child->str == node->str) {
+										delete node;
+										return;
+									}
+								}
+							}
 							elaboratedModule->children.push_back(node);
 						}
 					});
@@ -414,13 +423,14 @@ AST::AstNode* UhdmAst::visit_object (
 			break;
 		}
 		case vpiNet: {
-			if (vpi_get(vpiNetType, obj_h) == vpiReg) {
-				current_node->type = AST::AST_WIRE;
-				auto range = make_range(obj_h);
-				if (range) {
-					current_node->children.push_back(range);
-				}
-				current_node->is_reg = true;
+			current_node->type = AST::AST_WIRE;
+			auto net_type = vpi_get(vpiNetType, obj_h);
+			current_node->is_reg = net_type == vpiReg;
+			current_node->is_input = net_type == vpiInput;
+			current_node->is_output = net_type == vpiOutput;
+			auto range = make_range(obj_h);
+			if (range) {
+				current_node->children.push_back(range);
 			}
 			// Unhandled relationships: will visit (and print) the object
 			//visit_one_to_one({vpiLeftRange,
