@@ -218,8 +218,7 @@ void dump_const(std::ostream &f, const RTLIL::Const &data, int width = -1, int o
 			if (nohex)
 				goto dump_bin;
 			vector<char> bin_digits, hex_digits;
-			for (int i = offset; i < offset+width; i++) {
-				log_assert(i < (int)data.bits.size());
+			for (int i = offset; i < offset+width && i < static_cast<int>(data.bits.size()); i++) {
 				switch (data.bits[i]) {
 				case State::S0: bin_digits.push_back('0'); break;
 				case State::S1: bin_digits.push_back('1'); break;
@@ -329,10 +328,11 @@ void dump_reg_init(std::ostream &f, SigSpec sig)
 	}
 }
 
-void dump_sigchunk(std::ostream &f, const RTLIL::SigChunk &chunk, bool no_decimal = false)
+void dump_sigchunk(std::ostream &f, const RTLIL::SigChunk &chunk, int min_width, bool no_decimal = false)
 {
 	if (chunk.wire == NULL) {
-		dump_const(f, chunk.data, chunk.width, chunk.offset, no_decimal);
+		int width = chunk.width < min_width ? min_width : chunk.width;
+		dump_const(f, chunk.data, width, chunk.offset, no_decimal);
 	} else {
 		if (chunk.width == chunk.wire->width && chunk.offset == 0) {
 			f << stringf("%s", id(chunk.wire->name).c_str());
@@ -354,20 +354,20 @@ void dump_sigchunk(std::ostream &f, const RTLIL::SigChunk &chunk, bool no_decima
 	}
 }
 
-void dump_sigspec(std::ostream &f, const RTLIL::SigSpec &sig)
+void dump_sigspec(std::ostream &f, const RTLIL::SigSpec &sig, int min_size = 0)
 {
 	if (GetSize(sig) == 0) {
 		f << "\"\"";
 		return;
 	}
 	if (sig.is_chunk()) {
-		dump_sigchunk(f, sig.as_chunk());
+		dump_sigchunk(f, sig.as_chunk(), min_size, false);
 	} else {
 		f << stringf("{ ");
 		for (auto it = sig.chunks().rbegin(); it != sig.chunks().rend(); ++it) {
 			if (it != sig.chunks().rbegin())
 				f << stringf(", ");
-			dump_sigchunk(f, *it, true);
+			dump_sigchunk(f, *it, min_size, true);
 		}
 		f << stringf(" }");
 	}
@@ -850,14 +850,15 @@ void dump_memory(std::ostream &f, std::string indent, Mem &mem)
 	}
 }
 
-void dump_cell_expr_port(std::ostream &f, RTLIL::Cell *cell, std::string port, bool gen_signed = true)
+void dump_cell_expr_port(std::ostream &f, RTLIL::Cell *cell, std::string port, int min_size, bool gen_signed = true)
 {
 	if (gen_signed && cell->parameters.count("\\" + port + "_SIGNED") > 0 && cell->parameters["\\" + port + "_SIGNED"].as_bool()) {
 		f << stringf("$signed(");
-		dump_sigspec(f, cell->getPort("\\" + port));
+		dump_sigspec(f, cell->getPort("\\" + port), min_size);
 		f << stringf(")");
-	} else
-		dump_sigspec(f, cell->getPort("\\" + port));
+	} else {
+		dump_sigspec(f, cell->getPort("\\" + port), min_size);
+	}
 }
 
 std::string cellname(RTLIL::Cell *cell)
@@ -896,6 +897,16 @@ no_special_reg_name:
 	}
 }
 
+int port_size(RTLIL::Cell* cell, std::string port)
+{
+	return cell->getPort("\\" + port).size();
+}
+
+int min_port_size(RTLIL::Cell* cell, const std::string& port_a, const std::string& port_b)
+{
+	return max(port_size(cell, port_a), port_size(cell, port_b));
+}
+
 void dump_cell_expr_uniop(std::ostream &f, std::string indent, RTLIL::Cell *cell, std::string op)
 {
 	f << stringf("%s" "assign ", indent.c_str());
@@ -911,10 +922,11 @@ void dump_cell_expr_binop(std::ostream &f, std::string indent, RTLIL::Cell *cell
 	f << stringf("%s" "assign ", indent.c_str());
 	dump_sigspec(f, cell->getPort(ID::Y));
 	f << stringf(" = ");
-	dump_cell_expr_port(f, cell, "A", true);
+	int min_size = min_port_size(cell, "A", "B");
+	dump_cell_expr_port(f, cell, "A", min_size, true);
 	f << stringf(" %s ", op.c_str());
 	dump_attributes(f, "", cell->attributes, ' ');
-	dump_cell_expr_port(f, cell, "B", true);
+	dump_cell_expr_port(f, cell, "B", min_size, true);
 	f << stringf(";\n");
 }
 
