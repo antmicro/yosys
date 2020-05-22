@@ -818,7 +818,7 @@ bool AstNode::contains(const AstNode *other) const
 	return false;
 }
 
-// create an AST node for a constant (using a 32 bit int as value)
+// create an AST node for an integer constant (using a 32 bit int as value)
 AstNode *AstNode::mkconst_int(uint32_t v, bool is_signed, int width)
 {
 	AstNode *node = new AstNode(AST_CONSTANT);
@@ -831,6 +831,14 @@ AstNode *AstNode::mkconst_int(uint32_t v, bool is_signed, int width)
 	node->range_valid = true;
 	node->range_left = width-1;
 	node->range_right = 0;
+	return node;
+}
+
+// create an AST node for a real constant
+AstNode *AstNode::mkconst_real(double v)
+{
+	AstNode *node = new AstNode(AST_CONSTANT);
+	node->realvalue = v;
 	return node;
 }
 
