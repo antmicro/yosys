@@ -647,6 +647,14 @@ AST::AstNode* UhdmAst::visit_object (
 		case vpiOperation: {
 			auto operation = vpi_get(vpiOpType, obj_h);
 			switch (operation) {
+				case vpiMinusOp: {
+					current_node->type = AST::AST_SUB;
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							current_node->children.push_back(node);
+						});
+					break;
+				}
 				case vpiNotOp: {
 					current_node->type = AST::AST_REDUCE_BOOL;
 					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
