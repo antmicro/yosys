@@ -426,7 +426,6 @@ AST::AstNode* UhdmAst::visit_object (
 			current_node->type = AST::AST_WIRE;
 			auto net_type = vpi_get(vpiNetType, obj_h);
 			current_node->is_reg = net_type == vpiReg;
-			current_node->is_input = net_type == vpiInput;
 			current_node->is_output = net_type == vpiOutput;
 			auto range = make_range(obj_h);
 			if (range) {
