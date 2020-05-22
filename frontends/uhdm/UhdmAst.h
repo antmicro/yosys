@@ -34,7 +34,9 @@ class UhdmAst {
 		void make_cell(vpiHandle obj_h, AST::AstNode* node, const std::string& type);
 
 		// Creates a range node
-		AST::AstNode* make_range(vpiHandle obj_h);
+		AST::AstNode* make_range(vpiHandle obj_h,
+					 std::set<const UHDM::BaseClass*> visited,
+					 std::map<std::string, AST::AstNode*>* top_nodes);
 
 	public:
 		UhdmAst(){};
