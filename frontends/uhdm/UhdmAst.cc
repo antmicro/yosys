@@ -297,7 +297,8 @@ AST::AstNode* UhdmAst::visit_object (
 			}
 
 			visit_one_to_many({vpiParameter,
-					vpiNet
+					vpiNet,
+					vpiTaskFunc
 			// Unhandled relationships:
 			//		vpiProcess,
 			//		vpiPrimitive,
@@ -311,7 +312,6 @@ AST::AstNode* UhdmAst::visit_object (
 			//		vpiIODecl,
 			//		vpiAliasStmt,
 			//		vpiClockingBlock,
-			//		vpiTaskFunc,
 			//		vpiArrayNet,
 			//		vpiAssertion,
 			//		vpiClassDefn,
@@ -864,6 +864,32 @@ AST::AstNode* UhdmAst::visit_object (
 			current_node = make_range(obj_h, visited, top_nodes);
 			break;
 			}
+		case vpiFunction: {
+			current_node->type = AST::AST_FUNCTION;
+			visit_one_to_one({
+				vpiReturn,
+				},
+				obj_h,
+				visited,
+				top_nodes,
+				[&](AST::AstNode* node) {
+					current_node->children.push_back(node);
+				});
+			break;
+		}
+		case vpiLogicVar: {
+			current_node->type = AST::AST_WIRE;
+			visit_one_to_many({
+				vpiRange,
+				},
+				obj_h,
+				visited,
+				top_nodes,
+				[&](AST::AstNode* node) {
+					current_node->children.push_back(node);
+				});
+			break;
+		}
 		// Explicitly unsupported
 		case vpiProgram:
 		default: {
