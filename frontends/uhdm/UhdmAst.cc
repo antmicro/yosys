@@ -898,6 +898,10 @@ AST::AstNode* UhdmAst::visit_object (
 				});
 			break;
 		}
+		case vpiFuncCall: {
+			current_node->type = AST::AST_IDENTIFIER;
+			break;
+		}
 		// Explicitly unsupported
 		case vpiProgram:
 		default: {
