@@ -5,6 +5,7 @@
 #include "headers/uhdm.h"
 #include "frontends/ast/ast.h"
 #include "UhdmAst.h"
+#include "vpi_user.h"
 
 YOSYS_NAMESPACE_BEGIN
 
@@ -600,6 +601,15 @@ AST::AstNode* UhdmAst::visit_object (
 					current_node->is_output = true;
 				}
 			}
+			visit_one_to_many({
+				vpiRange,
+				},
+				obj_h,
+				visited,
+				top_nodes,
+				[&](AST::AstNode* node) {
+					current_node->children.push_back(node);
+				});
 			break;
 		}
 		case vpiAlways: {
@@ -881,6 +891,16 @@ AST::AstNode* UhdmAst::visit_object (
 				visited,
 				top_nodes,
 				[&](AST::AstNode* node) {
+					current_node->children.push_back(node);
+				});
+			visit_one_to_many({
+				vpiIODecl
+				},
+				obj_h,
+				visited,
+				top_nodes,
+				[&](AST::AstNode* node) {
+					node->type = AST::AST_WIRE;
 					current_node->children.push_back(node);
 				});
 			break;
