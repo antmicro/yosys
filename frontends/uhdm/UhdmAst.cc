@@ -884,19 +884,22 @@ AST::AstNode* UhdmAst::visit_object (
 			}
 		case vpiFunction: {
 			current_node->type = AST::AST_FUNCTION;
-			visit_one_to_one({
-				vpiReturn,
-				vpiStmt
-				},
+			visit_one_to_one({vpiReturn},
+				obj_h,
+				visited,
+				top_nodes,
+				[&](AST::AstNode* node) {
+					current_node->children.push_back(node);
+					node->str = current_node->str;
+				});
+			visit_one_to_one({vpiStmt},
 				obj_h,
 				visited,
 				top_nodes,
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
 				});
-			visit_one_to_many({
-				vpiIODecl
-				},
+			visit_one_to_many({vpiIODecl},
 				obj_h,
 				visited,
 				top_nodes,
@@ -908,9 +911,7 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiLogicVar: {
 			current_node->type = AST::AST_WIRE;
-			visit_one_to_many({
-				vpiRange,
-				},
+			visit_one_to_many({vpiRange},
 				obj_h,
 				visited,
 				top_nodes,
@@ -920,7 +921,16 @@ AST::AstNode* UhdmAst::visit_object (
 			break;
 		}
 		case vpiFuncCall: {
-			current_node->type = AST::AST_IDENTIFIER;
+			current_node->type = AST::AST_FCALL;
+			visit_one_to_many({vpiArgument},
+				obj_h,
+				visited,
+				top_nodes,
+				[&](AST::AstNode* node){
+					if (node) {
+						current_node->children.push_back(node);
+					}
+				});
 			break;
 		}
 		// Explicitly unsupported
