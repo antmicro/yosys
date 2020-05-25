@@ -868,9 +868,9 @@ AST::AstNode* UhdmAst::visit_object (
 			break;
 		}
 		case vpiRange: {
-			delete current_node;
-			current_node = make_range(obj_h, visited, top_nodes);
-			break;
+				delete current_node;
+				current_node = make_range(obj_h, visited, top_nodes);
+				break;
 			}
 		case vpiFunction: {
 			current_node->type = AST::AST_FUNCTION;
