@@ -70,6 +70,8 @@ namespace VERILOG_FRONTEND {
 	bool current_wire_rand, current_wire_const;
 	bool current_modport_input, current_modport_output;
 	std::istream *lexin;
+
+	bool add_genvar;
 }
 YOSYS_NAMESPACE_END
 
@@ -230,6 +232,43 @@ static void rewriteAsMemoryNode(AstNode *node, AstNode *rangeNode)
 	node->children.push_back(rangeNode);
 }
 
+static void addGenvar() {
+	std::string id = ast_stack.back()->children[0]->children[0]->str;
+
+	std::string id_wicked_name;
+	id_wicked_name = std::string("\\");
+	id_wicked_name += ast_stack.back()->str.substr(1);
+	id_wicked_name += std::string("::");
+	id_wicked_name += id.substr(1);
+
+	std::function<void(AstNode*)> fixId = [&id, &fixId, &id_wicked_name](AstNode* node) {
+		if (node) {
+			if (node->str == id) node->str = id_wicked_name;
+			for (auto& itr : node->children) fixId(itr);
+		}
+	};
+
+	fixId(ast_stack.back());
+
+	AstNode *templ;//
+	if (ast_stack.back()->type == AST_GENFOR)
+		templ = new AstNode(AST_GENVAR);
+	else
+		templ = new AstNode(AST_WIRE);
+	current_wire_rand = false;
+	current_wire_const = false;
+	templ->is_reg = true;
+	templ->is_signed = true;
+	templ->range_left = 31;
+	templ->range_right = 0;
+	templ->str = id_wicked_name;
+
+	for (auto itr = ast_stack.rbegin() ; itr != ast_stack.rend() ; itr++) {
+		auto* node = *itr;
+		if (node->type == AST_MODULE)
+			node->children.push_back(templ);
+	}
+}
 %}
 
 %define api.prefix {frontend_verilog_yy}
@@ -2333,6 +2372,24 @@ simple_behavioral_stmt:
 		SET_AST_NODE_LOC(node, @2, @5);
 		append_attr(node, $1);
 	} |
+	TOK_INT lvalue '=' delay expr {
+		add_genvar = true; // XXX: it's not but who cares
+		AstNode *node = new AstNode(AST_ASSIGN_EQ, $2, $5);
+		ast_stack.back()->children.push_back(node);
+		SET_AST_NODE_LOC(node, @2, @5);
+	} |
+	TOK_INT TOK_UNSIGNED lvalue '=' delay expr {
+		add_genvar = true; // XXX: it's not but who cares
+		AstNode *node = new AstNode(AST_ASSIGN_EQ, $3, $6);
+		ast_stack.back()->children.push_back(node);
+		SET_AST_NODE_LOC(node, @3, @6);
+	} |
+	TOK_GENVAR lvalue '=' delay expr {
+		add_genvar = true;
+		AstNode *node = new AstNode(AST_ASSIGN_EQ, $2, $5);
+		ast_stack.back()->children.push_back(node);
+		SET_AST_NODE_LOC(node, @2, @5);
+	} |
 	attr lvalue TOK_INCREMENT {
 		AstNode *node = new AstNode(AST_ASSIGN_EQ, $2, new AstNode(AST_ADD, $2->clone(), AstNode::mkconst_int(1, true)));
 		ast_stack.back()->children.push_back(node);
@@ -2440,9 +2497,13 @@ behavioral_stmt:
 	} |
 	attr TOK_FOR '(' {
 		AstNode *node = new AstNode(AST_FOR);
+		static int loop_count;
+		node->str = std::string("$loop");
+		node->str += std::to_string(loop_count++);
 		ast_stack.back()->children.push_back(node);
 		ast_stack.push_back(node);
 		append_attr(node, $1);
+		add_genvar = false;
 	} simple_behavioral_stmt ';' expr {
 		ast_stack.back()->children.push_back($7);
 	} ';' simple_behavioral_stmt ')' {
@@ -2453,6 +2514,8 @@ behavioral_stmt:
 		SET_AST_NODE_LOC(ast_stack.back(), @13, @13);
 		ast_stack.pop_back();
 		SET_AST_NODE_LOC(ast_stack.back(), @2, @13);
+		if (add_genvar)
+			addGenvar();
 		ast_stack.pop_back();
 	} |
 	attr TOK_WHILE '(' expr ')' {
@@ -2708,11 +2771,17 @@ gen_stmt_or_module_body_stmt:
 gen_stmt:
 	TOK_FOR '(' {
 		AstNode *node = new AstNode(AST_GENFOR);
+		static int genfor_count;
+		node->str = std::string("$genfor");
+		node->str += std::to_string(genfor_count++);
 		ast_stack.back()->children.push_back(node);
 		ast_stack.push_back(node);
+		add_genvar = false;
 	} simple_behavioral_stmt ';' expr {
 		ast_stack.back()->children.push_back($6);
 	} ';' simple_behavioral_stmt ')' gen_stmt_block {
+		if (add_genvar)
+			addGenvar();
 		SET_AST_NODE_LOC(ast_stack.back(), @1, @11);
 		ast_stack.pop_back();
 	} |
