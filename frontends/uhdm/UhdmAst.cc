@@ -886,6 +886,7 @@ AST::AstNode* UhdmAst::visit_object (
 			current_node->type = AST::AST_FUNCTION;
 			visit_one_to_one({
 				vpiReturn,
+				vpiStmt
 				},
 				obj_h,
 				visited,
