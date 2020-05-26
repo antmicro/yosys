@@ -44,6 +44,16 @@ void sanitize_symbol_name(std::string &name) {
 		std::replace(name.begin(), name.end(), '@','_');
 }
 
+int parse_int_string(const char* full_str, char base_char, unsigned base) {
+	const char* int_str = std::strchr(full_str, base_char);
+	if (int_str) {
+		int_str++;
+	} else {
+		int_str = full_str;
+	}
+	return std::stoi(int_str, nullptr, base);
+}
+
 void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::string& type) {
 	current_node->type = AST::AST_CELL;
 	auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
@@ -859,7 +869,8 @@ AST::AstNode* UhdmAst::visit_object (
 				}
 				case vpiBinStrVal: {
 					obsolete_node = current_node;
-					current_node = AST::AstNode::mkconst_int(std::stoi(val.value.str, 0, 2), false);
+					int int_val = parse_int_string(val.value.str, 'b', 2);
+					current_node = AST::AstNode::mkconst_int(int_val, false);
 					break;
 				}
 				case vpiIntVal: {
