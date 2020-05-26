@@ -68,6 +68,7 @@ std::string AST::type2str(AstNodeType type)
 	X(AST_TASK)
 	X(AST_FUNCTION)
 	X(AST_DPI_FUNCTION)
+	X(AST_IMPORT_PACKAGE)
 	X(AST_WIRE)
 	X(AST_MEMORY)
 	X(AST_AUTOWIRE)
@@ -1198,13 +1199,32 @@ void AST::process(RTLIL::Design *design, AstNode *ast, bool dump_ast1, bool dump
 	{
 		if ((*it)->type == AST_MODULE || (*it)->type == AST_INTERFACE)
 		{
+			// iterate over AST_MODULE nodes looking for AST_IMPORT_PACKAGE
+			std::vector<std::string> imported_packages;
+			for (auto n : (*it)->children) {
+				if (n->type == AST_IMPORT_PACKAGE) {
+					imported_packages.push_back(n->str);
+				}
+			}
+
 			for (auto n : design->verilog_globals)
 				(*it)->children.push_back(n->clone());
 
 			// append nodes from previous packages using package-qualified names
 			for (auto &n : design->verilog_packages) {
+				bool import = false;
+				for (const auto& itr : imported_packages) {
+					if (itr == n->str) {
+						import = true;
+						break;
+					}
+				}
+
 				for (auto &o : n->children) {
 					AstNode *cloned_node = o->clone();
+					if (import)
+						(*it)->children.push_back(o->clone());
+
 					// log("cloned node %s\n", type2str(cloned_node->type).c_str());
 					if (cloned_node->type == AST_ENUM) {
 						for (auto &e : cloned_node->children) {
@@ -1214,6 +1234,7 @@ void AST::process(RTLIL::Design *design, AstNode *ast, bool dump_ast1, bool dump
 					} else {
 						cloned_node->str = n->str + std::string("::") + cloned_node->str.substr(1);
 					}
+
 					(*it)->children.push_back(cloned_node);
 				}
 			}

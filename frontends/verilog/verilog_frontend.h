@@ -51,6 +51,7 @@ namespace VERILOG_FRONTEND
 
 	// names of package typedef'ed types
 	extern dict<std::string, AST::AstNode*> pkg_user_types;
+	extern std::vector<std::string> imported_pkgs;
 
 	// state of `default_nettype
 	extern bool default_nettype_wire;

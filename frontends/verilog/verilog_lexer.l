@@ -417,6 +417,14 @@ supply1 { return TOK_SUPPLY1; }
 		return TOK_USER_TYPE;
 	}
 	else {
+		for (const auto& d : imported_pkgs) {
+			std::string quals = std::string() + d + std::string("::") + yytext;
+			if (pkg_user_types.count(quals) > 0) {
+				yylval->string = new std::string(quals);
+				return TOK_PKG_USER_TYPE;
+			}
+		}
+
 		yylval->string = new std::string(std::string("\\") + yytext);
 		return TOK_ID;
 	}
@@ -483,6 +491,23 @@ import[ \t\r\n]+\"(DPI|DPI-C)\"[ \t\r\n]+function[ \t\r\n]+ {
 
 <IMPORT_DPI>. {
 	return *yytext;
+}
+
+import[ \t\r\n]+[a-zA-Z_$][a-zA-Z0-9_$]*[ \t\r\n]*"::"[ \t\r\n]*"*"[ \t\r\n]*";" {
+  auto* ret = new std::string("\\");
+
+  auto* ptr = yytext;
+  // skip "import"
+  for (; *ptr && *ptr != ' ' ; ++ptr) ;
+  // skip white spaces
+  for (; *ptr && isspace(*ptr) ; ++ptr) ;
+  // copy package name
+  for (; *ptr && *ptr != ':' ; ++ptr)
+    *ret += *ptr;
+  // return
+  imported_pkgs.push_back(*ret);
+  yylval->string = ret;
+  return TOK_IMPORT_PACKAGE;
 }
 
 "\\"[^ \t\r\n]+ {
