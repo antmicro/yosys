@@ -857,7 +857,11 @@ AST::AstNode* UhdmAst::visit_object (
 					current_node = AST::AstNode::mkconst_int(val.value.scalar, false);
 					break;
 				}
-				case vpiBinStrVal:
+				case vpiBinStrVal: {
+					obsolete_node = current_node;
+					current_node = AST::AstNode::mkconst_int(std::stoi(val.value.str, 0, 2), false);
+					break;
+				}
 				case vpiIntVal: {
 					obsolete_node = current_node;
 					current_node = AST::AstNode::mkconst_int(val.value.integer, false);
