@@ -388,7 +388,7 @@ AST::AstNode* UhdmAst::visit_object (
 			break;
 		}
 		case vpiAssignment: {
-			current_node->type = AST::AST_ASSIGN_LE;
+			current_node->type = AST::AST_ASSIGN_EQ;
 			visit_one_to_one({vpiLhs, vpiRhs},
 					obj_h,
 					visited,
