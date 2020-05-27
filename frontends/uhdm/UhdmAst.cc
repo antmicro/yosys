@@ -760,6 +760,15 @@ AST::AstNode* UhdmAst::visit_object (
 						});
 					break;
 				}
+				case vpiConcatOp: {
+					current_node->type = AST::AST_CONCAT;
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							current_node->children.push_back(node);
+						});
+					std::reverse(current_node->children.begin(), current_node->children.end());
+					break;
+				}
 				default: {
 					std::cout << "\t! Encountered unhandled operation" << std::endl;
 					break;
