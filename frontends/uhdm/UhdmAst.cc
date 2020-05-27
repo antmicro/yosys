@@ -769,6 +769,14 @@ AST::AstNode* UhdmAst::visit_object (
 					std::reverse(current_node->children.begin(), current_node->children.end());
 					break;
 				}
+				case vpiMultiConcatOp: {
+					current_node->type = AST::AST_REPLICATE;
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							current_node->children.push_back(node);
+						});
+					break;
+				}
 				default: {
 					std::cout << "\t! Encountered unhandled operation" << std::endl;
 					break;
