@@ -703,7 +703,9 @@ AST::AstNode* UhdmAst::visit_object (
 						visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
 							[&](AST::AstNode* node){
 								// add directly to process node
-								processNode->children.push_back(node);
+								if (node) {
+									processNode->children.push_back(node);
+								}
 							});
 					}
 					// Do not return a node
