@@ -711,12 +711,17 @@ AST::AstNode* UhdmAst::visit_object (
 						});
 					switch(operation) {
 						case vpiMinusOp: current_node->type = AST::AST_SUB; break;
+						case vpiPlusOp: current_node->type = AST::AST_ADD; break;
 						case vpiPosedgeOp: current_node->type = AST::AST_POSEDGE; break;
 						case vpiNegedgeOp: current_node->type = AST::AST_NEGEDGE; break;
+						case vpiUnaryOrOp: current_node->type = AST::AST_REDUCE_OR; break;
+						case vpiBitNegOp: current_node->type = AST::AST_BIT_NOT; break;
 						case vpiBitAndOp: current_node->type = AST::AST_BIT_AND; break;
 						case vpiBitOrOp: current_node->type = AST::AST_BIT_OR; break;
 						case vpiBitXorOp: current_node->type = AST::AST_BIT_XOR; break;
 						case vpiBitXnorOp: current_node->type = AST::AST_BIT_XNOR; break;
+						case vpiLShiftOp: current_node->type = AST::AST_SHIFT_LEFT; break;
+						case vpiConditionOp: current_node->type = AST::AST_TERNARY; break;
 						case vpiConcatOp: {
 							current_node->type = AST::AST_CONCAT;
 							std::reverse(current_node->children.begin(), current_node->children.end());
