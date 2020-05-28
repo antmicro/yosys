@@ -625,29 +625,44 @@ AST::AstNode* UhdmAst::visit_object (
 		case vpiAlways: {
 			current_node->type = AST::AST_ALWAYS;
 			auto event_control_h = vpi_handle(vpiStmt, obj_h);
-
 			// Some shenanigans to allow writing multiple conditions without intermediary node
 			std::map<std::string, AST::AstNode*> nodes;
 			nodes["process_node"] = current_node;
-			visit_one_to_one({vpiCondition}, event_control_h, visited, &nodes,
-				[&](AST::AstNode* node) {
-					if (node) {
-						current_node->children.push_back(node);
-					}
-					// is added inside vpiOperation
-				});
 
-			visit_one_to_one({
-				vpiStmt,
-				},
-				event_control_h,
-				visited,
-				top_nodes,
-				[&](AST::AstNode* node) {
-					if (node) {
-						current_node->children.push_back(node);
-					}
+			if (vpi_get(vpiAlwaysType, obj_h) == vpiAlwaysComb) {
+				auto stmts = new AST::AstNode(AST::AST_BLOCK);
+				current_node->children.push_back(stmts);
+				visit_one_to_many({
+					vpiStmt,
+					},
+					event_control_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node) {
+						if (node) {
+							stmts->children.push_back(node);
+						}
 				});
+			} else {
+				visit_one_to_one({vpiCondition}, event_control_h, visited, &nodes,
+					[&](AST::AstNode* node) {
+						if (node) {
+							current_node->children.push_back(node);
+						}
+						// is added inside vpiOperation
+					});
+				visit_one_to_one({
+					vpiStmt,
+					},
+					event_control_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node) {
+						if (node) {
+							current_node->children.push_back(node);
+						}
+					});
+			}
 			break;
 		}
 		case vpiBegin: {
