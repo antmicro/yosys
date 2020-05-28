@@ -667,14 +667,6 @@ AST::AstNode* UhdmAst::visit_object (
 		case vpiOperation: {
 			auto operation = vpi_get(vpiOpType, obj_h);
 			switch (operation) {
-				case vpiMinusOp: {
-					current_node->type = AST::AST_SUB;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
-						[&](AST::AstNode* node){
-							current_node->children.push_back(node);
-						});
-					break;
-				}
 				case vpiNotOp: {
 					current_node->type = AST::AST_REDUCE_BOOL;
 					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
@@ -712,73 +704,30 @@ AST::AstNode* UhdmAst::visit_object (
 					// Parent should not use returned value
 					return nullptr;
 				}
-				case vpiPosedgeOp: {
-					current_node->type = AST::AST_POSEDGE;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
-						[&](AST::AstNode* node){
-							current_node->children.push_back(node);
-						});
-					break;
-				}
-				case vpiNegedgeOp: {
-					current_node->type = AST::AST_NEGEDGE;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
-						[&](AST::AstNode* node){
-							current_node->children.push_back(node);
-						});
-					break;
-				}
-				case vpiBitAndOp: {
-					current_node->type = AST::AST_BIT_AND;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
-						[&](AST::AstNode* node){
-							current_node->children.push_back(node);
-						});
-					break;
-				}
-				case vpiBitOrOp: {
-					current_node->type = AST::AST_BIT_OR;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
-						[&](AST::AstNode* node){
-							current_node->children.push_back(node);
-						});
-					break;
-				}
-				case vpiBitXorOp: {
-					current_node->type = AST::AST_BIT_XOR;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
-						[&](AST::AstNode* node){
-							current_node->children.push_back(node);
-						});
-					break;
-				}
-				case vpiBitXnorOp: {
-					current_node->type = AST::AST_BIT_XNOR;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
-						[&](AST::AstNode* node){
-							current_node->children.push_back(node);
-						});
-					break;
-				}
-				case vpiConcatOp: {
-					current_node->type = AST::AST_CONCAT;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
-						[&](AST::AstNode* node){
-							current_node->children.push_back(node);
-						});
-					std::reverse(current_node->children.begin(), current_node->children.end());
-					break;
-				}
-				case vpiMultiConcatOp: {
-					current_node->type = AST::AST_REPLICATE;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
-						[&](AST::AstNode* node){
-							current_node->children.push_back(node);
-						});
-					break;
-				}
 				default: {
-					std::cout << "\t! Encountered unhandled operation" << std::endl;
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							current_node->children.push_back(node);
+						});
+					switch(operation) {
+						case vpiMinusOp: current_node->type = AST::AST_SUB; break;
+						case vpiPosedgeOp: current_node->type = AST::AST_POSEDGE; break;
+						case vpiNegedgeOp: current_node->type = AST::AST_NEGEDGE; break;
+						case vpiBitAndOp: current_node->type = AST::AST_BIT_AND; break;
+						case vpiBitOrOp: current_node->type = AST::AST_BIT_OR; break;
+						case vpiBitXorOp: current_node->type = AST::AST_BIT_XOR; break;
+						case vpiBitXnorOp: current_node->type = AST::AST_BIT_XNOR; break;
+						case vpiConcatOp: {
+							current_node->type = AST::AST_CONCAT;
+							std::reverse(current_node->children.begin(), current_node->children.end());
+							break;
+						}
+						case vpiMultiConcatOp: current_node->type = AST::AST_REPLICATE; break;
+						default: {
+							std::cout << "\t! Encountered unhandled operation" << std::endl;
+							break;
+						}
+					}
 					break;
 				}
 			}
