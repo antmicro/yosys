@@ -879,6 +879,12 @@ AST::AstNode* UhdmAst::visit_object (
 					current_node = AST::AstNode::mkconst_int(int_val, false);
 					break;
 				}
+				case vpiHexStrVal: {
+					obsolete_node = current_node;
+					int int_val = parse_int_string(val.value.str, 'h', 16);
+					current_node = AST::AstNode::mkconst_int(int_val, false);
+					break;
+				}
 				case vpiIntVal: {
 					obsolete_node = current_node;
 					current_node = AST::AstNode::mkconst_int(val.value.integer, false);
