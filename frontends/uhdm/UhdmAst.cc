@@ -947,6 +947,23 @@ AST::AstNode* UhdmAst::visit_object (
 				});
 			break;
 		}
+		case vpiSysFuncCall: {
+			if (current_node->str == "\\$signed") {
+				current_node->type = AST::AST_TO_SIGNED;
+			} else if (current_node->str == "\\$unsigned") {
+				current_node->type = AST::AST_TO_UNSIGNED;
+			}
+			visit_one_to_many({vpiArgument},
+				obj_h,
+				visited,
+				top_nodes,
+				[&](AST::AstNode* node){
+					if (node) {
+						current_node->children.push_back(node);
+					}
+				});
+			break;
+		}
 		case vpiFuncCall: {
 			current_node->type = AST::AST_FCALL;
 			visit_one_to_many({vpiArgument},
