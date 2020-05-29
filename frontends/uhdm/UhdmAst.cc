@@ -736,6 +736,10 @@ AST::AstNode* UhdmAst::visit_object (
 						case vpiBitXorOp: current_node->type = AST::AST_BIT_XOR; break;
 						case vpiBitXnorOp: current_node->type = AST::AST_BIT_XNOR; break;
 						case vpiLShiftOp: current_node->type = AST::AST_SHIFT_LEFT; break;
+						case vpiLogAndOp: current_node->type = AST::AST_LOGIC_AND; break;
+						case vpiSubOp: current_node->type = AST::AST_SUB; break;
+						case vpiAddOp: current_node->type = AST::AST_ADD; break;
+						case vpiArithRShiftOp: current_node->type = AST::AST_SHIFT_SRIGHT; break;
 						case vpiConditionOp: current_node->type = AST::AST_TERNARY; break;
 						case vpiConcatOp: {
 							current_node->type = AST::AST_CONCAT;
