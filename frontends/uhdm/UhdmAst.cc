@@ -753,6 +753,23 @@ AST::AstNode* UhdmAst::visit_object (
 			}
 			break;
 		}
+		case vpiBitSelect: {
+			current_node->type = AST::AST_IDENTIFIER;
+			visit_one_to_one({vpiIndex},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node) {
+						current_node->children.push_back(new AST::AstNode(AST::AST_RANGE, node));
+					});
+			break;
+		}
+		case vpiPartSelect: {
+			current_node->type = AST::AST_IDENTIFIER;
+			auto range = make_range(obj_h, visited, top_nodes);
+			current_node->children.push_back(range);
+			break;
+		}
 		case vpiNamedBegin: {
 			current_node->type = AST::AST_BLOCK;
 			visit_one_to_many({
