@@ -785,6 +785,7 @@ AST::AstNode* UhdmAst::visit_object (
 				});
 			break;
 		}
+		case vpiIf:
 		case vpiIfElse: {
 			current_node->type = AST::AST_BLOCK;
 			auto* case_node = new AST::AstNode(AST::AST_CASE);
