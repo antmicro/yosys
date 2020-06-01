@@ -823,6 +823,28 @@ AST::AstNode* UhdmAst::visit_object (
 			current_node->children.push_back(case_node);
 			break;
 		}
+		case vpiFor: {
+			current_node->type = AST::AST_FOR;
+			visit_one_to_many({vpiForInitStmt}, obj_h, visited, top_nodes,
+				[&](AST::AstNode* node){
+					current_node->children.push_back(node);
+				});
+			visit_one_to_one({vpiCondition}, obj_h, visited, top_nodes,
+				[&](AST::AstNode* node){
+					current_node->children.push_back(node);
+				});
+			visit_one_to_many({vpiForIncStmt}, obj_h, visited, top_nodes,
+				[&](AST::AstNode* node){
+					current_node->children.push_back(node);
+				});
+			visit_one_to_one({vpiStmt}, obj_h, visited, top_nodes,
+				[&](AST::AstNode* node){
+					auto *statements = new AST::AstNode(AST::AST_BLOCK);
+					statements->children.push_back(node);
+					current_node->children.push_back(statements);
+				});
+			break;
+		}
 		case vpiCase: {
 			current_node->type = AST::AST_CASE;
 			visit_one_to_one({vpiCondition}, obj_h, visited, top_nodes,
