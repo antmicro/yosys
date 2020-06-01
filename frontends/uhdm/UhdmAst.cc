@@ -755,6 +755,14 @@ AST::AstNode* UhdmAst::visit_object (
 						case vpiSubOp: current_node->type = AST::AST_SUB; break;
 						case vpiAddOp: current_node->type = AST::AST_ADD; break;
 						case vpiArithRShiftOp: current_node->type = AST::AST_SHIFT_SRIGHT; break;
+						case vpiPostIncOp: {
+							// TODO: Make this an actual post-increment op (currently it's a pre-increment)
+							current_node->type = AST::AST_ASSIGN_EQ;
+							auto id = current_node->children[0]->clone();
+							auto add_node = new AST::AstNode(AST::AST_ADD, id, AST::AstNode::mkconst_int(1, true));
+							current_node->children.push_back(add_node);
+							break;
+						}
 						case vpiConditionOp: current_node->type = AST::AST_TERNARY; break;
 						case vpiConcatOp: {
 							current_node->type = AST::AST_CONCAT;
