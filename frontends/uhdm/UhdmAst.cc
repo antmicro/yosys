@@ -679,6 +679,10 @@ AST::AstNode* UhdmAst::visit_object (
 				});
 			break;
 		}
+		case vpiIntVar: {
+			current_node->type = AST::AST_IDENTIFIER;
+			break;
+		}
 		case vpiCondition:
 		case vpiOperation: {
 			auto operation = vpi_get(vpiOpType, obj_h);
