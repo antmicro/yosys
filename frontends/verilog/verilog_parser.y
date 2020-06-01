@@ -3152,6 +3152,9 @@ basic_expr:
 			frontend_verilog_yyerror("Static cast is only supported in SystemVerilog mode.");
 		$$ = new AstNode(AST_CAST_SIZE, $1, $4);
 		SET_AST_NODE_LOC($$, @1, @4);
+        } |
+	TOK_PKG_USER_TYPE '\'' '(' basic_expr ')' {
+		$$ = $4;
 	};
 
 concat_list:
