@@ -707,6 +707,16 @@ AST::AstNode* UhdmAst::visit_object (
 						});
 					break;
 				}
+				case vpiLtOp: {
+					current_node->type = AST::AST_REDUCE_BOOL;
+					auto lt_node = new AST::AstNode(AST::AST_LT);
+					current_node->children.push_back(lt_node);
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							lt_node->children.push_back(node);
+						});
+					break;
+				}
 				case vpiEventOrOp: {
 					// Add all operands as children of process node
 					auto it = top_nodes->find("process_node");
