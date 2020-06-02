@@ -274,6 +274,7 @@ AST::AstNode* UhdmAst::visit_object (
 					vpiModule,
 					vpiContAssign,
 					vpiProcess,
+					vpiGenScopeArray
 					},
 					obj_h,
 					visited,
@@ -292,6 +293,7 @@ AST::AstNode* UhdmAst::visit_object (
 					vpiModule,
 					vpiContAssign,
 					vpiProcess,
+					vpiGenScopeArray
 					},
 					obj_h,
 					visited,
@@ -865,6 +867,27 @@ AST::AstNode* UhdmAst::visit_object (
 					auto *statements = new AST::AstNode(AST::AST_BLOCK);
 					statements->children.push_back(node);
 					current_node->children.push_back(statements);
+				});
+			break;
+		}
+		case vpiGenScopeArray: {
+			current_node->type = AST::AST_GENBLOCK;
+			visit_one_to_many({vpiGenScope}, obj_h, visited, top_nodes,
+				[&](AST::AstNode* node){
+					if (node->type == AST::AST_GENBLOCK) {
+						current_node->children.insert(current_node->children.end(),
+													  node->children.begin(), node->children.end());
+					} else {
+						current_node->children.push_back(node);
+					}
+				});
+			break;
+		}
+		case vpiGenScope: {
+			current_node->type = AST::AST_GENBLOCK;
+			visit_one_to_many({vpiContAssign}, obj_h, visited, top_nodes,
+				[&](AST::AstNode* node){
+					current_node->children.push_back(node);
 				});
 			break;
 		}
