@@ -171,6 +171,11 @@ AST::AstNode* UhdmAst::visit_object (
 			s_vpi_value val;
 			vpi_get_value(obj_h, &val);
 			switch (val.format) {
+				case vpiScalarVal: {
+					current_node->type = AST::AST_PARAMETER;
+					current_node->children.push_back(AST::AstNode::mkconst_int(val.value.scalar, true));
+					break;
+				}
 				case vpiIntVal: {
 					current_node->type = AST::AST_PARAMETER;
 					current_node->children.push_back(AST::AstNode::mkconst_int(val.value.integer, true));
