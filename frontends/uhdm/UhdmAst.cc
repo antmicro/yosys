@@ -886,7 +886,9 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiGenScope: {
 			current_node->type = AST::AST_GENBLOCK;
-			visit_one_to_many({vpiContAssign}, obj_h, visited, top_nodes,
+			visit_one_to_many({vpiParameter,
+							   vpiContAssign},
+				obj_h, visited, top_nodes,
 				[&](AST::AstNode* node){
 					current_node->children.push_back(node);
 				});
