@@ -83,19 +83,6 @@ void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::
 	vpi_free_object(port_itr);
 }
 
-AST::AstNode* UhdmAst::make_range(vpiHandle obj_h,
-		std::set<const UHDM::BaseClass*> visited,
-		std::map<std::string, AST::AstNode*>* top_nodes) {
-	vpiHandle left_range_h = vpi_handle(vpiLeftRange, obj_h);
-	vpiHandle right_range_h = vpi_handle(vpiRightRange, obj_h);
-	if (left_range_h && right_range_h) {
-		auto left_range = visit_object(left_range_h, visited, top_nodes);
-		auto right_range = visit_object(right_range_h, visited, top_nodes);
-		return new AST::AstNode(AST::AST_RANGE, left_range, right_range);
-	}
-	return nullptr;
-}
-
 AST::AstNode* UhdmAst::visit_object (
 		vpiHandle obj_h,
 		std::set<const UHDM::BaseClass*> visited,
@@ -228,10 +215,13 @@ AST::AstNode* UhdmAst::visit_object (
 						break;
 					}
 					case vpiLogicNet: {
-						auto range = make_range(actual_h, visited, top_nodes);
-						if (range) {
-							current_node->children.push_back(range);
-						}
+						visit_one_to_many({vpiRange},
+							actual_h,
+							visited,
+							top_nodes,
+							[&](AST::AstNode* node){
+								current_node->children.push_back(node);
+							});
 					}
 				}
 			}
@@ -442,21 +432,7 @@ AST::AstNode* UhdmAst::visit_object (
 			auto net_type = vpi_get(vpiNetType, obj_h);
 			current_node->is_reg = net_type == vpiReg;
 			current_node->is_output = net_type == vpiOutput;
-			auto range = make_range(obj_h, visited, top_nodes);
-			if (range) {
-				current_node->children.push_back(range);
-			}
-			// Unhandled relationships: will visit (and print) the object
-			//visit_one_to_one({vpiLeftRange,
-			//		vpiRightRange,
-			//		vpiSimNet,
-			//		vpiModule,
-			//		vpiTypespec
-			//		},
-			//		obj_h,
-			//		visited,
-			//		[](AST::AstNode*){});
-			//visit_one_to_many({vpiRange,
+			visit_one_to_many({vpiRange
 			//		vpiBit,
 			//		vpiPortInst,
 			//		vpiDriver,
@@ -467,6 +443,19 @@ AST::AstNode* UhdmAst::visit_object (
 			//		vpiContAssign,
 			//		vpiPathTerm,
 			//		vpiTchkTerm
+					},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+						current_node->children.push_back(node);
+					});
+			// Unhandled relationships: will visit (and print) the object
+			//visit_one_to_one({vpiLeftRange,
+			//		vpiRightRange,
+			//		vpiSimNet,
+			//		vpiModule,
+			//		vpiTypespec
 			//		},
 			//		obj_h,
 			//		visited,
@@ -619,15 +608,13 @@ AST::AstNode* UhdmAst::visit_object (
 					current_node->is_output = true;
 				}
 			}
-			visit_one_to_many({
-				vpiRange,
-				},
-				obj_h,
-				visited,
-				top_nodes,
-				[&](AST::AstNode* node) {
-					current_node->children.push_back(node);
-				});
+			visit_one_to_many({vpiRange},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node) {
+						current_node->children.push_back(node);
+					});
 			break;
 		}
 		case vpiAlways: {
@@ -801,8 +788,6 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiPartSelect: {
 			current_node->type = AST::AST_IDENTIFIER;
-			auto range = make_range(obj_h, visited, top_nodes);
-			current_node->children.push_back(range);
 			visit_one_to_one({vpiParent},
 					obj_h,
 					visited,
@@ -810,6 +795,13 @@ AST::AstNode* UhdmAst::visit_object (
 					[&](AST::AstNode* node) {
 						current_node->str = node->str;
 						delete node;
+					});
+			visit_one_to_many({vpiRange},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+						current_node->children.push_back(node);
 					});
 			break;
 		}
@@ -997,10 +989,16 @@ AST::AstNode* UhdmAst::visit_object (
 			break;
 		}
 		case vpiRange: {
-				delete current_node;
-				current_node = make_range(obj_h, visited, top_nodes);
-				break;
-			}
+			current_node->type = AST::AST_RANGE;
+			visit_one_to_one({vpiLeftRange, vpiRightRange},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node) {
+						current_node->children.push_back(node);
+					});
+			break;
+		}
 		case vpiFunction: {
 			current_node->type = AST::AST_FUNCTION;
 			visit_one_to_one({vpiReturn},
