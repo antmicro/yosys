@@ -897,7 +897,9 @@ AST::AstNode* UhdmAst::visit_object (
 							   vpiContAssign},
 				obj_h, visited, top_nodes,
 				[&](AST::AstNode* node){
-					current_node->children.push_back(node);
+					if (node) {
+						current_node->children.push_back(node);
+					}
 				});
 			break;
 		}
