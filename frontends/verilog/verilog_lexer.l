@@ -418,14 +418,14 @@ supply1 { return TOK_SUPPLY1; }
 	}
 	else {
 		for (const auto& d : imported_pkgs) {
-			std::string quals = std::string() + d + std::string("::") + yytext;
+			std::string quals = d + "::" + yytext;
 			if (pkg_user_types.count(quals) > 0) {
 				yylval->string = new std::string(quals);
 				return TOK_PKG_USER_TYPE;
 			}
 		}
 
-		yylval->string = new std::string(std::string("\\") + yytext);
+		yylval->string = new std::string(s);
 		return TOK_ID;
 	}
 }
@@ -496,15 +496,11 @@ import[ \t\r\n]+\"(DPI|DPI-C)\"[ \t\r\n]+function[ \t\r\n]+ {
 import[ \t\r\n]+[a-zA-Z_$][a-zA-Z0-9_$]*[ \t\r\n]*"::"[ \t\r\n]*"*"[ \t\r\n]*";" {
   auto* ret = new std::string("\\");
 
-  auto* ptr = yytext;
-  // skip "import"
-  for (; *ptr && *ptr != ' ' ; ++ptr) ;
-  // skip white spaces
-  for (; *ptr && isspace(*ptr) ; ++ptr) ;
-  // copy package name
-  for (; *ptr && *ptr != ':' ; ++ptr)
-    *ret += *ptr;
-  // return
+  const auto *ptr = yytext;
+  auto *begin = strchr(ptr, ' '); // skip "import"
+  for (; *begin && isspace(*begin); ++begin) ; // skip white spaces
+  const auto *end = strstr(ptr, "::");
+  *ret += std::string(begin, end); // copy package name
   imported_pkgs.push_back(*ret);
   yylval->string = ret;
   return TOK_IMPORT_PACKAGE;
