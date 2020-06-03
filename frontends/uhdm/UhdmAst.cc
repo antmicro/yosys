@@ -803,6 +803,14 @@ AST::AstNode* UhdmAst::visit_object (
 			current_node->type = AST::AST_IDENTIFIER;
 			auto range = make_range(obj_h, visited, top_nodes);
 			current_node->children.push_back(range);
+			visit_one_to_one({vpiParent},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node) {
+						current_node->str = node->str;
+						delete node;
+					});
 			break;
 		}
 		case vpiNamedBegin: {
