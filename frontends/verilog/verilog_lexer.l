@@ -499,7 +499,7 @@ import[ \t\r\n]+[a-zA-Z_$][a-zA-Z0-9_$]*[ \t\r\n]*"::"[ \t\r\n]*"*"[ \t\r\n]*";"
   const auto *ptr = yytext;
   auto *begin = strchr(ptr, ' '); // skip "import"
   for (; *begin && isspace(*begin); ++begin) ; // skip white spaces
-  const auto *end = strstr(ptr, "::");
+  auto *end = strstr(ptr, "::");
   *ret += std::string(begin, end); // copy package name
   imported_pkgs.push_back(*ret);
   yylval->string = ret;
