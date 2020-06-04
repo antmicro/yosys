@@ -822,13 +822,15 @@ AST::AstNode* UhdmAst::visit_object (
 						current_node->str = node->str;
 						delete node;
 					});
-			visit_one_to_many({vpiRange},
+			auto range_node = new AST::AstNode(AST::AST_RANGE);
+			visit_one_to_one({vpiLeftRange, vpiRightRange},
 					obj_h,
 					visited,
 					top_nodes,
-					[&](AST::AstNode* node){
-						current_node->children.push_back(node);
+					[&](AST::AstNode* node) {
+						range_node->children.push_back(node);
 					});
+			current_node->children.push_back(range_node);
 			break;
 		}
 		case vpiNamedBegin: {
