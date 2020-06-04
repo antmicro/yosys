@@ -2131,9 +2131,11 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			if (next_ast->children[0]->id2ast == NULL || next_ast->children[0]->id2ast->type != AST_GENVAR)
 				log_file_error(filename, location.first_line, "Left hand side of 3rd expression of generate for-loop is not a gen var!\n");
 		} else {
-			if (init_ast->children[0]->id2ast == NULL || init_ast->children[0]->id2ast->type != AST_WIRE)
+			if (init_ast->children[0]->id2ast == NULL || (init_ast->children[0]->id2ast->type != AST_WIRE &&
+														  init_ast->children[0]->id2ast->type != AST_AUTOWIRE))
 				log_file_error(filename, location.first_line, "Left hand side of 1st expression of generate for-loop is not a register!\n");
-			if (next_ast->children[0]->id2ast == NULL || next_ast->children[0]->id2ast->type != AST_WIRE)
+			if (next_ast->children[0]->id2ast == NULL || (next_ast->children[0]->id2ast->type != AST_WIRE &&
+														  next_ast->children[0]->id2ast->type != AST_AUTOWIRE))
 				log_file_error(filename, location.first_line, "Left hand side of 3rd expression of generate for-loop is not a register!\n");
 		}
 
