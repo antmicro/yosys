@@ -160,21 +160,24 @@ AST::AstNode* UhdmAst::visit_object (
 			break;
 		}
 		case vpiParameter: {
+			current_node->type = AST::AST_PARAMETER;
 			s_vpi_value val;
 			vpi_get_value(obj_h, &val);
 			switch (val.format) {
+				case 0: {
+					current_node->type = AST::AST_NONE;
+					break;
+				}
 				case vpiScalarVal: {
-					current_node->type = AST::AST_PARAMETER;
 					current_node->children.push_back(AST::AstNode::mkconst_int(val.value.scalar, true));
 					break;
 				}
 				case vpiIntVal: {
-					current_node->type = AST::AST_PARAMETER;
 					current_node->children.push_back(AST::AstNode::mkconst_int(val.value.integer, true));
 					break;
 				}
 				default: {
-					break;
+					log_error("Encountered unhandled parameter format: %d\n", val.format);
 				}
 			}
 			break;
@@ -803,8 +806,7 @@ AST::AstNode* UhdmAst::visit_object (
 						}
 						case vpiMultiConcatOp: current_node->type = AST::AST_REPLICATE; break;
 						default: {
-							std::cout << "\t! Encountered unhandled operation" << std::endl;
-							break;
+							log_error("Encountered unhandled operation: %d\n", operation);
 						}
 					}
 					break;
@@ -1019,7 +1021,7 @@ AST::AstNode* UhdmAst::visit_object (
 					break;
 				}
 				default: {
-					break;
+					log_error("Encountered unhandled constant format: %d\n", val.format);
 				}
 			}
 			if (obsolete_node) {
@@ -1109,7 +1111,7 @@ AST::AstNode* UhdmAst::visit_object (
 		// Explicitly unsupported
 		case vpiProgram:
 		default: {
-			break;
+			log_error("Encountered unhandled object type: %d\n", objectType);
 		}
 	}
 
