@@ -44,14 +44,19 @@ void sanitize_symbol_name(std::string &name) {
 		std::replace(name.begin(), name.end(), '@','_');
 }
 
-int parse_int_string(const char* full_str, char base_char, unsigned base) {
-	const char* int_str = std::strchr(full_str, base_char);
-	if (int_str) {
-		int_str++;
+int parse_int_string(const char* int_str) {
+	const char* bin_str = std::strchr(int_str, 'b');
+	const char* dec_str = std::strchr(int_str, 'd');
+	const char* hex_str = std::strchr(int_str, 'h');
+	if (bin_str) {
+		return std::stoi(bin_str + 1, nullptr, 2);
+	} else if (dec_str) {
+		return std::stoi(dec_str + 1, nullptr, 10);
+	} else if (hex_str) {
+		return std::stoi(hex_str + 1, nullptr, 16);
 	} else {
-		int_str = full_str;
+		return std::stoi(int_str);
 	}
-	return std::stoi(int_str, nullptr, base);
 }
 
 void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::string& type) {
@@ -987,13 +992,13 @@ AST::AstNode* UhdmAst::visit_object (
 				}
 				case vpiBinStrVal: {
 					obsolete_node = current_node;
-					int int_val = parse_int_string(val.value.str, 'b', 2);
+					int int_val = parse_int_string(val.value.str);
 					current_node = AST::AstNode::mkconst_int(int_val, false);
 					break;
 				}
 				case vpiHexStrVal: {
 					obsolete_node = current_node;
-					int int_val = parse_int_string(val.value.str, 'h', 16);
+					int int_val = parse_int_string(val.value.str);
 					current_node = AST::AstNode::mkconst_int(int_val, false);
 					break;
 				}
