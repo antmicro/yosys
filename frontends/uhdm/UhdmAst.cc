@@ -688,6 +688,19 @@ AST::AstNode* UhdmAst::visit_object (
 					});
 			break;
 		}
+		case vpiInitial: {
+			current_node->type = AST::AST_INITIAL;
+			visit_one_to_one({vpiStmt},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node) {
+						if (node) {
+							current_node->children.push_back(node);
+						}
+					});
+			break;
+		}
 		case vpiBegin: {
 			current_node->type = AST::AST_BLOCK;
 			visit_one_to_many({
