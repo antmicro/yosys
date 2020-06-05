@@ -628,32 +628,38 @@ AST::AstNode* UhdmAst::visit_object (
 			std::map<std::string, AST::AstNode*> nodes;
 			nodes["process_node"] = current_node;
 
-			if (vpi_get(vpiAlwaysType, obj_h) == vpiAlwaysComb) {
-				auto stmts = new AST::AstNode(AST::AST_BLOCK);
-				current_node->children.push_back(stmts);
-				visit_one_to_one({
-					vpiStmt,
-					},
-					obj_h,
-					visited,
-					&nodes,
-					[&](AST::AstNode* node) {
-						if (node) {
-							stmts->children.push_back(node);
-						}
-				});
-			} else {
-				visit_one_to_one({
-					vpiStmt,
-					},
-					obj_h,
-					visited,
-					&nodes,
-					[&](AST::AstNode* node) {
-						if (node) {
-							current_node->children.push_back(node);
-						}
+			switch (vpi_get(vpiAlwaysType, obj_h)) {
+				case vpiAlwaysComb:
+				case vpiAlwaysFF: {
+					auto stmts = new AST::AstNode(AST::AST_BLOCK);
+					current_node->children.push_back(stmts);
+					visit_one_to_one({
+						vpiStmt,
+						},
+						obj_h,
+						visited,
+						&nodes,
+						[&](AST::AstNode* node) {
+							if (node) {
+								stmts->children.push_back(node);
+							}
 					});
+					break;
+				}
+				default: {
+					visit_one_to_one({
+						vpiStmt,
+						},
+						obj_h,
+						visited,
+						&nodes,
+						[&](AST::AstNode* node) {
+							if (node) {
+								current_node->children.push_back(node);
+							}
+						});
+					break;
+				}
 			}
 			break;
 		}
