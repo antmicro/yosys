@@ -1039,6 +1039,11 @@ AST::AstNode* UhdmAst::visit_object (
 					current_node = AST::AstNode::mkconst_real(val.value.real);
 					break;
 				}
+				case vpiStringVal: {
+					obsolete_node = current_node;
+					current_node = AST::AstNode::mkconst_str(val.value.str);
+					break;
+				}
 				default: {
 					log_error("Encountered unhandled constant format: %d\n", val.format);
 				}
