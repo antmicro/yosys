@@ -634,8 +634,6 @@ AST::AstNode* UhdmAst::visit_object (
 			switch (vpi_get(vpiAlwaysType, obj_h)) {
 				case vpiAlwaysComb:
 				case vpiAlwaysFF: {
-					auto stmts = new AST::AstNode(AST::AST_BLOCK);
-					current_node->children.push_back(stmts);
 					visit_one_to_one({
 						vpiStmt,
 						},
@@ -643,10 +641,8 @@ AST::AstNode* UhdmAst::visit_object (
 						visited,
 						&nodes,
 						[&](AST::AstNode* node) {
-							if (node) {
-								stmts->children.push_back(node);
-							}
-					});
+							current_node->children.push_back(node);
+						});
 					break;
 				}
 				default: {
