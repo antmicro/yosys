@@ -166,12 +166,19 @@ static bool isInLocalScope(const std::string *name)
 
 static AstNode *getTypeDefinitionNode(std::string type_name)
 {
-	// return the definition nodes from the typedef statement
-	auto user_types = user_type_stack.back();
-	log_assert(user_types->count(type_name) > 0);
-	auto typedef_node = (*user_types)[type_name];
-	log_assert(typedef_node->type == AST_TYPEDEF);
-	return typedef_node->children[0];
+	if (type_name.find(std::string("::")) != string::npos) {
+		log_assert(pkg_user_types.count(type_name) > 0);
+		auto typedef_node = pkg_user_types[type_name];
+		log_assert(typedef_node->type == AST_TYPEDEF);
+		return typedef_node->children[0];
+	} else {
+		// return the definition nodes from the typedef statement
+		auto user_types = user_type_stack.back();
+		log_assert(user_types->count(type_name) > 0);
+		auto typedef_node = (*user_types)[type_name];
+		log_assert(typedef_node->type == AST_TYPEDEF);
+		return typedef_node->children[0];
+	}
 }
 
 static AstNode *copyTypeDefinition(std::string type_name)
