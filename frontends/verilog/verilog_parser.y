@@ -563,7 +563,7 @@ module_arg:
 		ast_stack.back()->children.push_back(astbuf2);
 		delete astbuf1; // really only needed if multiple instances of same type.
 	} module_arg_opt_assignment |
-	attr wire_type range TOK_ID {
+	attr wire_type range TOK_ID range {
 		AstNode *node = $2;
 		node->str = *$4;
 		SET_AST_NODE_LOC(node, @4, @4);
