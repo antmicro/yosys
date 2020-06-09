@@ -169,6 +169,16 @@ static bool isInLocalScope(const std::string *name)
 	return (user_types.count(*name) > 0);
 }
 
+static AstNode *getTypeFromPackage(const std::string &pkg_name, const std::string &type_name)
+{
+	auto *pkg = ast_stack[0]->find_child(AST_PACKAGE, pkg_name);
+	if(pkg)
+	{
+		return pkg->find_child(type_name);
+	}
+	return nullptr;
+}
+
 static AstNode *getTypeDefinitionNode(std::string type_name)
 {
 	// check current scope then outer scopes for a name
@@ -183,6 +193,26 @@ static AstNode *getTypeDefinitionNode(std::string type_name)
 
 	// The lexer recognized the name as a TOK_USER_TYPE, but now we can't find it anymore?
 	log_error("typedef for user type `%s' not found", type_name.c_str());
+}
+
+static void expandImport(const std::string &pkg_name, const char *item_name)
+{
+	log_assert(item_name);
+
+	AstNode *fnode = nullptr;
+	for(auto mod : ast_stack){
+		for(auto *n : mod->children)
+		{
+			if(pkg_name == n->str)
+				fnode = n;
+		}
+	}
+
+	if( item_name[0] == '*' && fnode )
+	{
+		for(auto *child : fnode->children)
+			ast_stack.back()->children.push_back(child->clone());
+	}
 }
 
 static AstNode *copyTypeDefinition(std::string type_name)
@@ -218,9 +248,6 @@ static AstNode *checkRange(AstNode *type_node, AstNode *range_node)
 			range_node = makeRange(type_node->range_left, type_node->range_right, false);
 		}
 	}
-	if (range_node && range_node->children.size() != 2) {
-		frontend_verilog_yyerror("wire/reg/logic packed dimension must be of the form: [<expr>:<expr>], [<expr>+:<expr>], or [<expr>-:<expr>]");
-	}
 	return range_node;
 }
 
@@ -237,10 +264,12 @@ static void rewriteAsMemoryNode(AstNode *node, AstNode *rangeNode)
 {
 	node->type = AST_MEMORY;
 	if (rangeNode->type == AST_MULTIRANGE) {
-		for (auto *itr : rangeNode->children)
+		for (auto *itr : rangeNode->children) {
 			rewriteRange(itr);
-	} else
+		}
+	} else {
 		rewriteRange(rangeNode);
+	}
 	node->children.push_back(rangeNode);
 }
 
@@ -305,7 +334,7 @@ static void checkLabelsMatch(const char *element, const std::string *before, con
 %token TOK_RAND TOK_CONST TOK_CHECKER TOK_ENDCHECKER TOK_EVENTUALLY
 %token TOK_INCREMENT TOK_DECREMENT TOK_UNIQUE TOK_UNIQUE0 TOK_PRIORITY
 %token TOK_STRUCT TOK_PACKED TOK_UNSIGNED TOK_INT TOK_BYTE TOK_SHORTINT TOK_LONGINT TOK_UNION
-%token TOK_BIT_OR_ASSIGN TOK_BIT_AND_ASSIGN TOK_BIT_XOR_ASSIGN TOK_ADD_ASSIGN
+%token TOK_BIT_OR_ASSIGN TOK_BIT_AND_ASSIGN TOK_BIT_XOR_ASSIGN TOK_ADD_ASSIGN TOK_INSIDE
 %token TOK_SUB_ASSIGN TOK_DIV_ASSIGN TOK_MOD_ASSIGN TOK_MUL_ASSIGN
 %token TOK_SHL_ASSIGN TOK_SHR_ASSIGN TOK_SSHL_ASSIGN TOK_SSHR_ASSIGN
 %token TOK_BIND
@@ -492,6 +521,11 @@ module:
 		exitTypeScope();
 	};
 
+module_import_package:
+	    TOK_IMPORT TOK_ID TOK_PACKAGESEP '*' {
+		expandImport(*$2, "*");
+	    }
+
 module_para_opt:
 	'#' '(' { astbuf1 = nullptr; } module_para_list { if (astbuf1) delete astbuf1; } ')' | %empty;
 
@@ -574,14 +608,47 @@ module_arg:
 		ast_stack.back()->children.push_back(astbuf2);
 		delete astbuf1; // really only needed if multiple instances of same type.
 	} module_arg_opt_assignment |
-	attr wire_type range TOK_ID {
+//	attr wire_type range TOK_ID { // use multirange_dimensions or sth...
+	attr wire_type range TOK_ID range {
 		AstNode *node = $2;
 		node->str = *$4;
 		SET_AST_NODE_LOC(node, @4, @4);
 		node->port_id = ++port_counter;
 		AstNode *range = checkRange(node, $3);
-		if (range != NULL)
+		if (range != NULL){
 			node->children.push_back(range);
+		}
+		if ($5 != NULL) {
+			// we should really re-use code from wire_name
+			auto *rangeNode = $5;
+			if (rangeNode->type == AST_RANGE && rangeNode->children.size() == 1) {
+				// SV array size [n], rewrite as [n-1:0]
+				rangeNode->children[0] = new AstNode(AST_SUB, rangeNode->children[0], AstNode::mkconst_int(1, true));
+				rangeNode->children.push_back(AstNode::mkconst_int(0, false));
+			}
+			node->children.push_back(rangeNode);
+		}
+		if (!node->is_input && !node->is_output)
+			frontend_verilog_yyerror("Module port `%s' is neither input nor output.", $4->c_str());
+		if (node->is_reg && node->is_input && !node->is_output && !sv_mode)
+			frontend_verilog_yyerror("Input port `%s' is declared as register.", $4->c_str());
+		ast_stack.back()->children.push_back(node);
+		append_attr(node, $1);
+		delete $4;
+	} module_arg_opt_assignment |
+	attr wire_type non_opt_multirange TOK_ID {
+		AstNode *node = $2;
+		node->str = *$4;
+		SET_AST_NODE_LOC(node, @4, @4);
+		node->port_id = ++port_counter;
+
+		AstNode *multirange = $3;
+		do_not_require_port_stubs = true;
+		if (multirange != NULL){
+			multirange->is_packed = true;
+			node->children.push_back(multirange);
+		}
+
 		if (!node->is_input && !node->is_output)
 			frontend_verilog_yyerror("Module port `%s' is neither input nor output.", $4->c_str());
 		if (node->is_reg && node->is_input && !node->is_output && !sv_mode)
@@ -1819,10 +1886,14 @@ struct_var: TOK_ID	{	auto *var_node = astbuf2->clone();
 /////////
 
 wire_decl:
-	attr wire_type range {
+	attr wire_type range_or_multirange {
 		albuf = $1;
 		astbuf1 = $2;
 		astbuf2 = checkRange(astbuf1, $3);
+
+		if (astbuf2 && astbuf2->type == AST_MULTIRANGE) {
+			astbuf2->is_packed = true; // packed multirange
+		}
 	} delay wire_name_list {
 		delete astbuf1;
 		if (astbuf2 != NULL)
@@ -1940,14 +2011,46 @@ wire_name:
 		append_attr_clone(node, albuf);
 		if (astbuf2 != NULL)
 			node->children.push_back(astbuf2->clone());
+
+		bool custom_type_with_range = false;
+		AstNode *type_node = nullptr;
+		if(node->children.size() && node->children[0]->type == AST_WIRETYPE)
+		{
+			auto wiretype_name = node->children[0]->str;
+			size_t colon_pos = wiretype_name.find("::");
+			if(colon_pos != std::string::npos)
+			{
+				std::string pkg_name = wiretype_name.substr(0, colon_pos);
+				wiretype_name = wiretype_name.substr(colon_pos+1);
+				wiretype_name[0] = '\\';
+				type_node = getTypeFromPackage(pkg_name, wiretype_name);
+				log_assert(type_node);
+			} else
+			{
+				type_node = getTypeDefinitionNode(wiretype_name);
+			}
+			custom_type_with_range = type_node->children.size() && (type_node->children[0]->type == AST_RANGE || type_node->children[0]->type == AST_MULTIRANGE);
+		}
+
 		if ($2 != NULL) {
 			if (node->is_input || node->is_output)
 				frontend_verilog_yyerror("input/output/inout ports cannot have unpacked dimensions.");
-			if (!astbuf2 && !node->is_custom_type) {
-				addRange(node, 0, 0, false);
+			if(astbuf2 != NULL)
+				rewriteAsMemoryNode(node, $2);
+			else{
+				AstNode *range = $2;
+
+				if(range->type == AST_MULTIRANGE || custom_type_with_range) {
+					if(!custom_type_with_range)
+						addRange(node, 0, 0, false);
+					rewriteAsMemoryNode(node, range);
+				}else{
+					rewriteRange(range);
+					node->children.push_back(range);
+				}
 			}
-			rewriteAsMemoryNode(node, $2);
 		}
+
 		if (current_function_or_task) {
 			if (node->is_input || node->is_output)
 				node->port_id = current_function_or_task_port_id++;
@@ -2553,6 +2656,20 @@ assert_property:
 		}
 	};
 
+local_definition_stmt:
+	non_io_wire_type TOK_ID '=' delay expr {
+		if (!sv_mode)
+			frontend_verilog_yyerror("Found variable declaration in for declaration (%s). This is not supported unless read_verilog is called with -sv!", $2->c_str());
+		astbuf3->str = *($2);
+		AstNode *node = new AstNode(AST_ASSIGN_EQ, astbuf3->clone(), $5);
+		delete astbuf3;
+		ast_stack.back()->children.push_back(node);
+		SET_AST_NODE_LOC(node, @2, @5);
+	};
+
+for_initialization:
+	 local_definition_stmt | simple_behavioral_stmt;
+
 simple_behavioral_stmt:
 	attr lvalue '=' delay expr {
 		AstNode *node = new AstNode(AST_ASSIGN_EQ, $2, $5);
@@ -2663,11 +2780,14 @@ behavioral_stmt:
 		ast_stack.pop_back();
 	} |
 	attr TOK_FOR '(' {
+		AstNode *block = new AstNode(AST_BLOCK);
 		AstNode *node = new AstNode(AST_FOR);
-		ast_stack.back()->children.push_back(node);
+		block->str = std::string("$loopvar$") + std::to_string(autoidx++);
+		block->children.push_back(node);
+		ast_stack.back()->children.push_back(block);
 		ast_stack.push_back(node);
 		append_attr(node, $1);
-	} simple_behavioral_stmt ';' expr {
+	} for_initialization ';' expr {
 		ast_stack.back()->children.push_back($7);
 	} ';' simple_behavioral_stmt ')' {
 		AstNode *block = new AstNode(AST_BLOCK);
@@ -2937,7 +3057,7 @@ gen_stmt:
 		AstNode *node = new AstNode(AST_GENFOR);
 		ast_stack.back()->children.push_back(node);
 		ast_stack.push_back(node);
-	} simple_behavioral_stmt ';' expr {
+	} for_initialization ';' expr {
 		ast_stack.back()->children.push_back($6);
 	} ';' simple_behavioral_stmt ')' gen_stmt_block {
 		SET_AST_NODE_LOC(ast_stack.back(), @1, @11);
@@ -3014,7 +3134,22 @@ expr:
 		$$->children.push_back($6);
 		SET_AST_NODE_LOC($$, @1, @$);
 		append_attr($$, $3);
+	} |
+	inside_begin inside_list '}' {
+		$$ = ast_stack.back()->children.back();
+		ast_stack.back()->children.pop_back();
+		SET_AST_NODE_LOC($$, @1, @2);
 	};
+
+inside_begin:
+	basic_expr TOK_INSIDE '{' {
+		ast_stack.back()->children.push_back(new AstNode(AST_INSIDE, $1));
+	};
+
+inside_list:
+	rvalue {
+		ast_stack.back()->children.back()->children.back()->children.push_back($1);
+	} | inside_list ',' inside_list;
 
 basic_expr:
 	rvalue {

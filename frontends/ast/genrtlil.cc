@@ -878,7 +878,7 @@ void AstNode::detectSignWidthWorker(int &width_hint, bool &sign_hint, bool *foun
 			if (children.size() > 1)
 				range = children[1];
 		} else if (id_ast->type == AST_STRUCT_ITEM) {
-			AstNode *tmp_range = make_struct_member_range(this, id_ast);
+			AstNode *tmp_range = make_struct_member_range(this, id_ast, 0);
 			this_width = tmp_range->range_left - tmp_range->range_right + 1;
 			delete tmp_range;
 		} else
