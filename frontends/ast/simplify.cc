@@ -868,7 +868,6 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			}
 		}
 	}
-
 	// create name resolution entries for all objects with names
 	if (type == AST_PACKAGE) {
 		//add names to package scope
