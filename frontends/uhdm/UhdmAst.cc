@@ -787,6 +787,14 @@ AST::AstNode* UhdmAst::visit_object (
 					// Parent should not use returned value
 					return nullptr;
 				}
+				case vpiCastOp: {
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node){
+							delete current_node;
+							current_node = node;
+						});
+					break;
+				}
 				default: {
 					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
 						[&](AST::AstNode* node){
