@@ -71,6 +71,7 @@ namespace VERILOG_FRONTEND {
 	bool current_modport_input, current_modport_output;
 	std::istream *lexin;
 	std::vector<std::string> imported_pkgs;
+	std::string current_assign_pattern_name;
 
 	bool add_genvar;
 }
@@ -2462,7 +2463,30 @@ simple_behavioral_stmt:
 		SET_AST_NODE_LOC(and_node, @2, @5);
 		ast_stack.back()->children.push_back(node);
 		append_attr(node, $1);
+	} |
+	start_assigment_patter assigment_pattern '}';
+
+start_assigment_patter:
+	attr lvalue '=' delay '\'' '{' {
+		current_assign_pattern_name = $2->str;
+	} |
+	attr lvalue OP_LE delay '\'' '{' {
+		current_assign_pattern_name = $2->str;
 	};
+
+assigment_pattern:
+	lvalue ':' expr {
+		AstNode *lval = $1->clone();
+		if (lval->str.compare(0, 1, "\\") == 0)
+			lval->str = current_assign_pattern_name + "." + lval->str.substr(1);
+		AstNode *node = new AstNode(AST_ASSIGN_EQ, lval, $3);
+		SET_AST_NODE_LOC(node, @1, @3);
+		ast_stack.back()->children.push_back(node);
+	} |
+	TOK_DEFAULT ':' expr {
+		/* TODO */
+	} |
+	assigment_pattern ',' assigment_pattern;
 
 // this production creates the obligatory if-else shift/reduce conflict
 behavioral_stmt:
