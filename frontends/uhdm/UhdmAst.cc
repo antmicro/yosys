@@ -795,6 +795,28 @@ AST::AstNode* UhdmAst::visit_object (
 						});
 					break;
 				}
+				case vpiInsideOp: {
+					current_node->type = AST::AST_EQ;
+					AST::AstNode* lhs = nullptr;
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* node) {
+							if (!lhs) {
+								lhs = node;
+							}
+							if (current_node->children.size() < 2) {
+								current_node->children.push_back(node);
+							} else {
+								auto or_node = new AST::AstNode(AST::AST_LOGIC_OR);
+								auto eq_node = new AST::AstNode(AST::AST_EQ);
+								or_node->children.push_back(current_node);
+								or_node->children.push_back(eq_node);
+								eq_node->children.push_back(lhs->clone());
+								eq_node->children.push_back(node);
+								current_node = or_node;
+							}
+						});
+					break;
+				}
 				default: {
 					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
 						[&](AST::AstNode* node){
