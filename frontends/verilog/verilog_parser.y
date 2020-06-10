@@ -3187,12 +3187,15 @@ basic_expr:
 	TOK_PKG_USER_TYPE '\'' '(' expr ')' {
 		$$ = $4;
 	} |
+	TOK_USER_TYPE '\'' '(' expr ')' {
+		$$ = $4;
+	} |
 	basic_expr '\'' '(' expr ')' {
 		$$ = $4;
 	} |
-	TOK_PKG_USER_TYPE {
+	TOK_PKG_USER_TYPE {	
 		$$ = new AstNode(AST_IDENTIFIER);
-		$$->str = *$1;
+		$$->children.push_back(copyTypeDefinition(*$1));
 	};
 
 concat_list:
