@@ -586,6 +586,7 @@ module_arg:
 		ast_stack.back()->children.push_back(astbuf2);
 		delete astbuf1; // really only needed if multiple instances of same type.
 	} module_arg_opt_assignment |
+//	attr wire_type range TOK_ID { // use multirange_dimensions or sth...
 	attr wire_type range TOK_ID range {
 		AstNode *node = $2;
 		node->str = *$4;
@@ -593,6 +594,16 @@ module_arg:
 		node->port_id = ++port_counter;
 		if ($3 != NULL)
 			node->children.push_back($3);
+		if ($5 != NULL) {
+			// we should really re-use code from wire_name
+			auto *rangeNode = $5;
+			if (rangeNode->type == AST_RANGE && rangeNode->children.size() == 1) {
+				// SV array size [n], rewrite as [n-1:0]
+				rangeNode->children[0] = new AstNode(AST_SUB, rangeNode->children[0], AstNode::mkconst_int(1, true));
+				rangeNode->children.push_back(AstNode::mkconst_int(0, false));
+			}
+			node->children.push_back(rangeNode);
+		}
 		if (!node->is_input && !node->is_output)
 			frontend_verilog_yyerror("Module port `%s' is neither input nor output.", $4->c_str());
 		if (node->is_reg && node->is_input && !node->is_output && !sv_mode)
