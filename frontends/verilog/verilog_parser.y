@@ -2483,8 +2483,12 @@ assigment_pattern:
 		SET_AST_NODE_LOC(node, @1, @3);
 		ast_stack.back()->children.push_back(node);
 	} |
-	TOK_DEFAULT ':' expr {
-		/* TODO */
+	TOK_DEFAULT ':' expr { /* only supports packed structs, treating struct as vector and assigning default value before other values */
+		AstNode *lval = new AstNode(AST_IDENTIFIER);
+		lval->str = current_assign_pattern_name;
+		AstNode *node = new AstNode(AST_ASSIGN_EQ, lval, $3);
+		SET_AST_NODE_LOC(node, @1, @3);
+		ast_stack.back()->children.insert(ast_stack.back()->children.begin(), node);
 	} |
 	assigment_pattern ',' assigment_pattern;
 
