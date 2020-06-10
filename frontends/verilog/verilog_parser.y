@@ -3165,6 +3165,10 @@ basic_expr:
 	} |
 	basic_expr '\'' '(' expr ')' {
 		$$ = $4;
+	} |
+	TOK_PKG_USER_TYPE {
+		$$ = new AstNode(AST_IDENTIFIER);
+		$$->str = *$1;
 	};
 
 concat_list:
