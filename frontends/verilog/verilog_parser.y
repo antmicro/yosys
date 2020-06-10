@@ -3160,10 +3160,10 @@ basic_expr:
 		$$ = new AstNode(AST_CAST_SIZE, $1, $4);
 		SET_AST_NODE_LOC($$, @1, @4);
         } |
-	TOK_PKG_USER_TYPE '\'' '(' basic_expr ')' {
+	TOK_PKG_USER_TYPE '\'' '(' expr ')' {
 		$$ = $4;
 	} |
-	basic_expr '\'' '(' basic_expr ')' {
+	basic_expr '\'' '(' expr ')' {
 		$$ = $4;
 	};
 
