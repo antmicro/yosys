@@ -1694,6 +1694,27 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			}
 		}
 	}
+	if (type == AST_INSIDE) {
+		AstNode *inside_node = this->children.back()->clone();
+		inside_node->children.clear();
+		newNode = new AstNode(AST_BIT_OR);
+		newNode->str = inside_node->str;
+		auto *child_add = &newNode->children;
+		int number_of_ors = this->children.back()->children.size() - 2;
+		for (int i = 0; i < number_of_ors; i++) {
+			AstNode *or_node = new AstNode(AST_BIT_OR);
+			or_node->str = inside_node->str;
+			child_add->push_back(or_node);
+			child_add = &child_add->back()->children;
+		}
+		child_add = &newNode->children;
+		for(const auto &child : this->children.back()->children) {
+			if(child_add->size() == 2)
+				child_add = &(child_add->front()->children);
+			child_add->push_back(new AstNode(AST_EQ, inside_node->clone(), child->clone())); // TODO: For integral expressions, wildcard equality (==?) should be used
+		}
+		goto apply_newNode;
+	}
 	// annotate identifiers using scope resolution and create auto-wires as needed
 	if (type == AST_IDENTIFIER) {
 		if (current_scope.count(str) == 0) {
