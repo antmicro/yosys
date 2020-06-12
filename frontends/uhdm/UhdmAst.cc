@@ -78,8 +78,12 @@ void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::
 			sanitize_symbol_name(argumentName);
 		}
 		auto argNode = new AST::AstNode(AST::AST_ARGUMENT);
-		auto identifierNode = new AST::AstNode(AST::AST_IDENTIFIER);
 		argNode->str = argumentName;
+		argNode->filename = current_node->filename;
+		argNode->location = current_node->location;
+		auto identifierNode = new AST::AstNode(AST::AST_IDENTIFIER);
+		identifierNode->filename = current_node->filename;
+		identifierNode->location = current_node->location;
 		identifierNode->str = identifierName;
 		argNode->children.push_back(identifierNode);
 		current_node->children.push_back(argNode);
@@ -117,6 +121,10 @@ AST::AstNode* UhdmAst::visit_object (
 	if (unsigned int l = vpi_get(vpiLineNo, obj_h)) {
 		current_node->linenum = l;
 	}
+	if (auto filename = vpi_get_str(vpiFile, obj_h)) {
+		current_node->filename = filename;
+	}
+	report.add_file(current_node->filename);
 
 	const unsigned int objectType = vpi_get(vpiType, obj_h);
 	std::cout << "Object: " << objectName
@@ -124,6 +132,7 @@ AST::AstNode* UhdmAst::visit_object (
 		<< std::endl;
 
 	if (alreadyVisited) {
+		report.mark_handled(current_node->filename, current_node->location.first_line);
 		return current_node;
 	}
 	switch(objectType) {
@@ -163,22 +172,29 @@ AST::AstNode* UhdmAst::visit_object (
 			current_node->type = AST::AST_PARAMETER;
 			s_vpi_value val;
 			vpi_get_value(obj_h, &val);
+			AST::AstNode* constant_node = nullptr;
 			switch (val.format) {
 				case 0: {
 					current_node->type = AST::AST_NONE;
 					break;
 				}
 				case vpiScalarVal: {
-					current_node->children.push_back(AST::AstNode::mkconst_int(val.value.scalar, true));
+					constant_node = AST::AstNode::mkconst_int(val.value.scalar, true);
 					break;
 				}
 				case vpiIntVal: {
-					current_node->children.push_back(AST::AstNode::mkconst_int(val.value.integer, true));
+					constant_node = AST::AstNode::mkconst_int(val.value.integer, true);
 					break;
 				}
 				default: {
-					log_error("Encountered unhandled parameter format: %d\n", val.format);
+					error("Encountered unhandled parameter format: %d\n", val.format);
+					report.mark_unhandled(current_node->filename, current_node->location.first_line);
 				}
+			}
+			if (constant_node) {
+				constant_node->filename = current_node->filename;
+				constant_node->location = current_node->location;
+				current_node->children.push_back(constant_node);
 			}
 			break;
 		}
@@ -807,7 +823,11 @@ AST::AstNode* UhdmAst::visit_object (
 								current_node->children.push_back(node);
 							} else {
 								auto or_node = new AST::AstNode(AST::AST_LOGIC_OR);
+								or_node->filename = current_node->filename;
+								or_node->location = current_node->location;
 								auto eq_node = new AST::AstNode(AST::AST_EQ);
+								eq_node->filename = current_node->filename;
+								eq_node->location = current_node->location;
 								or_node->children.push_back(current_node);
 								or_node->children.push_back(eq_node);
 								eq_node->children.push_back(lhs->clone());
@@ -844,6 +864,8 @@ AST::AstNode* UhdmAst::visit_object (
 							current_node->type = AST::AST_ASSIGN_EQ;
 							auto id = current_node->children[0]->clone();
 							auto add_node = new AST::AstNode(AST::AST_ADD, id, AST::AstNode::mkconst_int(1, true));
+							add_node->filename = current_node->filename;
+							add_node->location = current_node->location;
 							current_node->children.push_back(add_node);
 							break;
 						}
@@ -855,7 +877,8 @@ AST::AstNode* UhdmAst::visit_object (
 						}
 						case vpiMultiConcatOp: current_node->type = AST::AST_REPLICATE; break;
 						default: {
-							log_error("Encountered unhandled operation: %d\n", operation);
+							error("Encountered unhandled operation: %d\n", operation);
+							report.mark_unhandled(current_node->filename, current_node->location.first_line);
 						}
 					}
 					break;
@@ -870,12 +893,16 @@ AST::AstNode* UhdmAst::visit_object (
 					visited,
 					top_nodes,
 					[&](AST::AstNode* node) {
-						current_node->children.push_back(new AST::AstNode(AST::AST_RANGE, node));
+						auto range_node = new AST::AstNode(AST::AST_RANGE, node);
+						range_node->filename = current_node->filename;
+						range_node->location = current_node->location;
+						current_node->children.push_back(range_node);
 					});
 			break;
 		}
 		case vpiPartSelect: {
 			current_node->type = AST::AST_IDENTIFIER;
+
 			visit_one_to_one({vpiParent},
 					obj_h,
 					visited,
@@ -884,7 +911,10 @@ AST::AstNode* UhdmAst::visit_object (
 						current_node->str = node->str;
 						delete node;
 					});
+
 			auto range_node = new AST::AstNode(AST::AST_RANGE);
+			range_node->filename = current_node->filename;
+			range_node->location = current_node->location;
 			visit_one_to_one({vpiLeftRange, vpiRightRange},
 					obj_h,
 					visited,
@@ -1040,46 +1070,44 @@ AST::AstNode* UhdmAst::visit_object (
 		case vpiConstant: {
 			s_vpi_value val;
 			vpi_get_value(obj_h, &val);
-			AST::AstNode* obsolete_node = nullptr;
+			AST::AstNode* constant_node = nullptr;
 			switch (val.format) {
 				case vpiScalarVal: {
-					obsolete_node = current_node;
-					current_node = AST::AstNode::mkconst_int(val.value.scalar, false);
+					constant_node = AST::AstNode::mkconst_int(val.value.scalar, false);
 					break;
 				}
 				case vpiBinStrVal: {
-					obsolete_node = current_node;
 					int int_val = parse_int_string(val.value.str);
-					current_node = AST::AstNode::mkconst_int(int_val, false);
+					constant_node = AST::AstNode::mkconst_int(int_val, false);
 					break;
 				}
 				case vpiHexStrVal: {
-					obsolete_node = current_node;
 					int int_val = parse_int_string(val.value.str);
-					current_node = AST::AstNode::mkconst_int(int_val, false);
+					constant_node = AST::AstNode::mkconst_int(int_val, false);
 					break;
 				}
 				case vpiIntVal: {
-					obsolete_node = current_node;
-					current_node = AST::AstNode::mkconst_int(val.value.integer, false);
+					constant_node = AST::AstNode::mkconst_int(val.value.integer, false);
 					break;
 				}
 				case vpiRealVal: {
-					obsolete_node = current_node;
-					current_node = AST::AstNode::mkconst_real(val.value.real);
+					constant_node = AST::AstNode::mkconst_real(val.value.real);
 					break;
 				}
 				case vpiStringVal: {
-					obsolete_node = current_node;
-					current_node = AST::AstNode::mkconst_str(val.value.str);
+					constant_node = AST::AstNode::mkconst_str(val.value.str);
 					break;
 				}
 				default: {
-					log_error("Encountered unhandled constant format: %d\n", val.format);
+					error("Encountered unhandled constant format: %d\n", val.format);
+					report.mark_unhandled(current_node->filename, current_node->location.first_line);
 				}
 			}
-			if (obsolete_node) {
-				delete obsolete_node;
+			if (constant_node) {
+				constant_node->filename = current_node->filename;
+				constant_node->location = current_node->location;
+				delete current_node;
+				current_node = constant_node;
 			}
 			break;
 		}
@@ -1168,15 +1196,17 @@ AST::AstNode* UhdmAst::visit_object (
 		// Explicitly unsupported
 		case vpiProgram:
 		default: {
-			log_error("Encountered unhandled object type: %d\n", objectType);
+			report.mark_unhandled(current_node->filename, current_node->location.first_line);
+			error("Encountered unhandled object type: %d\n", objectType);
 		}
 	}
 
 	// Check if we initialized the node in switch-case
 	if (current_node->type != AST::AST_NONE) {
-	  return current_node;
+		report.mark_handled(current_node->filename, current_node->location.first_line);
+		return current_node;
 	} else {
-	  return nullptr;
+		return nullptr;
 	}
 }
 
@@ -1192,6 +1222,17 @@ AST::AstNode* UhdmAst::visit_designs (const std::vector<vpiHandle>& designs) {
 		}
 	}
 	return top_design;
+}
+
+void UhdmAst::error(const char* format, ...) const {
+	va_list args;
+	va_start(args, format);
+	if (stop_on_error) {
+		log_error(format, args);
+	} else {
+		log_warning(format, args);
+	}
+	va_end(args);
 }
 
 
