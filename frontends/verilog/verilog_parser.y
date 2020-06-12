@@ -326,7 +326,7 @@ static void addGenvar() {
 %token TOK_POS_INDEXED TOK_NEG_INDEXED TOK_PROPERTY TOK_ENUM TOK_TYPEDEF
 %token TOK_RAND TOK_CONST TOK_CHECKER TOK_ENDCHECKER TOK_EVENTUALLY
 %token TOK_INCREMENT TOK_DECREMENT TOK_UNIQUE TOK_PRIORITY
-%token TOK_STRUCT TOK_PACKED TOK_UNSIGNED TOK_INT TOK_BYTE TOK_SHORTINT TOK_UNION
+%token TOK_STRUCT TOK_PACKED TOK_UNSIGNED TOK_INT TOK_BYTE TOK_SHORTINT TOK_UNION TOK_INSIDE
 %token TOK_OR_ASSIGN TOK_XOR_ASSIGN TOK_AND_ASSIGN TOK_SUB_ASSIGN
 
 %type <ast> range range_or_multirange  non_opt_range non_opt_multirange range_or_signed_int
@@ -2900,7 +2900,22 @@ expr:
 		$$->children.push_back($6);
 		SET_AST_NODE_LOC($$, @1, @$);
 		append_attr($$, $3);
+	} |
+	inside_begin inside_list '}' {
+		$$ = ast_stack.back()->children.back();
+		ast_stack.back()->children.pop_back();
+		SET_AST_NODE_LOC($$, @1, @2);
 	};
+
+inside_begin:
+	basic_expr TOK_INSIDE '{' {
+		ast_stack.back()->children.push_back(new AstNode(AST_INSIDE, $1));
+	};
+
+inside_list:
+	rvalue {
+		ast_stack.back()->children.back()->children.back()->children.push_back($1);
+	} | inside_list ',' inside_list;
 
 basic_expr:
 	rvalue {

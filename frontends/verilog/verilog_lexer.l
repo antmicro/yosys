@@ -236,6 +236,7 @@ static bool isUserType(std::string &s)
 "unique"       { SV_KEYWORD(TOK_UNIQUE); }
 "unique0"      { SV_KEYWORD(TOK_UNIQUE); }
 "priority"     { SV_KEYWORD(TOK_PRIORITY); }
+"inside"       { SV_KEYWORD(TOK_INSIDE); }
 
 "always_comb"  { SV_KEYWORD(TOK_ALWAYS_COMB); }
 "always_ff"    { SV_KEYWORD(TOK_ALWAYS_FF); }
