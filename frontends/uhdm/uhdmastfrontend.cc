@@ -47,7 +47,10 @@ struct UhdmAstFrontend : public Frontend {
 	{
 		//   |---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|
 		log("\n");
-		log("    read_uhdm [filename]\n");
+		log("    read_uhdm [options] [filename]\n");
+		log("\n");
+		log("    -report [filename]\n");
+		log("        write a coverage report for the UHDM file\n");
 		log("\n");
 		log("Load design from a UHDM file into the current design\n");
 		log("\n");
@@ -56,11 +59,16 @@ struct UhdmAstFrontend : public Frontend {
 	{
 		log_header(design, "Executing UHDM frontend.\n");
 
-		size_t argidx;
-		for (argidx = 1; argidx < args.size(); argidx++) {
-			break;
+		UhdmAst parser;
+
+		std::string report_filename;
+		for (size_t i = 1; i < args.size(); i++) {
+			if (args[i] == "-report" && ++i < args.size()) {
+				report_filename = args[i];
+				parser.stop_on_error = false;
+			}
 		}
-		extra_args(f, filename, args, argidx);
+		extra_args(f, filename, args, args.size() - 1);
 
 		AST::current_filename = filename;
 		AST::set_line_num = &set_line_num;
@@ -72,9 +80,10 @@ struct UhdmAstFrontend : public Frontend {
 		std::vector<vpiHandle> restoredDesigns = serializer.Restore(filename);
 
 		std::cout << UHDM::visit_designs(restoredDesigns) << std::endl;
-		UhdmAst parser;
-
 		current_ast = parser.visit_designs(restoredDesigns);
+		if (report_filename != "") {
+			parser.report.write(report_filename);
+		}
 
 		bool dump_ast1 = true;
 		bool dump_ast2 = true;

@@ -5,6 +5,7 @@
 
 #include "uhdm.h"
 #include "frontends/ast/ast.h"
+#include "uhdmastreport.h"
 
 YOSYS_NAMESPACE_BEGIN
 
@@ -33,6 +34,9 @@ class UhdmAst {
 		// Makes the passed node a cell node of the specified type
 		void make_cell(vpiHandle obj_h, AST::AstNode* node, const std::string& type);
 
+		// Reports that something went wrong with reading the AST
+		void error(const char* format, ...) const;
+
 	public:
 		UhdmAst(){};
 		// Visits single VPI object and creates proper AST node
@@ -42,6 +46,9 @@ class UhdmAst {
 
 		// Visits all VPI design objects and returns created ASTs
 		AST::AstNode* visit_designs (const std::vector<vpiHandle>& designs);
+
+		UhdmAstReport report;
+		bool stop_on_error = true;
 };
 #endif	// Guard
 
