@@ -35,7 +35,7 @@ class UhdmAst {
 		void make_cell(vpiHandle obj_h, AST::AstNode* node, const std::string& type);
 
 		// Reports that something went wrong with reading the AST
-		void error(const char* format, ...) const;
+		void error(const char* message, unsigned object_type) const;
 
 	public:
 		UhdmAst(){};
