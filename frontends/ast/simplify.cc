@@ -946,9 +946,11 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			children[0]->was_checked = true;
 
 			// assigning multirange arrays?
-			if (false) {
+			if (children.size() >= 2 && current_scope.count(children[0]->str) > 0 && current_scope.count(children[1]->str) > 0) {
 				const auto* lhs = current_scope.at(children[0]->str);
 				const auto* rhs = current_scope.at(children[1]->str);
+
+				const auto lhs_range = lhs->range_left - lhs->range_right + 1;
 
 				// Apply workaround only for port wire
 				if ((lhs && (lhs->port_id > 0)) || (rhs && (rhs->port_id > 0))) {
@@ -974,8 +976,8 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 							AstNode* rhs = new AstNode;
 							rhs->type = AST_CONCAT;
-
-							for (int i = 0 ; i < 4 ; ++i) {
+							int number_of_nodes = lhs_range / lhs->children[0]->integer; //TODO: is this good way to store size of array?
+							for (int i = 0 ; i < number_of_nodes ; ++i) {
 								AstNode* temp = new AstNode;
 								temp->type = AST_IDENTIFIER;
 								temp->str = children[1]->str;
@@ -1435,11 +1437,13 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				log_assert(type == AST_WIRE);
 
 				// count size of vector (width)
+				int elem_size = 0;
 				for (const auto& itr : children) {
 					if (itr->type != AST_RANGE)
 						continue ;
 
 					int width = itr->range_left - itr->range_right + 1;
+					if(elem_size == 0) elem_size = width;
 					size *= width;
 				}
 
@@ -1462,6 +1466,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 				// Replace with one-dimensional range (packed vector)
 				AstNode* simple_range = new AstNode(AST_RANGE);
+				simple_range->integer = elem_size;
 				simple_range->children.push_back(mkconst_int(size - 1, false, 32));
 				simple_range->children.push_back(mkconst_int(0, false, 32));
 				children.push_back(simple_range);
