@@ -1224,15 +1224,12 @@ AST::AstNode* UhdmAst::visit_designs (const std::vector<vpiHandle>& designs) {
 	return top_design;
 }
 
-void UhdmAst::error(const char* format, ...) const {
-	va_list args;
-	va_start(args, format);
+void UhdmAst::error(const char* message, unsigned object_type) const {
 	if (stop_on_error) {
-		log_error(format, args);
+		log_error(message, object_type);
 	} else {
-		log_warning(format, args);
+		log_warning(message, object_type);
 	}
-	va_end(args);
 }
 
 
