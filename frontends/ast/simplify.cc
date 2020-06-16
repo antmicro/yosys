@@ -1629,6 +1629,57 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		did_something = true;
 	}
 
+	// Access multirange array replaced by registers?
+	if (type == AST_ARGUMENT) {
+		if (children.size() == 1 && children[0]->type == AST_IDENTIFIER) {
+			auto* identifier = children[0];
+			if (identifier->children.size() == 1 && identifier->children[0]->type == AST_RANGE) {
+				auto* range = identifier->children[0];
+				if (range->children.size() == 2 &&
+						range->children[0]->type == AST_CONSTANT &&
+						range->children[1]->type == AST_CONSTANT) {
+					int left = range->children[0]->integer;
+					int right = range->children[1]->integer;
+
+					if (current_scope.count(identifier->str)) {
+						const auto* reg_node = current_scope.at(identifier->str);
+						const auto ranges = std::count_if(
+							reg_node->children.begin(), reg_node->children.end(),
+							[](const AstNode* node) {
+								return node->type == AST_RANGE;
+							});
+
+						if (ranges == 2) {
+							// FIXME: this assumes that identifier would be replaced by list of registers
+							AstNode* concat = new AstNode;
+							concat->type = AST_CONCAT;
+
+							for (int i = left ; i <= right ; ++i) {
+								AstNode* temp = new AstNode;
+								temp->type = AST_IDENTIFIER;
+								temp->str = identifier->str;
+								temp->children.push_back(new AstNode);
+								temp->children[0]->type = AST_RANGE;
+								temp->children[0]->children.push_back(new AstNode);
+								temp->children[0]->children[0]->type = AST_CONSTANT;
+								temp->children[0]->children[0]->integer = i;
+								concat->children.push_back(temp);
+							}
+
+							// Delete multirange
+							delete children[0];
+							children.clear();
+							// And replace with CONCAT
+							children.push_back(concat);
+
+							did_something = true;
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Replace multirange acces with vector and range access
 	//if (type == AST_IDENTIFIER) {
 	//	if (current_scope.count(str)) {
