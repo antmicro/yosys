@@ -328,9 +328,21 @@ AST::AstNode* UhdmAst::visit_object (
 				make_cell(obj_h, current_node, type);
 			}
 
+			visit_one_to_many({vpiTypedef},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+						auto typedef_node = new AST::AstNode(AST::AST_TYPEDEF);
+						typedef_node->location = node->location;
+						typedef_node->filename = node->filename;
+						typedef_node->children.push_back(node);
+						elaboratedModule->children.push_back(typedef_node);
+					});
 			visit_one_to_many({vpiParameter,
 					vpiNet,
-					vpiTaskFunc
+					vpiTaskFunc,
+					vpiTypedef
 			// Unhandled relationships:
 			//		vpiProcess,
 			//		vpiPrimitive,
@@ -353,7 +365,6 @@ AST::AstNode* UhdmAst::visit_object (
 			//		vpiConcurrentAssertions,
 			//		vpiVariables,
 			//		vpiInternalScope,
-			//		vpiTypedef,
 			//		vpiPropertyDecl,
 			//		vpiSequenceDecl,
 			//		vpiNamedEvent,
@@ -393,6 +404,46 @@ AST::AstNode* UhdmAst::visit_object (
 			//		obj_h,
 			//		visited,
 			//		[](AST::AstNode*){});
+			break;
+		}
+		case vpiStructTypespec: {
+			current_node->type = AST::AST_STRUCT;
+			visit_one_to_many({vpiTypespecMember},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+						current_node->children.push_back(node);
+					});
+			break;
+		}
+		case vpiTypespecMember: {
+			current_node->type = AST::AST_STRUCT_ITEM;
+			vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
+			int typespec_type = vpi_get(vpiType, typespec_h);
+			switch (typespec_type) {
+				case vpiStructTypespec: {
+					delete current_node;
+					current_node = visit_object(typespec_h, visited, top_nodes);
+					break;
+				}
+				case vpiLogicTypespec: {
+					current_node->is_logic = true;
+					visit_one_to_many({vpiRange},
+							typespec_h,
+							visited,
+							top_nodes,
+							[&](AST::AstNode* node){
+								current_node->children.push_back(node);
+							});
+					break;
+				}
+				default: {
+					error("Encountered unhandled typespec: %d\n", typespec_type);
+					report.mark_unhandled(current_node->filename, current_node->location.first_line);
+					break;
+				}
+			}
 			break;
 		}
 		case vpiContAssign: {
