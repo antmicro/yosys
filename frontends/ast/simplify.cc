@@ -3662,6 +3662,11 @@ replace_fcall_later:;
 			if (current_scope.count(str) > 0 && (current_scope[str]->type == AST_PARAMETER || current_scope[str]->type == AST_LOCALPARAM || current_scope[str]->type == AST_ENUM_ITEM)) {
 				if (current_scope[str]->children[0]->type == AST_CONSTANT) {
 					if (children.size() != 0 && children[0]->type == AST_RANGE && children[0]->range_valid) {
+						int range_access = 1;
+						if (current_scope[str]->children.size() == 2 && current_scope[str]->children[1]->type == AST_MULTIRANGE && current_scope[str]->children[1]->children[0]->type == AST_RANGE) {
+							AstNode *range = current_scope[str]->children[1]->children[0];
+							range_access = range->range_left;
+						}
 						std::vector<RTLIL::State> data;
 						bool param_upto = current_scope[str]->range_valid && current_scope[str]->range_swapped;
 						int param_offset = current_scope[str]->range_valid ? current_scope[str]->range_right : 0;
@@ -3671,6 +3676,12 @@ replace_fcall_later:;
 						if (param_upto) {
 							tmp_range_left = (param_width + 2*param_offset) - children[0]->range_right - 1;
 							tmp_range_right = (param_width + 2*param_offset) - children[0]->range_left - 1;
+						}
+
+						if (tmp_range_left == tmp_range_right) {
+							tmp_range_right *= range_access;
+							tmp_range_left = (tmp_range_left + 1) * range_access;
+
 						}
 						for (int i = tmp_range_right; i <= tmp_range_left; i++) {
 							int index = i - param_offset;
