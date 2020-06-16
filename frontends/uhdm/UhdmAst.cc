@@ -1216,9 +1216,11 @@ AST::AstNode* UhdmAst::visit_object (
 				current_node->type = AST::AST_TO_SIGNED;
 			} else if (current_node->str == "\\$unsigned") {
 				current_node->type = AST::AST_TO_UNSIGNED;
-			} else {
+			} else if (current_node->str == "\\$display" || current_node->str == "\\$time") {
 				current_node->type = AST::AST_TCALL;
 				current_node->str = current_node->str.substr(1);
+			} else {
+				current_node->type = AST::AST_FCALL;
 			}
 			visit_one_to_many({vpiArgument},
 				obj_h,
