@@ -37,6 +37,8 @@ class UhdmAst {
 		// Reports that something went wrong with reading the AST
 		void error(const char* message, unsigned object_type) const;
 
+		unsigned enum_count = 0;
+
 	public:
 		UhdmAst(){};
 		// Visits single VPI object and creates proper AST node
