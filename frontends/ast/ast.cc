@@ -214,6 +214,7 @@ AstNode::AstNode(AstNodeType type, AstNode *child1, AstNode *child2, AstNode *ch
 	is_signed = false;
 	is_string = false;
 	is_enum = false;
+	is_packed = false;
 	is_wand = false;
 	is_wor = false;
 	is_unsized = false;
@@ -355,6 +356,9 @@ void AstNode::dumpAst(FILE *f, std::string indent) const
 	}
 	if (is_enum) {
 		fprintf(f, " type=enum");
+	}
+	if (is_packed) {
+		fprintf(f, " packed");
 	}
 	fprintf(f, "\n");
 
