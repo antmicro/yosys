@@ -333,11 +333,25 @@ AST::AstNode* UhdmAst::visit_object (
 					visited,
 					top_nodes,
 					[&](AST::AstNode* node){
-						auto typedef_node = new AST::AstNode(AST::AST_TYPEDEF);
-						typedef_node->location = node->location;
-						typedef_node->filename = node->filename;
-						typedef_node->children.push_back(node);
-						elaboratedModule->children.push_back(typedef_node);
+						if (node->type == AST::AST_STRUCT) {
+							auto typedef_node = new AST::AstNode(AST::AST_TYPEDEF);
+							typedef_node->location = node->location;
+							typedef_node->filename = node->filename;
+							typedef_node->children.push_back(node);
+							elaboratedModule->children.push_back(typedef_node);
+						} else if (node->type == AST::AST_ENUM) {
+							auto wire_node = new AST::AstNode(AST::AST_WIRE);
+							wire_node->attributes["\\enum_type"] = AST::AstNode::mkconst_str(node->str);
+							auto typedef_node = new AST::AstNode(AST::AST_TYPEDEF);
+							typedef_node->children.push_back(wire_node);
+							typedef_node->str = node->str;
+							node->str = "$enum" + std::to_string(enum_count++);
+							for (auto* enum_item : node->children) {
+								enum_item->attributes["\\enum_base_type"] = AST::AstNode::mkconst_str(node->str);
+							}
+							elaboratedModule->children.push_back(node);
+							elaboratedModule->children.push_back(typedef_node);
+						}
 					});
 			visit_one_to_many({vpiParameter,
 					vpiNet,
@@ -442,6 +456,33 @@ AST::AstNode* UhdmAst::visit_object (
 					error("Encountered unhandled typespec: %d\n", typespec_type);
 					report.mark_unhandled(current_node->filename, current_node->location.first_line);
 					break;
+				}
+			}
+			break;
+		}
+		case vpiEnumTypespec: {
+			current_node->type = AST::AST_ENUM;
+			visit_one_to_many({vpiEnumConst},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+						current_node->children.push_back(node);
+					});
+			break;
+		}
+		case vpiEnumConst: {
+			current_node->type = AST::AST_ENUM_ITEM;
+			s_vpi_value val;
+			vpi_get_value(obj_h, &val);
+			switch (val.format) {
+				case vpiIntVal: {
+					current_node->children.push_back(AST::AstNode::mkconst_int(val.value.integer, false));
+					break;
+				}
+				default: {
+					error("Encountered unhandled constant format: %d\n", val.format);
+					report.mark_unhandled(current_node->filename, current_node->location.first_line);
 				}
 			}
 			break;
