@@ -1557,6 +1557,46 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			}
 		}
 
+		// FIXME: Basically same thing as above, should be merged
+		if (children.size() == 1 && children[0]->type == AST_MULTIRANGE && children[0]->is_packed) {
+			const auto* multirange = children[0];
+			const size_t ranges = std::count_if(
+				multirange->children.begin(), multirange->children.end(),
+				[](const AstNode* node) {
+					return node->type == AST_RANGE;
+				});
+
+			// More than two dimensions should be supported, but tested only 2.
+			if ((ranges == 2) && (ranges == multirange->children.size())) {
+				size_t size = 1;
+
+				auto* attr_ranges = new AstNode;
+				attr_ranges->type = AST_CONSTANT;
+
+				for (const auto& itr : multirange->children) {
+					log_assert(itr->type == AST_RANGE);
+					const auto width = itr->range_left - itr->range_right + 1;
+					size *= width;
+					attr_ranges->children.push_back(itr->clone());
+				}
+				attr_ranges->range_left  = size - 1;
+				attr_ranges->range_right = 0;
+				attributes[ID::multirange] = attr_ranges;
+
+				// Replace with one-dimensional range (packed vector)
+				AstNode* simple_range = new AstNode(AST_RANGE);
+				simple_range->integer = size;
+				simple_range->children.push_back(mkconst_int(size - 1, false, 32));
+				simple_range->children.push_back(mkconst_int(0, false, 32));
+				delete children[0];
+				children.clear();
+				children.push_back(simple_range);
+
+				is_packed = true;
+				did_something = true;
+			}
+		}
+
 		log_assert(!is_custom_type);
 	}
 
@@ -1765,81 +1805,85 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 	}
 
 	// Replace multirange acces with vector and range access
-	//if (type == AST_IDENTIFIER) {
-	//	if (current_scope.count(str)) {
-	//		const auto* temp = current_scope.at(str);
-	//		log_assert(temp);
+	if (type == AST_IDENTIFIER) {
+		if (current_scope.count(str)) {
+			const auto* temp = current_scope.at(str);
+			log_assert(temp);
 
-	//		// is this multidimensional array?
-	//		if (temp->attributes.count(ID::range)) {
-	//			const auto* ranges = temp->attributes.at(ID::range);
-	//			log_assert(ranges);
-	//			log_assert(ranges->type == AST_CONSTANT);
-	//			log_assert(ranges->children.size() == 2); // FIXME: support more dimensions
+			// is this multidimensional array?
+			if (temp->is_packed && temp->attributes.count(ID::multirange)) {
+				const auto* ranges = temp->attributes.at(ID::multirange);
+				log_assert(ranges);
+				log_assert(ranges->type == AST_CONSTANT);
+				log_assert(ranges->children.size() == 2); // FIXME: support more dimensions
 
-	//			if (attributes.count(ID::range) == 0) {
-	//				attributes[ID::range] = ranges->clone();
+				if (attributes.count(ID::multirange) == 0) {
+					attributes[ID::multirange] = ranges->clone();
 
-	//				// FIXME: messy, clean this up
-	//				size_t _offset = 0;
-	//				size_t _range_left  = ranges->range_left;
-	//				size_t _range_right = ranges->range_right;
-	//				size_t _width = _range_left - _range_right + 1;
+					// FIXME: messy, clean this up
+					size_t _offset = 0;
+					size_t _range_left  = ranges->range_left;
+					size_t _range_right = ranges->range_right;
+					size_t _width = _range_left - _range_right + 1;
 
-	//				const AstNode* multi = nullptr;
+					const AstNode* multi = nullptr;
 
-	//				// FIXME: more configurations
-	//				if (children.size() == 1 && children[0]->type == AST_RANGE) {
-	//					// replace with multirange
-	//					AstNode* temp = new AstNode(AST_MULTIRANGE);
-	//					temp->children.push_back(children[0]);
-	//					children[0] = temp;
+					// FIXME: more configurations
+					if (children.size() == 1 && children[0]->type == AST_RANGE) {
+						// replace with multirange
+						AstNode* temp = new AstNode(AST_MULTIRANGE);
+						temp->children.push_back(children[0]);
+						children[0] = temp;
 
-	//					multi = children[0];
-	//					log_assert(multi->children.size() == 1);
+						multi = children[0];
+						log_assert(multi->children.size() == 1);
 
-	//					log("dynamic... %s (%s)\n", type2str(multi->children[0]->children[0]->type).c_str(), str.c_str());
-	//					log_assert(multi->children[0]->children[0]->type == AST_CONSTANT);
-	//				} else if (children.size() == 1 && children[0]->type == AST_MULTIRANGE) {
-	//					multi = children[0];
-	//					log_assert(multi->children.size() == 2);
-	//				}
+						//log("dynamic... %s (%s)\n", type2str(multi->children[0]->children[0]->type).c_str(), str.c_str());
+						log_assert(multi->children[0]->children[0]->type == AST_CONSTANT);
+					} else if (children.size() == 1 && children[0]->type == AST_MULTIRANGE) {
+						multi = children[0];
+						log_assert(multi->children.size() == 2);
+					}
 
-	//				if (multi) {
-	//					for (size_t idx = 0 ; idx < multi->children.size() ; ++idx) {
-	//						const size_t r_idx = ranges->children.size() - idx - 1;
+					if (multi) {
+						for (size_t idx = 0 ; idx < multi->children.size() ; ++idx) {
+							const size_t r_idx = idx;//ranges->children.size() - idx - 1;
 
-	//						const auto* s = multi->children[idx]; // s as Selected range
+							const auto* s = multi->children[idx]; // s as Selected range
 
-	//						const auto* r = ranges->children[r_idx]; // r as (orig) Range
-	//						const size_t r_width = r->range_left - r->range_right + 1;
+							const auto* r = ranges->children[r_idx]; // r as (orig) Range
+							const size_t r_width = r->range_left - r->range_right + 1;
 
-	//						_width /= r_width;
-	//						_range_left  = (s->range_left)  * _width + (_width - 1) + _offset;
-	//						_range_right = (s->range_right) * _width                + _offset;
-	//						_offset = _range_right;
+							_width /= r_width;
+							_range_left  = (s->range_left)  * _width + (_width - 1) + _offset;
+							_range_right = (s->range_right) * _width                + _offset;
+							_offset = _range_right;
 
-	//						log("idx: %ld, s->range_left: %d, s->range_right: %d\n",
-	//							idx, s->range_left, s->range_right);
-	//						log("idx: %ld, _width: %ld, _range_left: %ld, _range_right: %ld, _offset: %ld\n",
-	//							idx, _width, _range_left, _range_right, _offset);
-	//					}
+							//log("idx: %ld, s->range_left: %d, s->range_right: %d\n",
+							//	idx, s->range_left, s->range_right);
+							//log("idx: %ld, r->range_left: %d, r->range_right: %d, r_width: %ld\n",
+							//	idx, r->range_left, r->range_right, r_width);
+							//log("idx: %ld, _width: %ld, _range_left: %ld, _range_right: %ld, _offset: %ld\n",
+							//	idx, _width, _range_left, _range_right, _offset);
+						}
 
-	//					// remove multirange
-	//					children.erase(children.begin());
-	//					delete multi;
+						// remove multirange
+						children.erase(children.begin());
+						delete multi;
 
-	//					// replace with simple (one-dimension) range (packed vector)
-	//					log("replaced_range: [%ld:%ld]\n", _range_left, _range_right);
-	//					AstNode* simple_range = new AstNode(AST_RANGE);
-	//					simple_range->children.push_back(mkconst_int(_range_left,  false, 32));
-	//					simple_range->children.push_back(mkconst_int(_range_right, false, 32));
-	//					children.insert(children.begin(), simple_range);
-	//				}
-	//			}
-	//		}
-	//	}
-	//}
+						// replace with simple (one-dimension) range (packed vector)
+						//log("replaced_range: [%ld:%ld]\n", _range_left, _range_right);
+						//if (_range_left < 0)  _range_left = 0;
+						//if (_range_right < 0) _range_right = 0;
+						AstNode* simple_range = new AstNode(AST_RANGE);
+						simple_range->children.push_back(mkconst_int(_range_left,  false, 32));
+						simple_range->children.push_back(mkconst_int(_range_right, false, 32));
+						children.insert(children.begin(), simple_range);
+					}
+				}
+			}
+		}
+	}
 
 	// resolve multiranges on memory access
 	if (type == AST_IDENTIFIER && id2ast && id2ast->type == AST_MEMORY && children.size() > 0 && children[0]->type == AST_MULTIRANGE)
