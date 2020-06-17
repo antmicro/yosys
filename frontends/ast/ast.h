@@ -200,6 +200,8 @@ namespace AST
 		double realvalue;
 		// set for IDs typed to an enumeration, not used
 		bool is_enum;
+		// for AST_RANGES
+		bool is_packed;
 
 		// if this is a multirange memory then this vector contains offset and length of each dimension
 		std::vector<int> multirange_dimensions;
