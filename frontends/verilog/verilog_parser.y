@@ -1757,10 +1757,14 @@ struct_var: TOK_ID	{	auto *var_node = astbuf2->clone();
 /////////
 
 wire_decl:
-	attr wire_type range {
+	attr wire_type range_or_multirange {
 		albuf = $1;
 		astbuf1 = $2;
 		astbuf2 = checkRange(astbuf1, $3);
+
+		if (astbuf2 && astbuf2->type == AST_MULTIRANGE) {
+			astbuf2->is_packed = true; // packed multirange
+		}
 	} delay wire_name_list {
 		delete astbuf1;
 		if (astbuf2 != NULL)
