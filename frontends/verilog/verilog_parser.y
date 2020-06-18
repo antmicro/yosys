@@ -592,17 +592,37 @@ module_arg:
 		node->str = *$4;
 		SET_AST_NODE_LOC(node, @4, @4);
 		node->port_id = ++port_counter;
-		if ($3 != NULL)
-			node->children.push_back($3);
-		if ($5 != NULL) {
-			// we should really re-use code from wire_name
-			auto *rangeNode = $5;
-			if (rangeNode->type == AST_RANGE && rangeNode->children.size() == 1) {
+		if (($3 != NULL) && ($5 != NULL) &&
+			($3->type == AST_RANGE) && ($5->type == AST_RANGE)) {
+			// FIXME: Messy, should be merged with else-clause code
+			auto* range1 = $3;
+			auto* range2 = $5;
+			if (range2->type == AST_RANGE && range2->children.size() == 1) {
 				// SV array size [n], rewrite as [n-1:0]
-				rangeNode->children[0] = new AstNode(AST_SUB, rangeNode->children[0], AstNode::mkconst_int(1, true));
-				rangeNode->children.push_back(AstNode::mkconst_int(0, false));
+				range2->children[0] = new AstNode(AST_SUB, range2->children[0], AstNode::mkconst_int(1, true));
+				range2->children.push_back(AstNode::mkconst_int(0, false));
 			}
-			node->children.push_back(rangeNode);
+			auto* multi = new AstNode;
+			multi->type = AST_MULTIRANGE;
+			// FIXME: not really sure about forcing packed vector
+			// maybe add some size restrictions?
+			multi->is_packed = true;
+			multi->children.push_back(range1);
+			multi->children.push_back(range2);
+			node->children.push_back(multi);
+		} else {
+			if ($3 != NULL)
+				node->children.push_back($3);
+			if ($5 != NULL) {
+				// we should really re-use code from wire_name
+				auto *rangeNode = $5;
+				if (rangeNode->type == AST_RANGE && rangeNode->children.size() == 1) {
+					// SV array size [n], rewrite as [n-1:0]
+					rangeNode->children[0] = new AstNode(AST_SUB, rangeNode->children[0], AstNode::mkconst_int(1, true));
+					rangeNode->children.push_back(AstNode::mkconst_int(0, false));
+				}
+				node->children.push_back(rangeNode);
+			}
 		}
 		if (!node->is_input && !node->is_output)
 			frontend_verilog_yyerror("Module port `%s' is neither input nor output.", $4->c_str());
