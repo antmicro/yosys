@@ -34,6 +34,9 @@ class UhdmAst {
 		// Makes the passed node a cell node of the specified type
 		void make_cell(vpiHandle obj_h, AST::AstNode* node, const std::string& type);
 
+		// Adds a typedef node to the current node
+		void add_typedef(AST::AstNode* current_node, AST::AstNode* type_node);
+
 		// Reports that something went wrong with reading the AST
 		void error(const char* message, unsigned object_type) const;
 

@@ -92,6 +92,27 @@ void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::
 	vpi_free_object(port_itr);
 }
 
+void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
+	auto typedef_node = new AST::AstNode(AST::AST_TYPEDEF);
+	typedef_node->location = type_node->location;
+	typedef_node->filename = type_node->filename;
+	if (type_node->type == AST::AST_STRUCT) {
+		typedef_node->children.push_back(type_node);
+		current_node->children.push_back(typedef_node);
+	} else if (type_node->type == AST::AST_ENUM) {
+		auto wire_node = new AST::AstNode(AST::AST_WIRE);
+		wire_node->attributes["\\enum_type"] = AST::AstNode::mkconst_str(type_node->str);
+		typedef_node->children.push_back(wire_node);
+		typedef_node->str = type_node->str;
+		type_node->str = "$enum" + std::to_string(enum_count++);
+		for (auto* enum_item : type_node->children) {
+			enum_item->attributes["\\enum_base_type"] = AST::AstNode::mkconst_str(type_node->str);
+		}
+		current_node->children.push_back(type_node);
+		current_node->children.push_back(typedef_node);
+	}
+}
+
 AST::AstNode* UhdmAst::visit_object (
 		vpiHandle obj_h,
 		std::set<const UHDM::BaseClass*> visited,
@@ -143,6 +164,7 @@ AST::AstNode* UhdmAst::visit_object (
 					UHDM::uhdmallInterfaces,
 					UHDM::uhdmtopModules,
 					UHDM::uhdmallModules,
+					UHDM::uhdmallPackages
 					},
 					obj_h,
 					visited,
@@ -160,7 +182,6 @@ AST::AstNode* UhdmAst::visit_object (
 			// Unhandled relationships: will visit (and print) the object
 			//visit_one_to_many({
 			//		UHDM::uhdmallPrograms,
-			//		UHDM::uhdmallPackages,
 			//		UHDM::uhdmallClasses,
 			//		UHDM::uhdmallUdps},
 			//		obj_h,
@@ -333,25 +354,7 @@ AST::AstNode* UhdmAst::visit_object (
 					visited,
 					top_nodes,
 					[&](AST::AstNode* node){
-						if (node->type == AST::AST_STRUCT) {
-							auto typedef_node = new AST::AstNode(AST::AST_TYPEDEF);
-							typedef_node->location = node->location;
-							typedef_node->filename = node->filename;
-							typedef_node->children.push_back(node);
-							elaboratedModule->children.push_back(typedef_node);
-						} else if (node->type == AST::AST_ENUM) {
-							auto wire_node = new AST::AstNode(AST::AST_WIRE);
-							wire_node->attributes["\\enum_type"] = AST::AstNode::mkconst_str(node->str);
-							auto typedef_node = new AST::AstNode(AST::AST_TYPEDEF);
-							typedef_node->children.push_back(wire_node);
-							typedef_node->str = node->str;
-							node->str = "$enum" + std::to_string(enum_count++);
-							for (auto* enum_item : node->children) {
-								enum_item->attributes["\\enum_base_type"] = AST::AstNode::mkconst_str(node->str);
-							}
-							elaboratedModule->children.push_back(node);
-							elaboratedModule->children.push_back(typedef_node);
-						}
+						add_typedef(current_node, node);
 					});
 			visit_one_to_many({vpiParameter,
 					vpiNet,
@@ -602,6 +605,17 @@ AST::AstNode* UhdmAst::visit_object (
 			//		obj_h,
 			//		visited,
 			//		[](AST::AstNode*){});
+			break;
+		}
+		case vpiPackage: {
+			current_node->type = AST::AST_PACKAGE;
+			visit_one_to_many({vpiTypedef},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+						add_typedef(current_node, node);
+					});
 			break;
 		}
 		case vpiInterface: {
