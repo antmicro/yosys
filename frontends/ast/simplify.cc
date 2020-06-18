@@ -1753,6 +1753,44 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		did_something = true;
 	}
 
+
+	if(type == AST_IDENTIFIER) {
+		if (children.size() == 0 && current_scope.count(str) > 0 && current_scope[str]->type == AST_MEMORY && current_scope[str]->children.size() == 2) {
+			children.push_back(current_scope[str]->children[1]->clone());
+		}
+	}
+
+	if (type == AST_ASSIGN && children.size() == 2 && children[1]->type == AST_IDENTIFIER) {
+		auto* identifier = children[1];
+		if(identifier->children.size() == 1 && identifier->children[0]->type == AST_RANGE && current_scope[identifier->str]->type == AST_MEMORY) {
+			const auto *range = current_scope[identifier->str]->children[1];
+			int left = range->range_left;
+			int right = range->range_right;
+			if (left > right) {
+				int tmp = left;
+				left = right;
+				right = tmp;
+			}
+			AstNode* concat = new AstNode;
+			concat->type = AST_CONCAT;
+			for (int i = left ; i <= right ; ++i) {
+				AstNode* temp = new AstNode;
+				temp->type = AST_IDENTIFIER;
+				temp->str = identifier->str;
+				temp->children.push_back(new AstNode);
+				temp->children[0]->type = AST_RANGE;
+				temp->children[0]->children.push_back(new AstNode);
+				temp->children[0]->children[0]->type = AST_CONSTANT;
+				temp->children[0]->children[0]->integer = i;
+				concat->children.push_back(temp);
+			}
+			delete children[1];
+			children.pop_back();
+			// And replace with CONCAT
+			children.push_back(concat);
+		}
+	}
+
 	// Access multirange array replaced by registers?
 	if (type == AST_ARGUMENT) {
 		if (children.size() == 1 && children[0]->type == AST_IDENTIFIER) {
@@ -1764,6 +1802,11 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 						range->children[1]->type == AST_CONSTANT) {
 					int left = range->children[0]->integer;
 					int right = range->children[1]->integer;
+					if (left > right) {
+						int tmp = left;
+						left = right;
+						right = tmp;
+					}
 
 					if (current_scope.count(identifier->str)) {
 						const auto* reg_node = current_scope.at(identifier->str);
@@ -4633,9 +4676,8 @@ bool AstNode::mem2reg_check(pool<AstNode*> &mem2reg_set)
 {
 	if (type != AST_IDENTIFIER || !id2ast || !mem2reg_set.count(id2ast))
 		return false;
-
-	if (children.empty() || children[0]->type != AST_RANGE || GetSize(children[0]->children) != 1)
-		log_file_error(filename, location.first_line, "Invalid array access.\n");
+	//if (children.empty() || children[0]->type != AST_RANGE || GetSize(children[0]->children) != 1)
+	//	log_file_error(filename, location.first_line, "Invalid array access.\n");
 
 	return true;
 }
