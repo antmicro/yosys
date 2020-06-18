@@ -1780,48 +1780,15 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		did_something = true;
 	}
 
-
-	if(type == AST_IDENTIFIER) {
-		if (children.size() == 0 && current_scope.count(str) > 0 && current_scope[str]->type == AST_MEMORY && current_scope[str]->children.size() == 2) {
-			children.push_back(current_scope[str]->children[1]->clone());
-		}
-	}
-
-	if (type == AST_ASSIGN && children.size() == 2 && children[1]->type == AST_IDENTIFIER) {
-		auto* identifier = children[1];
-		if(identifier->children.size() == 1 && identifier->children[0]->type == AST_RANGE && current_scope[identifier->str]->type == AST_MEMORY) {
-			const auto *range = current_scope[identifier->str]->children[1];
-			int left = range->range_left;
-			int right = range->range_right;
-			if (left > right) {
-				int tmp = left;
-				left = right;
-				right = tmp;
-			}
-			AstNode* concat = new AstNode;
-			concat->type = AST_CONCAT;
-			for (int i = left ; i <= right ; ++i) {
-				AstNode* temp = new AstNode;
-				temp->type = AST_IDENTIFIER;
-				temp->str = identifier->str;
-				temp->children.push_back(new AstNode);
-				temp->children[0]->type = AST_RANGE;
-				temp->children[0]->children.push_back(new AstNode);
-				temp->children[0]->children[0]->type = AST_CONSTANT;
-				temp->children[0]->children[0]->integer = i;
-				concat->children.push_back(temp);
-			}
-			delete children[1];
-			children.pop_back();
-			// And replace with CONCAT
-			children.push_back(concat);
-		}
-	}
-
 	// Access multirange array replaced by registers?
 	if (type == AST_ARGUMENT) {
 		if (children.size() == 1 && children[0]->type == AST_IDENTIFIER) {
 			auto* identifier = children[0];
+			if(identifier->type == AST_IDENTIFIER) {
+				if (identifier->children.size() == 0 && current_scope.count(identifier->str) > 0 && current_scope[identifier->str]->type == AST_MEMORY && current_scope[identifier->str]->children.size() == 2) {
+					identifier->children.push_back(current_scope[identifier->str]->children[1]->clone());
+				}
+			}
 			if (identifier->children.size() == 1 && identifier->children[0]->type == AST_RANGE) {
 				auto* range = identifier->children[0];
 				if (range->children.size() == 2 &&
@@ -2933,6 +2900,49 @@ skip_dynamic_range_lvalue_expansion:;
 		}
 	}
 
+	if(children.size() > 0) {
+		for (auto *c : this->children) {
+			if (c->type == AST_ASSIGN_EQ || c->type == AST_ASSIGN_LE || c->type == AST_ASSIGN) {
+				if(c->children[0]->type == AST_IDENTIFIER && c->children[0]->id2ast && c->children[0]->id2ast->type == AST_MEMORY && c->children[0]->children.size() == 0 && c->children[0]->id2ast->children.size() == 2) {
+					for (auto *cc : c->children) {
+						auto *identifier = cc;
+						AstNode *rangenode = new AstNode(AST_RANGE);
+						AstNode *id = new AstNode(AST_CONSTANT);
+						id->integer = 0;
+						rangenode->children.push_back(id);
+						rangenode->range_left = 0;
+						rangenode->range_right = 0;
+						identifier->children.push_back(rangenode);
+					}
+					const auto *range = c->children[0]->id2ast->children[1];
+					AstNode *mem = c->children[0]->id2ast;
+					AstNode *force_reg = new AstNode(AST_CONSTANT);
+					force_reg->integer = 1;
+					mem->attributes[ID::mem2reg] = force_reg; //force mem to be changed to registers
+					AstNode *clone = c->clone();
+					auto pos = std::find(children.begin(), children.end(), c); // find position of current node
+					log_assert(pos != children.end());
+					int left = range->range_left;
+					int right = range->range_right;
+					if (left > right) {
+						int tmp = left;
+						left = right;
+						right = tmp;
+					}
+					for (int i = left + 1; i <= right ; ++i) { // skip cloned node
+						auto *cl = clone->clone();
+						cl->children[0]->children[0]->range_left = i;
+						cl->children[0]->children[0]->range_right = i;
+						cl->children[0]->children[0]->children[0]->integer = i;
+						cl->children[1]->children[0]->children[0]->integer = i;
+						children.insert(pos, cl);
+					}
+					did_something = true;
+				}
+			}
+		}
+
+	}
 	// assignment with memory in left-hand side expression -> replace with memory write port
 	if (stage > 1 && (type == AST_ASSIGN_EQ || type == AST_ASSIGN_LE) && children[0]->type == AST_IDENTIFIER &&
 			children[0]->id2ast && children[0]->id2ast->type == AST_MEMORY && children[0]->id2ast->children.size() >= 2 &&
@@ -4703,8 +4713,8 @@ bool AstNode::mem2reg_check(pool<AstNode*> &mem2reg_set)
 {
 	if (type != AST_IDENTIFIER || !id2ast || !mem2reg_set.count(id2ast))
 		return false;
-	//if (children.empty() || children[0]->type != AST_RANGE || GetSize(children[0]->children) != 1)
-	//	log_file_error(filename, location.first_line, "Invalid array access.\n");
+	if (children.empty() || children[0]->type != AST_RANGE || GetSize(children[0]->children) != 1)
+		log_file_error(filename, location.first_line, "Invalid array access.\n");
 
 	return true;
 }
