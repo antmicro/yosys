@@ -769,8 +769,34 @@ void AstNode::detectSignWidthWorker(int &width_hint, bool &sign_hint, bool *foun
 			if (children.size() > 1)
 				range = children[1];
 		} else if (id_ast->type == AST_TYPEDEF) {
-			log_file_warning(filename, location.first_line, "Failed to detect width for identifier %s because AST_TYPEDEF not implemented!\n", str.c_str());
-			this_width = 1;
+			log_assert(id_ast->children.size());
+			const auto* subnode = id_ast->children[0];
+			switch (subnode->type) {
+			case AST_STRUCT: {
+				const auto* struct_node = subnode;
+				if (struct_node->children.size() > 0) {
+					const auto* first_item = *(struct_node->children.begin());
+					const auto* last_item  = *(std::prev(struct_node->children.end()));
+					log_assert(first_item);
+					log_assert(last_item);
+					const auto left  = first_item->range_left;
+					const auto right = last_item->range_right;
+					this_width = left - right + 1;
+					log_assert(this_width >= 0);
+				} else {
+					this_width = 0;
+				}
+				break;
+			}
+
+			default: {
+				log_file_warning(filename, location.first_line,
+					"Failed to detect width for identifier %s because %s not implemented!\n",
+					str.c_str(), type2str(subnode->type).c_str());
+				this_width = 1;
+				break;
+			}
+			}
 		} else
 			log_file_error(filename, location.first_line, "Failed to detect width for identifier %s!\n", str.c_str());
 		if (range) {
