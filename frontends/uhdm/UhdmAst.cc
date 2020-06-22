@@ -490,6 +490,25 @@ AST::AstNode* UhdmAst::visit_object (
 					[&](AST::AstNode* node){
 						current_node->children.push_back(node);
 					});
+			vpiHandle typespec_h = vpi_handle(vpiBaseTypespec, obj_h);
+			int typespec_type = vpi_get(vpiType, typespec_h);
+			if (typespec_type == vpiLogicTypespec) {
+				current_node->is_logic = true;
+				visit_one_to_many({vpiRange},
+						typespec_h,
+						visited,
+						top_nodes,
+						[&](AST::AstNode* node){
+							for (auto child : current_node->children) {
+								child->children.push_back(node->clone());
+							}
+							delete node;
+						});
+				report.mark_handled(typespec_h);
+			} else {
+				error("Encountered unhandled typespec: %d\n", typespec_type);
+				break;
+			}
 			break;
 		}
 		case vpiEnumConst: {
