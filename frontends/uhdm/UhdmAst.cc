@@ -364,6 +364,7 @@ AST::AstNode* UhdmAst::visit_object (
 						add_typedef(current_node, node);
 					});
 			visit_one_to_many({vpiParameter,
+					vpiParamAssign,
 					vpiNet,
 					vpiTaskFunc,
 					vpiTypedef
@@ -495,6 +496,22 @@ AST::AstNode* UhdmAst::visit_object (
 					error("Encountered unhandled constant format: %d\n", val.format);
 				}
 			}
+			break;
+		}
+		case vpiParamAssign: {
+			current_node->type = AST::AST_PARAMETER;
+			visit_one_to_one({vpiLhs, vpiRhs},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+						if (node->type == AST::AST_PARAMETER) {
+							current_node->str = node->str;
+							delete node;
+						} else {
+							current_node->children.push_back(node);
+						}
+					});
 			break;
 		}
 		case vpiContAssign: {
