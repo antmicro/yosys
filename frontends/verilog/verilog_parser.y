@@ -3259,6 +3259,10 @@ basic_expr:
 	TOK_USER_TYPE '\'' '(' expr ')' {
 		$$ = $4;
 	} |
+	TOK_USER_TYPE {
+		$$ = new AstNode(AST_IDENTIFIER);
+		$$->str = *$1;
+	} |
 	basic_expr '\'' expr {
 		$$ = $3;
 	} |

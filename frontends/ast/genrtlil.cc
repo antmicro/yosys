@@ -768,6 +768,9 @@ void AstNode::detectSignWidthWorker(int &width_hint, bool &sign_hint, bool *foun
 			this_width = id_ast->children[0]->range_left - id_ast->children[0]->range_right + 1;
 			if (children.size() > 1)
 				range = children[1];
+		} else if (id_ast->type == AST_TYPEDEF) {
+			log_file_warning(filename, location.first_line, "Failed to detect width for identifier %s because AST_TYPEDEF not implemented!\n", str.c_str());
+			this_width = 1;
 		} else
 			log_file_error(filename, location.first_line, "Failed to detect width for identifier %s!\n", str.c_str());
 		if (range) {
