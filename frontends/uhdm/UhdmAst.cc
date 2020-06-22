@@ -406,7 +406,16 @@ AST::AstNode* UhdmAst::visit_object (
 					top_nodes,
 					[&](AST::AstNode* node){
 						if (node != nullptr) {
-							if (node->type == AST::AST_WIRE) {
+							if (node->type == AST::AST_PARAMETER) {
+								// If we already have this parameter, replace it
+								for (auto& child : elaboratedModule->children) {
+									if (child->str == node->str) {
+										std::swap(child, node);
+										delete node;
+										return;
+									}
+								}
+							} else if (node->type == AST::AST_WIRE) {
 								// If we already have this wire, do not add it again
 								for (auto child : elaboratedModule->children) {
 									if (child->str == node->str) {
