@@ -462,6 +462,11 @@ AST::AstNode* UhdmAst::visit_object (
 					report.mark_handled(typespec_h);
 					break;
 				}
+				case vpiEnumTypespec: {
+					current_node->children.push_back(visit_object(typespec_h, visited, top_nodes));
+					report.mark_handled(typespec_h);
+					break;
+				}
 				case vpiLogicTypespec: {
 					current_node->is_logic = true;
 					visit_one_to_many({vpiRange},
