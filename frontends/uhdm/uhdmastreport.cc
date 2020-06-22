@@ -1,61 +1,82 @@
 #include <fstream>
+#include <unordered_set>
+#include <sys/stat.h>
+#include "BaseClass.h"
 #include "frontends/ast/ast.h"
 #include "uhdmastreport.h"
 
 YOSYS_NAMESPACE_BEGIN
 
-std::map<unsigned, bool>& UhdmAstReport::get_for_file(const std::string& filename) {
-	auto it = lines_handled.find(filename);
-	if (it == lines_handled.end()) {
-		it = lines_handled.insert(std::make_pair(filename, std::map<unsigned, bool>())).first;
-	}
-	return it->second;
-}
-
-void UhdmAstReport::add_file(const std::string& filename) {
-	get_for_file(filename);
-}
-
-void UhdmAstReport::mark_handled(const std::string& filename, unsigned line) {
-	get_for_file(filename).insert(std::make_pair(line, true));
-}
-
-void UhdmAstReport::mark_unhandled(const std::string& filename, unsigned line) {
-	auto insert_result = get_for_file(filename).insert(std::make_pair(line, true));
-	if (!insert_result.second) {
-		insert_result.first->second = false;
+void UhdmAstReport::mark_handled(const UHDM::BaseClass* object) {
+	handled_count_per_file.insert(std::make_pair(object->VpiFile(), 0));
+	auto it = unhandled.find(object);
+	if (it != unhandled.end()) {
+		unhandled.erase(it);
+		handled_count_per_file.at(object->VpiFile())++;
 	}
 }
 
-void UhdmAstReport::write(const std::string& filename) {
-	std::ofstream report_file(filename);
-	report_file << "<!DOCTYPE html>\n<html>\n<head>\n<style>\nbody {\nbackground-color: #93B874;\n}\n</style>\n</head><body>" << std::endl;
-	for (auto& handled_in_file : lines_handled) {
-		if (handled_in_file.first == AST::current_filename) {
-			continue;
+void UhdmAstReport::mark_handled(const vpiHandle obj_h) {
+	auto handle = reinterpret_cast<const uhdm_handle*>(obj_h);
+	mark_handled(reinterpret_cast<const UHDM::BaseClass*>(handle->object));
+}
+
+static std::string replace_in_string(std::string str, const std::string& to_find, const std::string& to_replace_with) {
+	size_t pos = str.find(to_find);
+	while (pos != std::string::npos) {
+		str.replace(pos, to_find.length(), to_replace_with);
+		pos += to_replace_with.length();
+		pos = str.find(to_find, pos);
+	}
+	return str;
+}
+
+void UhdmAstReport::write(const std::string& directory) {
+	std::unordered_map<std::string, std::unordered_set<unsigned>> unhandled_per_file;
+	for (auto object : unhandled) {
+		if (object->VpiFile() != "" && object->VpiFile() != AST::current_filename) {
+			unhandled_per_file.insert(std::make_pair(object->VpiFile(), std::unordered_set<unsigned>()));
+			unhandled_per_file.at(object->VpiFile()).insert(object->VpiLineNo());
 		}
-		report_file << "<pre style=\"background-color: #FFFFFF;\">" << handled_in_file.first << "</pre>" << std::endl;
-		std::ifstream source_file(handled_in_file.first);
-		auto handled_it = handled_in_file.second.begin();
-		bool current_line_handled = true;
+	}
+	unsigned total_handled = 0;
+	for (auto& hc : handled_count_per_file) {
+		if (hc.first != "" && hc.first != AST::current_filename) {
+			unhandled_per_file.insert(std::make_pair(hc.first, std::unordered_set<unsigned>()));
+			total_handled += hc.second;
+		}
+	}
+	float coverage = total_handled * 100.f / (total_handled + unhandled.size()); 
+	mkdir(directory.c_str(), 0777);
+	std::ofstream index_file(directory + "/index.html");
+	index_file << "<!DOCTYPE html>\n<html>\n<head>\n<style>h3{margin:0;padding:10}</style>\n</head><body>" << std::endl;
+	index_file << "<h2>Overall coverage: " << coverage << "%</h2>" << std::endl;
+	for (auto& unhandled_in_file : unhandled_per_file) {
+		// Calculate coverage in file
+		unsigned handled_count = handled_count_per_file.at(unhandled_in_file.first);
+		unsigned unhandled_count = unhandled_in_file.second.size();
+		float coverage = handled_count * 100.f / (handled_count + unhandled_count);
+		// Add to the index file
+		std::string report_filename = replace_in_string(unhandled_in_file.first, "/", ".") + ".html";
+		index_file << "<h3>Cov: " << coverage << "%<a href=\"" << report_filename << "\">" << unhandled_in_file.first << "</a></h3><br>" << std::endl;
+		// Write the report file
+		std::ofstream report_file(directory + '/' + report_filename);
+		report_file << "<!DOCTYPE html>\n<html>\n<head>\n<style>\nbody{font-size:12px;}pre{display:inline}</style>\n</head><body>" << std::endl;
+		report_file << "<h2>" << unhandled_in_file.first << " | Coverage: " << coverage << "%</h2>" << std::endl;
+		std::ifstream source_file(unhandled_in_file.first); // Read the source code
 		unsigned line_number = 1;
 		std::string line;
 		while (std::getline(source_file, line)) {
-			if (handled_it != handled_in_file.second.end() && line_number == handled_it->first) {
-				current_line_handled = handled_it->second;
-			}
-			if (current_line_handled) {
-				report_file << "<pre>" << line_number << "\t\t" << line << "</pre>" << std::endl;
+			if (unhandled_in_file.second.find(line_number) == unhandled_in_file.second.end()) {
+				report_file << line_number << "<pre> " << line << "</pre><br>" << std::endl;
 			} else {
-				report_file << "<pre style=\"background-color: #FF0000;\">" << line_number << "\t\t" << line << "</pre>" << std::endl;
-			}
-			if (handled_it != handled_in_file.second.end() && line_number >= handled_it->first) {
-				++handled_it;
+				report_file << line_number << "<pre style=\"background-color: #FFB6C1;\"> " << line << "</pre><br>" << std::endl;
 			}
 			++line_number;
 		}
+		report_file << "</body>\n</html>" << std::endl;
 	}
-	report_file << "</body>\n</html>" << std::endl;
+	index_file << "</body>\n</html>" << std::endl;
 }
 
 YOSYS_NAMESPACE_END

@@ -5,29 +5,27 @@
 #include <string>
 #include <unordered_map>
 #include "kernel/yosys.h"
+#include "headers/uhdm.h"
 
 YOSYS_NAMESPACE_BEGIN
 
 class UhdmAstReport {
 	private:
-		// Maps a filename and a line number to a flag that says if the line is being handled by the frontend
-		std::unordered_map<std::string, std::map<unsigned, bool>> lines_handled;
-
-		// Acquires the map of line statuses for the specified file
-		std::map<unsigned, bool>& get_for_file(const std::string& filename);
+		// Maps a filename to the number of objects being handled by the frontend
+		std::unordered_map<std::string, unsigned> handled_count_per_file;
 
 	public:
-		// Add the specified source file to the report
-		void add_file(const std::string& filename);
+		// Objects not being handled by the frontend
+		std::set<const UHDM::BaseClass*> unhandled;
 
-		// Marks the specified source file and line number as being handled by the frontend
-		void mark_handled(const std::string& filename, unsigned line);
+		// Marks the specified object as being handled by the frontend
+		void mark_handled(const UHDM::BaseClass* object);
 
-		// Marks the specified source file and line number as not being handled by the frontend
-		void mark_unhandled(const std::string& filename, unsigned line);
+		// Marks the object referenced by the specified handle as being handled by the frontend
+		void mark_handled(vpiHandle obj_h);
 
-		// Write the HTML report to the specified path
-		void write(const std::string& filename);
+		// Write the coverage report to the specified path
+		void write(const std::string& directory);
 };
 
 YOSYS_NAMESPACE_END

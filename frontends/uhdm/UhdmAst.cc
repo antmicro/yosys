@@ -87,6 +87,8 @@ void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::
 		identifierNode->str = identifierName;
 		argNode->children.push_back(identifierNode);
 		current_node->children.push_back(argNode);
+		report.mark_handled(highConn_h);
+		report.mark_handled(port_h);
 		vpi_free_object(port_h);
 	}
 	vpi_free_object(port_itr);
@@ -145,7 +147,6 @@ AST::AstNode* UhdmAst::visit_object (
 	if (auto filename = vpi_get_str(vpiFile, obj_h)) {
 		current_node->filename = filename;
 	}
-	report.add_file(current_node->filename);
 
 	const unsigned int objectType = vpi_get(vpiType, obj_h);
 	std::cout << "Object: " << objectName
@@ -153,7 +154,7 @@ AST::AstNode* UhdmAst::visit_object (
 		<< std::endl;
 
 	if (alreadyVisited) {
-		report.mark_handled(current_node->filename, current_node->location.first_line);
+		report.mark_handled(object);
 		return current_node;
 	}
 	switch(objectType) {
@@ -209,7 +210,6 @@ AST::AstNode* UhdmAst::visit_object (
 				}
 				default: {
 					error("Encountered unhandled parameter format: %d\n", val.format);
-					report.mark_unhandled(current_node->filename, current_node->location.first_line);
 				}
 			}
 			if (constant_node) {
@@ -246,6 +246,8 @@ AST::AstNode* UhdmAst::visit_object (
 						// Skip '\' in cellName
 						typeNode->str = ifaceName + '.' + cellName.substr(1, cellName.length());
 						current_node->children.push_back(typeNode);
+						report.mark_handled(actual_h);
+						report.mark_handled(iface_h);
 						break;
 					}
 					case vpiInterface: {
@@ -257,6 +259,7 @@ AST::AstNode* UhdmAst::visit_object (
 						current_node->type = AST::AST_INTERFACEPORT;
 						current_node->str = objectName;
 						current_node->children.push_back(typeNode);
+						report.mark_handled(actual_h);
 						break;
 					}
 					case vpiLogicNet: {
@@ -267,8 +270,10 @@ AST::AstNode* UhdmAst::visit_object (
 							[&](AST::AstNode* node){
 								current_node->children.push_back(node);
 							});
+						report.mark_handled(actual_h);
 					}
 				}
+				report.mark_handled(lowConn_h);
 			}
 			if (const int n = vpi_get(vpiDirection, obj_h)) {
 				if (n == vpiInput) {
@@ -344,6 +349,7 @@ AST::AstNode* UhdmAst::visit_object (
 					});
 			}
 			(*top_nodes)[elaboratedModule->str] = elaboratedModule;
+			report.mark_handled(object);
 			if (objectName != type) {
 				// Not a top module, create instance
 				make_cell(obj_h, current_node, type);
@@ -442,6 +448,7 @@ AST::AstNode* UhdmAst::visit_object (
 				case vpiStructTypespec: {
 					delete current_node;
 					current_node = visit_object(typespec_h, visited, top_nodes);
+					report.mark_handled(typespec_h);
 					break;
 				}
 				case vpiLogicTypespec: {
@@ -453,11 +460,11 @@ AST::AstNode* UhdmAst::visit_object (
 							[&](AST::AstNode* node){
 								current_node->children.push_back(node);
 							});
+					report.mark_handled(typespec_h);
 					break;
 				}
 				default: {
 					error("Encountered unhandled typespec: %d\n", typespec_type);
-					report.mark_unhandled(current_node->filename, current_node->location.first_line);
 					break;
 				}
 			}
@@ -485,7 +492,6 @@ AST::AstNode* UhdmAst::visit_object (
 				}
 				default: {
 					error("Encountered unhandled constant format: %d\n", val.format);
-					report.mark_unhandled(current_node->filename, current_node->location.first_line);
 				}
 			}
 			break;
@@ -907,6 +913,7 @@ AST::AstNode* UhdmAst::visit_object (
 					}
 					// Do not return a node
 					// Parent should not use returned value
+					report.mark_handled(object);
 					return nullptr;
 				}
 				case vpiCastOp: {
@@ -984,7 +991,6 @@ AST::AstNode* UhdmAst::visit_object (
 						case vpiMultiConcatOp: current_node->type = AST::AST_REPLICATE; break;
 						default: {
 							error("Encountered unhandled operation: %d\n", operation);
-							report.mark_unhandled(current_node->filename, current_node->location.first_line);
 						}
 					}
 					break;
@@ -1206,7 +1212,6 @@ AST::AstNode* UhdmAst::visit_object (
 				}
 				default: {
 					error("Encountered unhandled constant format: %d\n", val.format);
-					report.mark_unhandled(current_node->filename, current_node->location.first_line);
 				}
 			}
 			if (constant_node) {
@@ -1304,14 +1309,13 @@ AST::AstNode* UhdmAst::visit_object (
 		// Explicitly unsupported
 		case vpiProgram:
 		default: {
-			report.mark_unhandled(current_node->filename, current_node->location.first_line);
 			error("Encountered unhandled object type: %d\n", objectType);
 		}
 	}
 
 	// Check if we initialized the node in switch-case
 	if (current_node->type != AST::AST_NONE) {
-		report.mark_handled(current_node->filename, current_node->location.first_line);
+		report.mark_handled(object);
 		return current_node;
 	} else {
 		return nullptr;
