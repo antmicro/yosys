@@ -25,6 +25,10 @@
 #include "vpi_visitor.h"
 #include "UhdmAst.h"
 
+namespace UHDM {
+	extern void visit_object (vpiHandle obj_h, int indent, const char *relation, std::set<const BaseClass*>* visited, std::ostream& out);
+}
+
 
 YOSYS_NAMESPACE_BEGIN
 
@@ -49,10 +53,10 @@ struct UhdmAstFrontend : public Frontend {
 		log("\n");
 		log("    read_uhdm [options] [filename]\n");
 		log("\n");
-		log("    -report [filename]\n");
-		log("        write a coverage report for the UHDM file\n");
-		log("\n");
 		log("Load design from a UHDM file into the current design\n");
+		log("\n");
+		log("    -report [directory]\n");
+		log("        write a coverage report for the UHDM file\n");
 		log("\n");
 	}
 	void execute(std::istream *&f, std::string filename, std::vector<std::string> args, RTLIL::Design *design) YS_OVERRIDE
@@ -61,10 +65,10 @@ struct UhdmAstFrontend : public Frontend {
 
 		UhdmAst parser;
 
-		std::string report_filename;
+		std::string report_directory;
 		for (size_t i = 1; i < args.size(); i++) {
 			if (args[i] == "-report" && ++i < args.size()) {
-				report_filename = args[i];
+				report_directory = args[i];
 				parser.stop_on_error = false;
 			}
 		}
@@ -78,11 +82,12 @@ struct UhdmAstFrontend : public Frontend {
 		UHDM::Serializer serializer;
 
 		std::vector<vpiHandle> restoredDesigns = serializer.Restore(filename);
-
-		std::cout << UHDM::visit_designs(restoredDesigns) << std::endl;
+		for (auto design : restoredDesigns) {
+			UHDM::visit_object(design, 1, "", &parser.report.unhandled, std::cout);
+		}
 		current_ast = parser.visit_designs(restoredDesigns);
-		if (report_filename != "") {
-			parser.report.write(report_filename);
+		if (report_directory != "") {
+			parser.report.write(report_directory);
 		}
 
 		bool dump_ast1 = true;
