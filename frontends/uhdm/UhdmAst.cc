@@ -198,7 +198,31 @@ AST::AstNode* UhdmAst::visit_object (
 			AST::AstNode* constant_node = nullptr;
 			switch (val.format) {
 				case 0: {
-					current_node->type = AST::AST_NONE;
+					vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
+					if (typespec_h) {
+						int typespec_type = vpi_get(vpiType, typespec_h);
+						switch (typespec_type) {
+							case vpiLogicTypespec: {
+								current_node->is_logic = true;
+								visit_one_to_many({vpiRange},
+										typespec_h,
+										visited,
+										top_nodes,
+										[&](AST::AstNode* node){
+											current_node->children.push_back(node);
+										});
+								report.mark_handled(typespec_h);
+								break;
+							}
+							case vpiIntTypespec: {
+								report.mark_handled(typespec_h);
+								break;
+							}
+							default: {
+								error("Encountered unhandled typespec: %d\n", typespec_type);
+							}
+						}
+					}
 					break;
 				}
 				case vpiScalarVal: {
