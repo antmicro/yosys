@@ -37,6 +37,7 @@ void UhdmAstReport::write(const std::string& directory) {
 		if (object->VpiFile() != "" && object->VpiFile() != AST::current_filename) {
 			unhandled_per_file.insert(std::make_pair(object->VpiFile(), std::unordered_set<unsigned>()));
 			unhandled_per_file.at(object->VpiFile()).insert(object->VpiLineNo());
+			handled_count_per_file.insert(std::make_pair(object->VpiFile(), 0));
 		}
 	}
 	unsigned total_handled = 0;
