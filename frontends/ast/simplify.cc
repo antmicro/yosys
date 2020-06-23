@@ -1756,16 +1756,58 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 					// FIXME: more configurations
 					if (children.size() == 1 && children[0]->type == AST_RANGE) {
-						// replace with multirange
-						AstNode* temp = new AstNode(AST_MULTIRANGE);
-						temp->children.push_back(children[0]);
-						children[0] = temp;
 
-						multi = children[0];
-						log_assert(multi->children.size() == 1);
+						if (children[0]->children[0]->type == AST_IDENTIFIER) {
+							// FIXME: should be merged with below code
+							const auto* id = children[0]->children[0];
+							const auto* r = ranges->children[0]; // r as (orig) Range
+							const size_t r_width = r->range_left - r->range_right + 1;
+							_width /= r_width;
 
-						//log("dynamic... %s (%s)\n", type2str(multi->children[0]->children[0]->type).c_str(), str.c_str());
-						log_assert(multi->children[0]->children[0]->type == AST_CONSTANT);
+							// for logic [a:b][c] arr;
+							// and arr[d]
+							// generates arr[ ((d+1)*c) - 1 : (d*c) ];
+
+							// (d + 1)
+							auto* x1 = new AstNode;
+							x1->type = AST_ADD;
+							x1->children.push_back(id->clone());
+							x1->children.push_back(mkconst_int(1, false, 32));
+
+							// x1 * c
+							auto* x2 = new AstNode;
+							x2->type = AST_MUL;
+							x2->children.push_back(x1);
+							x2->children.push_back(mkconst_int(_width, false, 32));
+
+							// x2 - 1
+							auto* x3 = new AstNode;
+							x3->type = AST_SUB;
+							x3->children.push_back(x2);
+							x3->children.push_back(mkconst_int(1, false, 32));
+
+							// d * c
+							auto* x4 = new AstNode;
+							x4->type = AST_MUL;
+							x4->children.push_back(id->clone());
+							x4->children.push_back(mkconst_int(_width, false, 32));
+
+							// x3:x4
+							AstNode* simple_range = new AstNode(AST_RANGE);
+							simple_range->children.push_back(x3);
+							simple_range->children.push_back(x4);
+							children.erase(children.begin());
+							children.insert(children.begin(), simple_range);
+						} else {
+							// replace with multirange
+							AstNode* temp = new AstNode(AST_MULTIRANGE);
+							temp->children.push_back(children[0]);
+							children[0] = temp;
+
+							multi = children[0];
+							log_assert(multi->children.size() == 1);
+							log_assert(multi->children[0]->children[0]->type == AST_CONSTANT);
+						}
 					} else if (children.size() == 1 && children[0]->type == AST_MULTIRANGE) {
 						multi = children[0];
 						log_assert(multi->children.size() == 2);
