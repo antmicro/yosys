@@ -232,6 +232,7 @@ static bool isUserType(std::string &s)
 "while"        { return TOK_WHILE; }
 "repeat"       { return TOK_REPEAT; }
 "automatic"    { return TOK_AUTOMATIC; }
+"return"       { return TOK_RETURN; }
 
 "unique"       { SV_KEYWORD(TOK_UNIQUE); }
 "unique0"      { SV_KEYWORD(TOK_UNIQUE); }
