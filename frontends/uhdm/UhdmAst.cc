@@ -666,12 +666,26 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiPackage: {
 			current_node->type = AST::AST_PACKAGE;
-			visit_one_to_many({vpiTypedef},
+			visit_one_to_many({vpiParameter,
+							   vpiParamAssign,
+							   vpiTypedef},
 					obj_h,
 					visited,
 					top_nodes,
 					[&](AST::AstNode* node){
-						add_typedef(current_node, node);
+						if (node->type == AST::AST_PARAMETER) {
+							// If we already have this parameter, replace it
+							for (auto& child : current_node->children) {
+								if (child->str == node->str) {
+									std::swap(child, node);
+									delete node;
+									return;
+								}
+							}
+							current_node->children.push_back(node);
+						} else {
+							add_typedef(current_node, node);
+						}
 					});
 			break;
 		}
