@@ -357,10 +357,12 @@ AST::AstNode* UhdmAst::visit_object (
 				// Encountered for the first time
 				elaboratedModule = new AST::AstNode(AST::AST_MODULE);
 				elaboratedModule->str = type;
+
 				visit_one_to_many({
 					vpiInterface,
 					vpiPort,
 					vpiModule,
+					vpiVariables,
 					vpiContAssign,
 					vpiProcess,
 					vpiGenScopeArray
@@ -412,7 +414,6 @@ AST::AstNode* UhdmAst::visit_object (
 			//		vpiProgramArray,
 			//		vpiSpecParam,
 			//		vpiConcurrentAssertions,
-			//		vpiVariables,
 			//		vpiInternalScope,
 			//		vpiPropertyDecl,
 			//		vpiSequenceDecl,
@@ -439,14 +440,10 @@ AST::AstNode* UhdmAst::visit_object (
 										return;
 									}
 								}
-							} else if (node->type == AST::AST_WIRE) {
+							} else if (node->type == AST::AST_WIRE && elaboratedModule->find_child(AST::AST_WIRE, node->str)) {
 								// If we already have this wire, do not add it again
-								for (auto child : elaboratedModule->children) {
-									if (child->str == node->str) {
-										delete node;
-										return;
-									}
-								}
+								delete node;
+								return;
 							}
 							elaboratedModule->children.push_back(node);
 						}
@@ -556,6 +553,16 @@ AST::AstNode* UhdmAst::visit_object (
 					error("Encountered unhandled constant format: %d\n", val.format);
 				}
 			}
+			break;
+		}
+		case vpiStructVar: {
+			current_node->type = AST::AST_WIRE;
+			vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
+			std::string name = vpi_get_str(vpiName, typespec_h);
+			sanitize_symbol_name(name);
+			auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+			wiretype_node->str = name;
+			current_node->children.push_back(wiretype_node);
 			break;
 		}
 		case vpiParamAssign: {
