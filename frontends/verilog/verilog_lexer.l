@@ -292,6 +292,15 @@ static bool isUserType(std::string &s)
 "union"   { SV_KEYWORD(TOK_UNION); }
 "packed"  { SV_KEYWORD(TOK_PACKED); }
 
+"strong0" { return TOK_STRONG0; }
+"strong1" { return TOK_STRONG1; }
+"pull0"   { return TOK_PULL0; }
+"pull1"   { return TOK_PULL1; }
+"highz0"  { return TOK_HIGHZ0; }
+"highz1"  { return TOK_HIGHZ1; }
+"weak0"   { return TOK_WEAK0; }
+"weak1"   { return TOK_WEAK1; }
+
 [0-9][0-9_]* {
 	yylval->string = new std::string(yytext);
 	return TOK_CONSTVAL;

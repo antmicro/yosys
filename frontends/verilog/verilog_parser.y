@@ -329,6 +329,8 @@ static void addGenvar() {
 %token TOK_STRUCT TOK_PACKED TOK_UNSIGNED TOK_INT TOK_BYTE TOK_SHORTINT TOK_UNION TOK_INSIDE
 %token TOK_OR_ASSIGN TOK_XOR_ASSIGN TOK_AND_ASSIGN TOK_SUB_ASSIGN
 %token TOK_RETURN
+%token TOK_STRONG0 TOK_STRONG1 TOK_PULL0 TOK_PULL1
+%token TOK_HIGHZ0 TOK_HIGHZ1 TOK_WEAK0 TOK_WEAK1
 
 %type <ast> range range_or_multirange  non_opt_range non_opt_multirange range_or_signed_int
 %type <ast> wire_type expr basic_expr concat_list rvalue lvalue lvalue_concat_list assigment_pattern
@@ -1925,8 +1927,26 @@ wire_name:
 		delete $1;
 	};
 
+strength_types:
+	TOK_STRONG0 |
+	TOK_STRONG1 |
+	TOK_PULL0 |
+	TOK_PULL1 |
+	TOK_HIGHZ0 |
+	TOK_HIGHZ1 |
+	TOK_WEAK0 |
+	TOK_WEAK1;
+
+non_opt_strength:
+	'(' strength_types ',' strength_types ')' {
+		log_warning("Yosys has only limited support for strength types at the moment.\n");
+	};
+
+strength:
+	non_opt_strength | /* empty */;
+
 assign_stmt:
-	TOK_ASSIGN delay assign_expr_list ';';
+	TOK_ASSIGN strength delay assign_expr_list ';';
 
 assign_expr_list:
 	assign_expr | assign_expr_list ',' assign_expr;
