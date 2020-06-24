@@ -477,12 +477,15 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiTypespecMember: {
 			current_node->type = AST::AST_STRUCT_ITEM;
+			current_node->str = current_node->str.substr(1);
 			vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
 			int typespec_type = vpi_get(vpiType, typespec_h);
 			switch (typespec_type) {
 				case vpiStructTypespec: {
+					auto struct_node = visit_object(typespec_h, visited, top_nodes);
+					struct_node->str = current_node->str;
 					delete current_node;
-					current_node = visit_object(typespec_h, visited, top_nodes);
+					current_node = struct_node;
 					report.mark_handled(typespec_h);
 					break;
 				}
