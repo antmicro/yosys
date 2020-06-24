@@ -273,6 +273,16 @@ void AstNode::delete_children()
 	attributes.clear();
 }
 
+AstNode* AstNode::find_child(AstNodeType type, const std::string& name)
+{
+	for (auto child : children) {
+		if (child->type == type && child->str == name) {
+			return child;
+		}
+	}
+	return nullptr;
+}
+
 // AstNode destructor
 AstNode::~AstNode()
 {
@@ -1384,15 +1394,6 @@ std::pair<std::string,std::string> AST::split_modport_from_type(std::string name
 
 }
 
-AstNode * AST::find_modport(AstNode *intf, std::string name)
-{
-	for (auto &ch : intf->children)
-		if (ch->type == AST_MODPORT)
-			if (ch->str == name) // Modport found
-				return ch;
-	return NULL;
-}
-
 // Iterate over all wires in an interface and add them as wires in the AST module:
 void AST::explode_interface_port(AstNode *module_ast, RTLIL::Module * intfmodule, std::string intfname, AstNode *modport)
 {
@@ -1482,7 +1483,7 @@ void AstModule::reprocess_module(RTLIL::Design *design, const dict<RTLIL::IdStri
 							                                                              // present in design->modules_
 							AstModule *ast_module_of_interface = (AstModule*)intfmodule;
 							std::string interface_modport_compare_str = "\\" + interface_modport;
-							AstNode *modport = find_modport(ast_module_of_interface->ast, interface_modport_compare_str); // modport == NULL if no modport
+							AstNode *modport = ast->find_child(AST::AST_MODPORT, interface_modport_compare_str); // modport == NULL if no modport
 							// Iterate over all wires in the interface and add them to the module:
 							explode_interface_port(new_ast, intfmodule, name_port, modport);
 						}
@@ -1559,7 +1560,7 @@ RTLIL::IdString AstModule::derive(RTLIL::Design *design, const dict<RTLIL::IdStr
 				std::string interface_modport = modports.at(intfname).str();
 				AstModule *ast_module_of_interface = (AstModule*)intfmodule;
 				AstNode *ast_node_of_interface = ast_module_of_interface->ast;
-				modport = find_modport(ast_node_of_interface, interface_modport);
+				modport = ast_node_of_interface->find_child(AST::AST_MODPORT, interface_modport);
 			}
 			// Iterate over all wires in the interface and add them to the module:
 			explode_interface_port(new_ast, intfmodule, intfname, modport);
