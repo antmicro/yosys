@@ -1452,12 +1452,49 @@ param_range:
 		}
 	};
 
+
+param_reg:
+	TOK_REG {
+		if (astbuf1->children.size() != 1)
+			frontend_verilog_yyerror("FIXME: add here error string");
+		// SV LRM 6.11, Table 6-8: logic -- 2-state, user-defined vector size, unsigned
+		astbuf1->is_signed = false;
+		astbuf1->is_reg = true;
+	}
+
+param_logic:
+	TOK_LOGIC {
+		if (astbuf1->children.size() != 1)
+			frontend_verilog_yyerror("FIXME: add here error string");
+		// SV LRM 6.11, Table 6-8: logic -- 4-state, user-defined vector size, unsigned
+		astbuf1->is_signed = false;
+		astbuf1->is_logic = true;
+	}
+
+param_logic_range:
+	range {
+		if ($1 != NULL) {
+			if (astbuf1->children.size() != 1)
+				frontend_verilog_yyerror("integer/real parameters should not have a range.");
+			astbuf1->children.push_back($1);
+		} else {
+			astbuf1->children.push_back(new AstNode(AST_RANGE));
+			astbuf1->children.back()->children.push_back(AstNode::mkconst_int(0, true));
+			astbuf1->children.back()->children.push_back(AstNode::mkconst_int(0, true));
+		}
+	};
+
 param_integer_type: param_integer param_signed;
 param_range_type: type_vec param_signed param_range;
-param_implicit_type: param_signed param_range;
+//param_implicit_type: param_signed param_range;
+
+param_logic_or_reg: param_logic | param_reg
+
+param_integer_vector_type: param_logic_or_reg param_signed param_logic_range
+param_range_type: param_signed param_range
 
 param_type:
-	param_integer_type | param_real | param_range_type | param_implicit_type |
+	param_integer_type | param_integer_vector_type | param_real | param_range_type |
 	hierarchical_type_id {
 		astbuf1->is_custom_type = true;
 		astbuf1->children.push_back(new AstNode(AST_WIRETYPE));
