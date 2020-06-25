@@ -1634,6 +1634,59 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				children.push_back(template_child->clone());
 			did_something = true;
 		}
+
+		// FIXME: move to separate function
+		for (size_t i = 0 ; i < children.size() ; ++i) {
+			if (children[i]->type == AST_MULTIRANGE) {// && children[i]->is_packed) {
+			//if (children[i]->type == AST_MULTIRANGE && attributes.count(ID::multirange) == 0) {// && children[i]->is_packed) {
+				const auto* multirange = children[i];
+				const size_t ranges = std::count_if(
+					multirange->children.begin(), multirange->children.end(),
+					[](const AstNode* node) {
+						return node->type == AST_RANGE;
+					});
+
+				// More than two dimensions should be supported, but tested only 2.
+				if ((ranges == 2) && (ranges == multirange->children.size())) {
+					size_t size = 1;
+
+					auto* attr_ranges = new AstNode;
+					attr_ranges->type = AST_CONSTANT;
+
+					for (const auto& itr : multirange->children) {
+						log_assert(itr->type == AST_RANGE);
+						if (itr->children.size() == 2) {
+							const auto width = itr->range_left - itr->range_right + 1;
+							size *= width;
+						} else {
+							const auto width = itr->range_left;
+							size *= width;
+						}
+						attr_ranges->children.push_back(itr->clone());
+					}
+					attr_ranges->range_left  = size - 1;
+					attr_ranges->range_right = 0;
+					attributes[ID::multirange] = attr_ranges;
+
+					// Replace with one-dimensional range (packed vector)
+					AstNode* simple_range = new AstNode(AST_RANGE);
+					simple_range->integer = size;
+					simple_range->children.push_back(mkconst_int(size - 1, false, 32));
+					simple_range->children.push_back(mkconst_int(0, false, 32));
+					simple_range->range_left = size - 1;
+					simple_range->range_right = 0;
+					simple_range->range_valid = true;
+
+					delete children[i];
+					children.erase(children.begin() + i);
+					children.push_back(simple_range);
+
+					is_packed = true;
+					did_something = true;
+				}
+				break;
+			}
+		}
 		log_assert(!is_custom_type);
 	}
 
