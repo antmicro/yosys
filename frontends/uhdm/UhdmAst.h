@@ -42,6 +42,9 @@ class UhdmAst {
 
 		unsigned enum_count = 0;
 
+		// AST node of the module currently being processed
+		AST::AstNode* current_module;
+
 	public:
 		UhdmAst(){};
 		// Visits single VPI object and creates proper AST node

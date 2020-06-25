@@ -339,6 +339,15 @@ AST::AstNode* UhdmAst::visit_object (
 			if (it != top_nodes->end()) {
 				// Was created before, fill missing
 				elaboratedModule = it->second;
+				current_module = elaboratedModule;
+
+				visit_one_to_many({vpiTypedef},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+						add_typedef(elaboratedModule, node);
+					});
 				visit_one_to_many({
 					vpiInterface,
 					vpiModule,
@@ -357,7 +366,15 @@ AST::AstNode* UhdmAst::visit_object (
 				// Encountered for the first time
 				elaboratedModule = new AST::AstNode(AST::AST_MODULE);
 				elaboratedModule->str = type;
+				current_module = elaboratedModule;
 
+				visit_one_to_many({vpiTypedef},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+						add_typedef(elaboratedModule, node);
+					});
 				visit_one_to_many({
 					vpiInterface,
 					vpiPort,
@@ -382,18 +399,10 @@ AST::AstNode* UhdmAst::visit_object (
 				make_cell(obj_h, current_node, type);
 			}
 
-			visit_one_to_many({vpiTypedef},
-					obj_h,
-					visited,
-					top_nodes,
-					[&](AST::AstNode* node){
-						add_typedef(current_node, node);
-					});
 			visit_one_to_many({vpiParameter,
 					vpiParamAssign,
 					vpiNet,
-					vpiTaskFunc,
-					vpiTypedef
+					vpiTaskFunc
 			// Unhandled relationships:
 			//		vpiProcess,
 			//		vpiPrimitive,
@@ -607,6 +616,7 @@ AST::AstNode* UhdmAst::visit_object (
 		case vpiAssignStmt:
 		case vpiAssignment: {
 			current_node->type = AST::AST_ASSIGN_EQ;
+			(*top_nodes)["assign_node"] = current_node;
 			visit_one_to_one({vpiLhs, vpiRhs},
 					obj_h,
 					visited,
@@ -945,6 +955,34 @@ AST::AstNode* UhdmAst::visit_object (
 		case vpiOperation: {
 			auto operation = vpi_get(vpiOpType, obj_h);
 			switch (operation) {
+				case vpiAssignmentPatternOp: {
+					auto block_node = (*top_nodes)["assign_node"];
+					block_node->type = AST::AST_BLOCK;
+					auto lhs_node = block_node->children.front();
+					block_node->children.clear();
+					auto type_name = current_module->find_child(AST::AST_WIRE, lhs_node->str)->children[0]->str;
+					auto type_node = current_module->find_child(AST::AST_TYPEDEF, type_name)->children[0];
+					std::unordered_set<std::string> visited_fields;
+					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						[&](AST::AstNode* rhs_node){
+							size_t next_index = block_node->children.size();
+							if (next_index < type_node->children.size()) {
+								auto field_name = type_node->children[next_index]->str;
+								if (visited_fields.find(field_name) == visited_fields.end()) {
+									visited_fields.insert(field_name);
+									auto assign_node = new AST::AstNode(AST::AST_ASSIGN_EQ);
+									auto lhs_field_node = lhs_node->clone();
+									lhs_field_node->str += '.' + field_name;
+									assign_node->children.push_back(lhs_field_node);
+									assign_node->children.push_back(rhs_node);
+									block_node->children.push_back(assign_node);
+								}
+							}
+						});
+					delete current_node;
+					delete lhs_node;
+					return nullptr;
+				}
 				case vpiNotOp: {
 					current_node->type = AST::AST_REDUCE_BOOL;
 					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
