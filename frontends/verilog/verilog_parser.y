@@ -497,7 +497,7 @@ module:
 		mod->str = *$4;
 		append_attr(mod, $1);
 		delete $4;
-	} module_para_opt module_args_opt ';' module_body TOK_ENDMODULE opt_label {
+	} package_import_opt module_para_opt module_args_opt ';' module_body TOK_ENDMODULE opt_label {
 		if (port_stubs.size() != 0)
 			frontend_verilog_yyerror("Missing details for module port `%s'.",
 					port_stubs.begin()->first.c_str());
@@ -507,6 +507,8 @@ module:
 		current_ast_mod = NULL;
 		exitTypeScope();
 	};
+
+package_import_opt: import_package | /* empty */ ;
 
 module_para_opt:
 	'#' '(' { astbuf1 = nullptr; } module_para_list { if (astbuf1) delete astbuf1; } ')' | %empty;
