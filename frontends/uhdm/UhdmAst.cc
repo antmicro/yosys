@@ -574,6 +574,32 @@ AST::AstNode* UhdmAst::visit_object (
 			current_node->children.push_back(wiretype_node);
 			break;
 		}
+		case vpiArrayVar: {
+			current_node->type = AST::AST_MEMORY;
+			vpiHandle itr = vpi_iterate(vpiReg, obj_h);
+			while (vpiHandle reg_h = vpi_scan(itr)) {
+				if (vpi_get(vpiType, reg_h) == vpiStructVar) {
+					vpiHandle typespec_h = vpi_handle(vpiTypespec, reg_h);
+					std::string name = vpi_get_str(vpiName, typespec_h);
+					sanitize_symbol_name(name);
+					auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+					wiretype_node->str = name;
+					current_node->children.push_back(wiretype_node);
+					report.mark_handled(reg_h);
+					report.mark_handled(typespec_h);
+				}
+				vpi_free_object(reg_h);
+			}
+			vpi_free_object(itr);
+			visit_one_to_many({vpiRange},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node){
+						current_node->children.push_back(node);
+					});
+			break;
+		}
 		case vpiParamAssign: {
 			current_node->type = AST::AST_PARAMETER;
 			visit_one_to_one({vpiLhs, vpiRhs},
