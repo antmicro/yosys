@@ -4025,6 +4025,14 @@ replace_fcall_later:;
 							tmp_range_left = (param_width + 2*param_offset) - children[0]->range_right - 1;
 							tmp_range_right = (param_width + 2*param_offset) - children[0]->range_left - 1;
 						}
+
+						if (current_scope[str]->children.size() == 2 && current_scope[str]->children[1]->type == AST_MULTIRANGE && current_scope[str]->children[1]->children[0]->type == AST_RANGE) {
+							AstNode *range = current_scope[str]->children[1]->children[0];
+							int range_access = range->range_left;
+							tmp_range_right *= range_access;
+							tmp_range_left = (tmp_range_left + 1) * range_access;
+
+						}
 						for (int i = tmp_range_right; i <= tmp_range_left; i++) {
 							int index = i - param_offset;
 							if (0 <= index && index < param_width)
