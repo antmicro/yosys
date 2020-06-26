@@ -1755,6 +1755,9 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 	// annotate wires with their ranges
 	if (type == AST_WIRE) {
 		if (children.size() > 0) {
+			if (!children[0]->range_valid) { // if range is not valid, make sure children is simplify
+				while(children[0]->simplify(true, false, false, stage, -1, -1, false)) {}
+			}
 			if (children[0]->range_valid) {
 				if (!range_valid)
 					did_something = true;
