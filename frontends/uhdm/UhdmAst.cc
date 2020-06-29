@@ -402,6 +402,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_many({vpiParameter,
 					vpiParamAssign,
 					vpiNet,
+					vpiArrayNet,
 					vpiTaskFunc
 			// Unhandled relationships:
 			//		vpiProcess,
@@ -416,7 +417,6 @@ AST::AstNode* UhdmAst::visit_object (
 			//		vpiIODecl,
 			//		vpiAliasStmt,
 			//		vpiClockingBlock,
-			//		vpiArrayNet,
 			//		vpiAssertion,
 			//		vpiClassDefn,
 			//		vpiProgram,
@@ -706,6 +706,32 @@ AST::AstNode* UhdmAst::visit_object (
 			//		obj_h,
 			//		visited,
 			//		[](AST::AstNode*){});
+			break;
+		}
+		case vpiArrayNet: {
+			current_node->type = AST::AST_MEMORY;
+			vpiHandle itr = vpi_iterate(vpiNet, obj_h);
+			while (vpiHandle net_h = vpi_scan(itr)) {
+				if (vpi_get(vpiType, net_h) == vpiLogicNet) {
+					visit_one_to_many({vpiRange},
+							net_h,
+							visited,
+							top_nodes,
+							[&](AST::AstNode* node) {
+								current_node->children.push_back(node);
+							});
+					report.mark_handled(net_h);
+				}
+				vpi_free_object(net_h);
+			}
+			vpi_free_object(itr);
+			visit_one_to_many({vpiRange},
+					obj_h,
+					visited,
+					top_nodes,
+					[&](AST::AstNode* node) {
+						current_node->children.push_back(node);
+					});
 			break;
 		}
 		case vpiClassDefn: {
