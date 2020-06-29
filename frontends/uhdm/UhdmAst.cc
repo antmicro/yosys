@@ -449,7 +449,9 @@ AST::AstNode* UhdmAst::visit_object (
 										return;
 									}
 								}
-							} else if (node->type == AST::AST_WIRE && elaboratedModule->find_child(AST::AST_WIRE, node->str)) {
+							} else if (node->type == AST::AST_WIRE &&
+									   (elaboratedModule->find_child(AST::AST_WIRE, node->str) ||
+										elaboratedModule->find_child(AST::AST_MEMORY, node->str))) {
 								// If we already have this wire, do not add it again
 								delete node;
 								return;
