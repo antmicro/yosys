@@ -274,8 +274,13 @@ static void addGenvar() {
 
 	for (auto itr = ast_stack.rbegin() ; itr != ast_stack.rend() ; itr++) {
 		auto* node = *itr;
-		if (node->type == AST_MODULE)
+		if (node->type == AST_MODULE) {
 			node->children.push_back(templ);
+			break;
+		} else if (node->type == AST_FUNCTION) {
+			node->children.push_back(templ);
+			break;
+		}
 	}
 }
 %}
@@ -988,7 +993,12 @@ task_func_port:
 		}
 		albuf = $1;
 		astbuf1 = $2;
-		astbuf2 = checkRange(astbuf1, $3);
+		if ($3->type == AST_MULTIRANGE) {
+			astbuf2 = $3;
+			astbuf2->is_packed = true;
+		} else {
+			astbuf2 = checkRange(astbuf1, $3);
+		}
 	} wire_name |
 	{
 		if (!astbuf1) {

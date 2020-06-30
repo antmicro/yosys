@@ -858,7 +858,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		for (size_t i = 0; i < children.size(); i++) {
 			AstNode *node = children[i];
 			// these nodes appear at the top level in a package and can define names
-			if (node->type == AST_PARAMETER || node->type == AST_LOCALPARAM || node->type == AST_TYPEDEF) {
+			if (node->type == AST_PARAMETER || node->type == AST_LOCALPARAM || node->type == AST_TYPEDEF || node->type == AST_FUNCTION) {
 				current_scope[node->str] = node;
 			}
 			if (node->type == AST_ENUM) {
@@ -871,6 +871,27 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 						log_file_error(filename, location.first_line, "enum item %s already exists in package\n", enode->str.c_str());
 				}
 			}
+		}
+
+		for (size_t i = 0 ; i < children.size() ; ++i) {
+			AstNode* node = children[i];
+			if (node->type != AST_FUNCTION)
+				continue;
+
+			const auto& package_name = str;
+			std::function<void(AstNode*)> fix_references = [&package_name,&fix_references] (AstNode* node) {
+				for (auto* itr : node->children) {
+					if (itr->type == AST_FCALL || itr->type == AST_IDENTIFIER) {
+						if (current_scope.count(itr->str)) {
+							itr->str = package_name + "::" + (itr->str.substr(1));
+						}
+					}
+
+					fix_references(itr);
+				}
+			};
+
+			fix_references(node);
 		}
 	}
 
@@ -3608,8 +3629,15 @@ skip_dynamic_range_lvalue_expansion:;
 
 		AstNode *decl = current_scope[str];
 
+		std::string func_name = str;
+		// use unqualifed name (without package name)
+		const auto& package_sep = str.find("::");
+		if (package_sep != std::string::npos) {
+			func_name = "\\" + str.substr(package_sep+2);
+		}
+
 		std::stringstream sstr;
-		sstr << "$func$" << str << "$" << filename << ":" << location.first_line << "$" << (autoidx++) << "$";
+		sstr << "$func$" << func_name << "$" << filename << ":" << location.first_line << "$" << (autoidx++) << "$";
 		std::string prefix = sstr.str();
 
 		bool recommend_const_eval = false;
@@ -3649,11 +3677,11 @@ skip_dynamic_range_lvalue_expansion:;
 
 			AstNode *wire = NULL;
 			for (auto child : decl->children)
-				if (child->type == AST_WIRE && child->str == str)
+				if (child->type == AST_WIRE && child->str == func_name)
 					wire = child->clone();
 			log_assert(wire != NULL);
 
-			wire->str = prefix + str;
+			wire->str = prefix + func_name;
 			wire->port_id = 0;
 			wire->is_input = false;
 			wire->is_output = false;
@@ -3676,7 +3704,7 @@ skip_dynamic_range_lvalue_expansion:;
 		if (decl->attributes.count(ID::via_celltype))
 		{
 			std::string celltype = decl->attributes.at(ID::via_celltype)->asAttrConst().decode_string();
-			std::string outport = str;
+			std::string outport = func_name;
 
 			if (celltype.find(' ') != std::string::npos) {
 				int pos = celltype.find(' ');
@@ -3834,7 +3862,7 @@ skip_dynamic_range_lvalue_expansion:;
 		if (type == AST_FCALL) {
 			delete_children();
 			type = AST_IDENTIFIER;
-			str = prefix + str;
+			str = prefix + func_name;
 		}
 		if (type == AST_TCALL)
 			str = "";
