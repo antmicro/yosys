@@ -219,7 +219,7 @@ AST::AstNode* UhdmAst::visit_object (
 								break;
 							}
 							default: {
-								error("Encountered unhandled typespec: %d\n", typespec_type);
+								error("Encountered unhandled typespec: %d", typespec_type);
 							}
 						}
 					}
@@ -234,7 +234,7 @@ AST::AstNode* UhdmAst::visit_object (
 					break;
 				}
 				default: {
-					error("Encountered unhandled parameter format: %d\n", val.format);
+					error("Encountered unhandled parameter format: %d", val.format);
 				}
 			}
 			if (constant_node) {
@@ -346,7 +346,9 @@ AST::AstNode* UhdmAst::visit_object (
 					visited,
 					top_nodes,
 					[&](AST::AstNode* node){
-						add_typedef(elaboratedModule, node);
+						if (node) {
+							add_typedef(elaboratedModule, node);
+						}
 					});
 				visit_one_to_many({
 					vpiInterface,
@@ -373,7 +375,9 @@ AST::AstNode* UhdmAst::visit_object (
 					visited,
 					top_nodes,
 					[&](AST::AstNode* node){
-						add_typedef(elaboratedModule, node);
+						if (node) {
+							add_typedef(elaboratedModule, node);
+						}
 					});
 				visit_one_to_many({
 					vpiInterface,
@@ -515,7 +519,7 @@ AST::AstNode* UhdmAst::visit_object (
 					break;
 				}
 				default: {
-					error("Encountered unhandled typespec: %d\n", typespec_type);
+					error("Encountered unhandled typespec: %d", typespec_type);
 					break;
 				}
 			}
@@ -546,7 +550,7 @@ AST::AstNode* UhdmAst::visit_object (
 						});
 				report.mark_handled(typespec_h);
 			} else {
-				error("Encountered unhandled typespec: %d\n", typespec_type);
+				error("Encountered unhandled typespec: %d", typespec_type);
 				break;
 			}
 			break;
@@ -561,7 +565,7 @@ AST::AstNode* UhdmAst::visit_object (
 					break;
 				}
 				default: {
-					error("Encountered unhandled constant format: %d\n", val.format);
+					error("Encountered unhandled constant format: %d", val.format);
 				}
 			}
 			break;
@@ -609,11 +613,13 @@ AST::AstNode* UhdmAst::visit_object (
 					visited,
 					top_nodes,
 					[&](AST::AstNode* node){
-						if (node->type == AST::AST_PARAMETER) {
-							current_node->str = node->str;
-							delete node;
-						} else {
-							current_node->children.push_back(node);
+						if (node) {
+							if (node->type == AST::AST_PARAMETER) {
+								current_node->str = node->str;
+								delete node;
+							} else {
+								current_node->children.push_back(node);
+							}
 						}
 					});
 			break;
@@ -1011,11 +1017,16 @@ AST::AstNode* UhdmAst::visit_object (
 			switch (operation) {
 				case vpiAssignmentPatternOp: {
 					auto block_node = (*top_nodes)["assign_node"];
-					block_node->type = AST::AST_BLOCK;
 					auto lhs_node = block_node->children.front();
+					auto wire_node = current_module->find_child(AST::AST_WIRE, lhs_node->str);
+					if (!wire_node) break;
+					auto type_name = wire_node->children[0]->str;
+					auto type_node = current_module->find_child(AST::AST_TYPEDEF, type_name);
+					if (!type_node) break;
+					type_node = type_node->children[0];
+					if (!type_node) break;
+					block_node->type = AST::AST_BLOCK;
 					block_node->children.clear();
-					auto type_name = current_module->find_child(AST::AST_WIRE, lhs_node->str)->children[0]->str;
-					auto type_node = current_module->find_child(AST::AST_TYPEDEF, type_name)->children[0];
 					std::unordered_set<std::string> visited_fields;
 					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
 						[&](AST::AstNode* rhs_node){
@@ -1035,6 +1046,7 @@ AST::AstNode* UhdmAst::visit_object (
 						});
 					delete current_node;
 					delete lhs_node;
+					report.mark_handled(object);
 					return nullptr;
 				}
 				case vpiNotOp: {
@@ -1181,7 +1193,7 @@ AST::AstNode* UhdmAst::visit_object (
 						}
 						case vpiMultiConcatOp: current_node->type = AST::AST_REPLICATE; break;
 						default: {
-							error("Encountered unhandled operation: %d\n", operation);
+							error("Encountered unhandled operation: %d", operation);
 						}
 					}
 					break;
@@ -1380,13 +1392,21 @@ AST::AstNode* UhdmAst::visit_object (
 					break;
 				}
 				case vpiBinStrVal: {
-					int int_val = parse_int_string(val.value.str);
-					constant_node = AST::AstNode::mkconst_int(int_val, false);
+					try {
+						int int_val = parse_int_string(val.value.str);
+						constant_node = AST::AstNode::mkconst_int(int_val, false);
+					} catch(std::logic_error& e) {
+						error(std::string("Failed to parse binary string: ") + val.value.str);
+					}
 					break;
 				}
 				case vpiHexStrVal: {
-					int int_val = parse_int_string(val.value.str);
-					constant_node = AST::AstNode::mkconst_int(int_val, false);
+					try {
+						int int_val = parse_int_string(val.value.str);
+						constant_node = AST::AstNode::mkconst_int(int_val, false);
+					} catch(std::logic_error& e) {
+						error(std::string("Failed to parse hexadecimal string: ") + val.value.str);
+					}
 					break;
 				}
 				case vpiIntVal: {
@@ -1402,7 +1422,7 @@ AST::AstNode* UhdmAst::visit_object (
 					break;
 				}
 				default: {
-					error("Encountered unhandled constant format: %d\n", val.format);
+					error("Encountered unhandled constant format: %d", val.format);
 				}
 			}
 			if (constant_node) {
@@ -1431,8 +1451,10 @@ AST::AstNode* UhdmAst::visit_object (
 				visited,
 				top_nodes,
 				[&](AST::AstNode* node) {
-					current_node->children.push_back(node);
-					node->str = current_node->str;
+					if (node) {
+						current_node->children.push_back(node);
+						node->str = current_node->str;
+					}
 				});
 			visit_one_to_one({vpiStmt},
 				obj_h,
@@ -1500,12 +1522,12 @@ AST::AstNode* UhdmAst::visit_object (
 		// Explicitly unsupported
 		case vpiProgram:
 		default: {
-			error("Encountered unhandled object type: %d\n", objectType);
+			error("Encountered unhandled object type: %d", objectType);
 		}
 	}
 
 	// Check if we initialized the node in switch-case
-	if (current_node->type != AST::AST_NONE) {
+	if (current_node && current_node->type != AST::AST_NONE) {
 		report.mark_handled(object);
 		return current_node;
 	} else {
@@ -1527,14 +1549,23 @@ AST::AstNode* UhdmAst::visit_designs (const std::vector<vpiHandle>& designs) {
 	return top_design;
 }
 
-void UhdmAst::error(const char* message, unsigned object_type) const {
+void UhdmAst::error(std::string message, unsigned object_type) const {
+	message += '\n';
 	if (stop_on_error) {
-		log_error(message, object_type);
+		log_error(message.c_str(), object_type);
 	} else {
-		log_warning(message, object_type);
+		log_warning(message.c_str(), object_type);
 	}
 }
 
+void UhdmAst::error(std::string message) const {
+	message += '\n';
+	if (stop_on_error) {
+		log_error(message.c_str());
+	} else {
+		log_warning(message.c_str());
+	}
+}
 
 YOSYS_NAMESPACE_END
 

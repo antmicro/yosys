@@ -38,7 +38,8 @@ class UhdmAst {
 		void add_typedef(AST::AstNode* current_node, AST::AstNode* type_node);
 
 		// Reports that something went wrong with reading the AST
-		void error(const char* message, unsigned object_type) const;
+		void error(std::string message, unsigned object_type) const;
+		void error(std::string message) const;
 
 		unsigned enum_count = 0;
 
