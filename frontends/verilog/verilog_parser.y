@@ -1965,9 +1965,23 @@ assign_expr_list:
 
 assign_expr:
 	lvalue '=' expr {
-		AstNode *node = new AstNode(AST_ASSIGN, $1, $3);
-		SET_AST_NODE_LOC(node, @$, @$);
-		ast_stack.back()->children.push_back(node);
+		if($3->type == AST_BLOCK) { //struct assigment list
+			for (auto *child : $3->children) {
+				if (child->children[0]->str.compare(0, 1, "\\") == 0)
+					child->children[0]->str = child->children[0]->str.substr(1);
+				if(child->children[0]->str != "")
+					child->children[0]->str = $1->str + "." + child->children[0]->str;
+				else
+					child->children[0]->str = $1->str;
+				child->type = AST_ASSIGN;
+				ast_stack.back()->children.push_back(child);
+				SET_AST_NODE_LOC(child, @1, @3);
+			}
+		} else {
+			AstNode *node = new AstNode(AST_ASSIGN, $1, $3);
+			SET_AST_NODE_LOC(node, @$, @$);
+			ast_stack.back()->children.push_back(node);
+		}
 	};
 
 type_name: TOK_ID		// first time seen
@@ -2510,7 +2524,6 @@ simple_behavioral_stmt:
 					child->children[0]->str = $2->str + "." + child->children[0]->str;
 				else
 					child->children[0]->str = $2->str;
-				log("Child name: %s\n", child->children[0]->str.c_str());
 				child->type = AST_ASSIGN_EQ;
 				ast_stack.back()->children.push_back(child);
 				SET_AST_NODE_LOC(child, @2, @5);
