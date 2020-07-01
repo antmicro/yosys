@@ -11,12 +11,11 @@ YOSYS_NAMESPACE_BEGIN
 
 void UhdmAst::visit_one_to_many (const std::vector<int> childrenNodeTypes,
 		vpiHandle parentHandle, std::set<const UHDM::BaseClass*> visited,
-		std::map<std::string, AST::AstNode*>* top_nodes,
-		const std::function<void(AST::AstNode*)> &f) {
+		UhdmAstContext& context, const std::function<void(AST::AstNode*)> &f) {
 	for (auto child : childrenNodeTypes) {
 		vpiHandle itr = vpi_iterate(child, parentHandle);
 		while (vpiHandle vpi_child_obj = vpi_scan(itr) ) {
-			auto *childNode = visit_object(vpi_child_obj, visited, top_nodes);
+			auto *childNode = visit_object(vpi_child_obj, visited, context);
 			f(childNode);
 			vpi_free_object(vpi_child_obj);
 		}
@@ -26,12 +25,11 @@ void UhdmAst::visit_one_to_many (const std::vector<int> childrenNodeTypes,
 
 void UhdmAst::visit_one_to_one (const std::vector<int> childrenNodeTypes,
 		vpiHandle parentHandle, std::set<const UHDM::BaseClass*> visited,
-		std::map<std::string, AST::AstNode*>* top_nodes,
-		const std::function<void(AST::AstNode*)> &f) {
+		UhdmAstContext& context, const std::function<void(AST::AstNode*)> &f) {
 	for (auto child : childrenNodeTypes) {
 		vpiHandle itr = vpi_handle(child, parentHandle);
 		if (itr) {
-			auto *childNode = visit_object(itr, visited, top_nodes);
+			auto *childNode = visit_object(itr, visited, context);
 			f(childNode);
 		}
 		vpi_free_object(itr);
@@ -119,7 +117,7 @@ void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
 AST::AstNode* UhdmAst::visit_object (
 		vpiHandle obj_h,
 		std::set<const UHDM::BaseClass*> visited,
-		std::map<std::string, AST::AstNode*>* top_nodes) {
+		UhdmAstContext& context) {
 
 	// Current object data
 	std::string objectName = "";
@@ -161,7 +159,7 @@ AST::AstNode* UhdmAst::visit_object (
 	switch(objectType) {
 		case vpiDesign: {
 			current_node->type = AST::AST_DESIGN;
-			std::map<std::string, AST::AstNode*> top_nodes;
+			UhdmAstContext new_context(context);
 			visit_one_to_many({
 					UHDM::uhdmallInterfaces,
 					UHDM::uhdmtopModules,
@@ -170,14 +168,14 @@ AST::AstNode* UhdmAst::visit_object (
 					},
 					obj_h,
 					visited,
-					&top_nodes,  // Will be used to add module definitions
+					new_context,  // Will be used to add module definitions
 					[&](AST::AstNode* object) {
 						if (object != nullptr) {
-							top_nodes[object->str] = object;
+							new_context[object->str] = object;
 						}
 					});
 			// Once we walked everything, unroll that as children of this node
-			for (auto pair : top_nodes) {
+			for (auto pair : new_context) {
 				current_node->children.push_back(pair.second);
 			}
 
@@ -207,7 +205,7 @@ AST::AstNode* UhdmAst::visit_object (
 								visit_one_to_many({vpiRange},
 										typespec_h,
 										visited,
-										top_nodes,
+										context,
 										[&](AST::AstNode* node){
 											current_node->children.push_back(node);
 										});
@@ -291,7 +289,7 @@ AST::AstNode* UhdmAst::visit_object (
 						visit_one_to_many({vpiRange},
 							actual_h,
 							visited,
-							top_nodes,
+							context,
 							[&](AST::AstNode* node){
 								current_node->children.push_back(node);
 							});
@@ -335,16 +333,15 @@ AST::AstNode* UhdmAst::visit_object (
 
 			AST::AstNode* elaboratedModule;
 			// Check if we have encountered this object before
-			auto it = top_nodes->find(type);
-			if (it != top_nodes->end()) {
+			if (context.contains(type)) {
 				// Was created before, fill missing
-				elaboratedModule = it->second;
+				elaboratedModule = context[type];
 				current_module = elaboratedModule;
 
 				visit_one_to_many({vpiTypedef},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 						if (node) {
 							add_typedef(elaboratedModule, node);
@@ -359,7 +356,7 @@ AST::AstNode* UhdmAst::visit_object (
 					},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 					if (node != nullptr)
 						elaboratedModule->children.push_back(node);
@@ -373,7 +370,7 @@ AST::AstNode* UhdmAst::visit_object (
 				visit_one_to_many({vpiTypedef},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 						if (node) {
 							add_typedef(elaboratedModule, node);
@@ -390,13 +387,13 @@ AST::AstNode* UhdmAst::visit_object (
 					},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 					if (node != nullptr)
 						elaboratedModule->children.push_back(node);
 					});
 			}
-			(*top_nodes)[elaboratedModule->str] = elaboratedModule;
+			context[elaboratedModule->str] = elaboratedModule;
 			report.mark_handled(object);
 			if (objectName != type) {
 				// Not a top module, create instance
@@ -441,7 +438,7 @@ AST::AstNode* UhdmAst::visit_object (
 					},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 						if (node != nullptr) {
 							if (node->type == AST::AST_PARAMETER) {
@@ -481,7 +478,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_many({vpiTypespecMember},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 						current_node->children.push_back(node);
 					});
@@ -494,7 +491,7 @@ AST::AstNode* UhdmAst::visit_object (
 			int typespec_type = vpi_get(vpiType, typespec_h);
 			switch (typespec_type) {
 				case vpiStructTypespec: {
-					auto struct_node = visit_object(typespec_h, visited, top_nodes);
+					auto struct_node = visit_object(typespec_h, visited, context);
 					struct_node->str = current_node->str;
 					delete current_node;
 					current_node = struct_node;
@@ -502,7 +499,7 @@ AST::AstNode* UhdmAst::visit_object (
 					break;
 				}
 				case vpiEnumTypespec: {
-					current_node->children.push_back(visit_object(typespec_h, visited, top_nodes));
+					current_node->children.push_back(visit_object(typespec_h, visited, context));
 					report.mark_handled(typespec_h);
 					break;
 				}
@@ -511,7 +508,7 @@ AST::AstNode* UhdmAst::visit_object (
 					visit_one_to_many({vpiRange},
 							typespec_h,
 							visited,
-							top_nodes,
+							context,
 							[&](AST::AstNode* node){
 								current_node->children.push_back(node);
 							});
@@ -530,7 +527,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_many({vpiEnumConst},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 						current_node->children.push_back(node);
 					});
@@ -541,7 +538,7 @@ AST::AstNode* UhdmAst::visit_object (
 				visit_one_to_many({vpiRange},
 						typespec_h,
 						visited,
-						top_nodes,
+						context,
 						[&](AST::AstNode* node){
 							for (auto child : current_node->children) {
 								child->children.push_back(node->clone());
@@ -600,7 +597,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_many({vpiRange},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 						current_node->children.push_back(node);
 					});
@@ -611,7 +608,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_one({vpiLhs, vpiRhs},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 						if (node) {
 							if (node->type == AST::AST_PARAMETER) {
@@ -629,7 +626,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_one({vpiRhs, vpiLhs},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 						if (node) {
 							current_node->children.push_back(node);
@@ -650,11 +647,12 @@ AST::AstNode* UhdmAst::visit_object (
 		case vpiAssignStmt:
 		case vpiAssignment: {
 			current_node->type = AST::AST_ASSIGN_EQ;
-			(*top_nodes)["assign_node"] = current_node;
+			UhdmAstContext new_context(context);
+			new_context["assign_node"] = current_node;
 			visit_one_to_one({vpiLhs, vpiRhs},
 					obj_h,
 					visited,
-					top_nodes,
+					new_context,
 					[&](AST::AstNode* node){
 						if (node) {
 							current_node->children.push_back(node);
@@ -670,12 +668,12 @@ AST::AstNode* UhdmAst::visit_object (
 					vpiTypespec},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[](AST::AstNode*){});
 			visit_one_to_many({vpiPortInst},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[](AST::AstNode*){});
 			current_node->type = AST::AST_IDENTIFIER;
 
@@ -700,7 +698,7 @@ AST::AstNode* UhdmAst::visit_object (
 					},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 						current_node->children.push_back(node);
 					});
@@ -724,7 +722,7 @@ AST::AstNode* UhdmAst::visit_object (
 					visit_one_to_many({vpiRange},
 							net_h,
 							visited,
-							top_nodes,
+							context,
 							[&](AST::AstNode* node) {
 								current_node->children.push_back(node);
 							});
@@ -736,7 +734,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_many({vpiRange},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node) {
 						current_node->children.push_back(node);
 					});
@@ -775,7 +773,7 @@ AST::AstNode* UhdmAst::visit_object (
 							   vpiTypedef},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 						if (node) {
 							if (node->type == AST::AST_PARAMETER) {
@@ -803,15 +801,14 @@ AST::AstNode* UhdmAst::visit_object (
 
 			AST::AstNode* elaboratedInterface;
 			// Check if we have encountered this object before
-			auto it = top_nodes->find(type);
-			if (it != top_nodes->end()) {
+			if (context.contains(type)) {
 				// Was created before, fill missing
-				elaboratedInterface = it->second;
+				elaboratedInterface = context[type];
 				visit_one_to_many({
 					vpiPort},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 					if (node != nullptr)
 						std::replace_if(elaboratedInterface->children.begin(), elaboratedInterface->children.end(),
@@ -827,13 +824,13 @@ AST::AstNode* UhdmAst::visit_object (
 					},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node){
 					if (node != nullptr)
 						elaboratedInterface->children.push_back(node);
 					});
 			}
-			(*top_nodes)[elaboratedInterface->str] = elaboratedInterface;
+			context[elaboratedInterface->str] = elaboratedInterface;
 
 			if (objectName != type) {
 				// Not a top module, create instance
@@ -895,7 +892,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_many({vpiIODecl},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* net){
 				if(net) {
 					current_node->children.push_back(net);
@@ -918,7 +915,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_many({vpiRange},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node) {
 						current_node->children.push_back(node);
 					});
@@ -927,8 +924,8 @@ AST::AstNode* UhdmAst::visit_object (
 		case vpiAlways: {
 			current_node->type = AST::AST_ALWAYS;
 			// Some shenanigans to allow writing multiple conditions without intermediary node
-			std::map<std::string, AST::AstNode*> nodes;
-			nodes["process_node"] = current_node;
+			UhdmAstContext new_context(context);
+			new_context["process_node"] = current_node;
 
 			switch (vpi_get(vpiAlwaysType, obj_h)) {
 				case vpiAlwaysComb:
@@ -938,7 +935,7 @@ AST::AstNode* UhdmAst::visit_object (
 						},
 						obj_h,
 						visited,
-						&nodes,
+						new_context,
 						[&](AST::AstNode* node) {
 							current_node->children.push_back(node);
 						});
@@ -950,7 +947,7 @@ AST::AstNode* UhdmAst::visit_object (
 						},
 						obj_h,
 						visited,
-						&nodes,
+						new_context,
 						[&](AST::AstNode* node) {
 							if (node) {
 								current_node->children.push_back(node);
@@ -963,10 +960,10 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiEventControl: {
 			current_node->type = AST::AST_BLOCK;
-			visit_one_to_one({vpiCondition}, obj_h, visited, top_nodes,
+			visit_one_to_one({vpiCondition}, obj_h, visited, context,
 					[&](AST::AstNode* node) {
 						if (node) {
-							top_nodes->at("process_node")->children.push_back(node);
+							context["process_node"]->children.push_back(node);
 						}
 						// is added inside vpiOperation
 					});
@@ -975,7 +972,7 @@ AST::AstNode* UhdmAst::visit_object (
 					},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node) {
 						if (node) {
 							current_node->children.push_back(node);
@@ -988,7 +985,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_one({vpiStmt},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node) {
 						if (node) {
 							current_node->children.push_back(node);
@@ -1003,9 +1000,11 @@ AST::AstNode* UhdmAst::visit_object (
 				},
 				obj_h,
 				visited,
-				top_nodes,
+				context,
 				[&](AST::AstNode* node){
-					current_node->children.push_back(node);
+					if (node) {
+						current_node->children.push_back(node);
+					}
 				});
 			break;
 		}
@@ -1018,9 +1017,8 @@ AST::AstNode* UhdmAst::visit_object (
 			auto operation = vpi_get(vpiOpType, obj_h);
 			switch (operation) {
 				case vpiAssignmentPatternOp: {
-					auto it = top_nodes->find("assign_node");
-					if (it != top_nodes->end()) {
-						auto block_node = it->second;
+					if (context.contains("assign_node")) {
+						auto block_node = context["assign_node"];
 						auto lhs_node = block_node->children.front();
 						auto wire_node = current_module->find_child(AST::AST_WIRE, lhs_node->str);
 						if (!wire_node) break;
@@ -1032,7 +1030,7 @@ AST::AstNode* UhdmAst::visit_object (
 						block_node->type = AST::AST_BLOCK;
 						block_node->children.clear();
 						std::unordered_set<std::string> visited_fields;
-						visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+						visit_one_to_many({vpiOperand}, obj_h, visited, context,
 							[&](AST::AstNode* rhs_node){
 								size_t next_index = block_node->children.size();
 								if (next_index < type_node->children.size()) {
@@ -1057,7 +1055,7 @@ AST::AstNode* UhdmAst::visit_object (
 				}
 				case vpiNotOp: {
 					current_node->type = AST::AST_REDUCE_BOOL;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+					visit_one_to_many({vpiOperand}, obj_h, visited, context,
 						[&](AST::AstNode* node){
 							auto *negate = new AST::AstNode(AST::AST_LOGIC_NOT);
 							negate->children.push_back(node);
@@ -1069,7 +1067,7 @@ AST::AstNode* UhdmAst::visit_object (
 					current_node->type = AST::AST_REDUCE_BOOL;
 					auto eq_node = new AST::AstNode(AST::AST_EQ);
 					current_node->children.push_back(eq_node);
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+					visit_one_to_many({vpiOperand}, obj_h, visited, context,
 						[&](AST::AstNode* node){
 							eq_node->children.push_back(node);
 						});
@@ -1081,7 +1079,7 @@ AST::AstNode* UhdmAst::visit_object (
 					current_node->children.push_back(not_node);
 					auto eq_node = new AST::AstNode(AST::AST_EQ);
 					not_node->children.push_back(eq_node);
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+					visit_one_to_many({vpiOperand}, obj_h, visited, context,
 						[&](AST::AstNode* node){
 							eq_node->children.push_back(node);
 						});
@@ -1091,7 +1089,7 @@ AST::AstNode* UhdmAst::visit_object (
 					current_node->type = AST::AST_REDUCE_BOOL;
 					auto lt_node = new AST::AstNode(AST::AST_LT);
 					current_node->children.push_back(lt_node);
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+					visit_one_to_many({vpiOperand}, obj_h, visited, context,
 						[&](AST::AstNode* node){
 							lt_node->children.push_back(node);
 						});
@@ -1101,7 +1099,7 @@ AST::AstNode* UhdmAst::visit_object (
 					current_node->type = AST::AST_REDUCE_BOOL;
 					auto lt_node = new AST::AstNode(AST::AST_GT);
 					current_node->children.push_back(lt_node);
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+					visit_one_to_many({vpiOperand}, obj_h, visited, context,
 						[&](AST::AstNode* node){
 							lt_node->children.push_back(node);
 						});
@@ -1109,14 +1107,13 @@ AST::AstNode* UhdmAst::visit_object (
 				}
 				case vpiEventOrOp: {
 					// Add all operands as children of process node
-					auto it = top_nodes->find("process_node");
-					if (it != top_nodes->end()) {
-						AST::AstNode* processNode = it->second;
-						visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+					if (context.contains("process_node")) {
+						AST::AstNode* process_node = context["process_node"];
+						visit_one_to_many({vpiOperand}, obj_h, visited, context,
 							[&](AST::AstNode* node){
 								// add directly to process node
 								if (node) {
-									processNode->children.push_back(node);
+									process_node->children.push_back(node);
 								}
 							});
 					}
@@ -1126,7 +1123,7 @@ AST::AstNode* UhdmAst::visit_object (
 					return nullptr;
 				}
 				case vpiCastOp: {
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+					visit_one_to_many({vpiOperand}, obj_h, visited, context,
 						[&](AST::AstNode* node){
 							delete current_node;
 							current_node = node;
@@ -1136,7 +1133,7 @@ AST::AstNode* UhdmAst::visit_object (
 				case vpiInsideOp: {
 					current_node->type = AST::AST_EQ;
 					AST::AstNode* lhs = nullptr;
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+					visit_one_to_many({vpiOperand}, obj_h, visited, context,
 						[&](AST::AstNode* node) {
 							if (!lhs) {
 								lhs = node;
@@ -1160,7 +1157,7 @@ AST::AstNode* UhdmAst::visit_object (
 					break;
 				}
 				default: {
-					visit_one_to_many({vpiOperand}, obj_h, visited, top_nodes,
+					visit_one_to_many({vpiOperand}, obj_h, visited, context,
 						[&](AST::AstNode* node){
 							current_node->children.push_back(node);
 						});
@@ -1212,7 +1209,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_one({vpiIndex},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node) {
 						auto range_node = new AST::AstNode(AST::AST_RANGE, node);
 						range_node->filename = current_node->filename;
@@ -1227,7 +1224,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_one({vpiParent},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node) {
 						current_node->str = node->str;
 						delete node;
@@ -1239,7 +1236,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_one({vpiLeftRange, vpiRightRange},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node) {
 						range_node->children.push_back(node);
 					});
@@ -1253,7 +1250,7 @@ AST::AstNode* UhdmAst::visit_object (
 				},
 				obj_h,
 				visited,
-				top_nodes,
+				context,
 				[&](AST::AstNode* node) {
 					if (node) {
 						current_node->children.push_back(node);
@@ -1265,7 +1262,7 @@ AST::AstNode* UhdmAst::visit_object (
 		case vpiIfElse: {
 			current_node->type = AST::AST_BLOCK;
 			auto* case_node = new AST::AstNode(AST::AST_CASE);
-			visit_one_to_one({vpiCondition}, obj_h, visited, top_nodes,
+			visit_one_to_one({vpiCondition}, obj_h, visited, context,
 				[&](AST::AstNode* node){
 					case_node->children.push_back(node);
 				});
@@ -1273,7 +1270,7 @@ AST::AstNode* UhdmAst::visit_object (
 			auto *condition = new AST::AstNode(AST::AST_COND);
 			auto *constant = AST::AstNode::mkconst_int(1, false, 1);
 			condition->children.push_back(constant);
-			visit_one_to_one({vpiStmt}, obj_h, visited, top_nodes,
+			visit_one_to_one({vpiStmt}, obj_h, visited, context,
 				[&](AST::AstNode* node){
 					auto *statements = new AST::AstNode(AST::AST_BLOCK);
 					statements->children.push_back(node);
@@ -1284,7 +1281,7 @@ AST::AstNode* UhdmAst::visit_object (
 				auto *condition = new AST::AstNode(AST::AST_COND);
 				auto *elseBlock = new AST::AstNode(AST::AST_DEFAULT);
 				condition->children.push_back(elseBlock);
-				visit_one_to_one({vpiElseStmt}, obj_h, visited, top_nodes,
+				visit_one_to_one({vpiElseStmt}, obj_h, visited, context,
 					[&](AST::AstNode* node){
 						auto *statements = new AST::AstNode(AST::AST_BLOCK);
 						statements->children.push_back(node);
@@ -1298,19 +1295,19 @@ AST::AstNode* UhdmAst::visit_object (
 		case vpiFor: {
 			current_node->type = AST::AST_BLOCK;
 			auto for_node = new AST::AstNode(AST::AST_FOR);
-			visit_one_to_many({vpiForInitStmt}, obj_h, visited, top_nodes,
+			visit_one_to_many({vpiForInitStmt}, obj_h, visited, context,
 				[&](AST::AstNode* node){
 					for_node->children.push_back(node);
 				});
-			visit_one_to_one({vpiCondition}, obj_h, visited, top_nodes,
+			visit_one_to_one({vpiCondition}, obj_h, visited, context,
 				[&](AST::AstNode* node){
 					for_node->children.push_back(node);
 				});
-			visit_one_to_many({vpiForIncStmt}, obj_h, visited, top_nodes,
+			visit_one_to_many({vpiForIncStmt}, obj_h, visited, context,
 				[&](AST::AstNode* node){
 					for_node->children.push_back(node);
 				});
-			visit_one_to_one({vpiStmt}, obj_h, visited, top_nodes,
+			visit_one_to_one({vpiStmt}, obj_h, visited, context,
 				[&](AST::AstNode* node){
 					auto *statements = new AST::AstNode(AST::AST_BLOCK);
 					statements->children.push_back(node);
@@ -1321,7 +1318,7 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiGenScopeArray: {
 			current_node->type = AST::AST_GENBLOCK;
-			visit_one_to_many({vpiGenScope}, obj_h, visited, top_nodes,
+			visit_one_to_many({vpiGenScope}, obj_h, visited, context,
 				[&](AST::AstNode* node){
 					if (node->type == AST::AST_GENBLOCK) {
 						current_node->children.insert(current_node->children.end(),
@@ -1336,7 +1333,7 @@ AST::AstNode* UhdmAst::visit_object (
 			current_node->type = AST::AST_GENBLOCK;
 			visit_one_to_many({vpiParameter,
 							   vpiContAssign},
-				obj_h, visited, top_nodes,
+				obj_h, visited, context,
 				[&](AST::AstNode* node){
 					if (node) {
 						current_node->children.push_back(node);
@@ -1346,7 +1343,7 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiCase: {
 			current_node->type = AST::AST_CASE;
-			visit_one_to_one({vpiCondition}, obj_h, visited, top_nodes,
+			visit_one_to_one({vpiCondition}, obj_h, visited, context,
 				[&](AST::AstNode* node){
 					current_node->children.push_back(node);
 				});
@@ -1354,7 +1351,7 @@ AST::AstNode* UhdmAst::visit_object (
 				},
 				obj_h,
 				visited,
-				top_nodes,
+				context,
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
 				});
@@ -1366,7 +1363,7 @@ AST::AstNode* UhdmAst::visit_object (
 				},
 				obj_h,
 				visited,
-				top_nodes,
+				context,
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
 				});
@@ -1377,7 +1374,7 @@ AST::AstNode* UhdmAst::visit_object (
 				},
 				obj_h,
 				visited,
-				top_nodes,
+				context,
 				[&](AST::AstNode* node) {
 					if (node->type != AST::AST_BLOCK) {
 						auto block_node = new AST::AstNode(AST::AST_BLOCK);
@@ -1444,18 +1441,38 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_one({vpiLeftRange, vpiRightRange},
 					obj_h,
 					visited,
-					top_nodes,
+					context,
 					[&](AST::AstNode* node) {
 						current_node->children.push_back(node);
 					});
 			break;
 		}
+		case vpiReturn: {
+			auto func_node = context["function_node"];
+			current_node->type = AST::AST_ASSIGN_EQ;
+			if (!func_node->children.empty()) {
+				auto lhs = new AST::AstNode(AST::AST_IDENTIFIER);
+				lhs->str = func_node->children[0]->str;
+				current_node->children.push_back(lhs);
+			}
+			visit_one_to_one({vpiCondition},
+				obj_h,
+				visited,
+				context,
+				[&](AST::AstNode* node) {
+					current_node->children.push_back(node);
+				});
+			break;
+		}
 		case vpiFunction: {
+			std::map<std::string, AST::AstNode*> nodes;
+			UhdmAstContext new_context(context);
+			new_context["function_node"] = current_node;
 			current_node->type = AST::AST_FUNCTION;
 			visit_one_to_one({vpiReturn},
 				obj_h,
 				visited,
-				top_nodes,
+				new_context,
 				[&](AST::AstNode* node) {
 					if (node) {
 						current_node->children.push_back(node);
@@ -1465,14 +1482,16 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_one({vpiStmt},
 				obj_h,
 				visited,
-				top_nodes,
+				new_context,
 				[&](AST::AstNode* node) {
-					current_node->children.push_back(node);
+					if (node) {
+						current_node->children.push_back(node);
+					}
 				});
 			visit_one_to_many({vpiIODecl},
 				obj_h,
 				visited,
-				top_nodes,
+				new_context,
 				[&](AST::AstNode* node) {
 					node->type = AST::AST_WIRE;
 					current_node->children.push_back(node);
@@ -1484,7 +1503,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_many({vpiRange},
 				obj_h,
 				visited,
-				top_nodes,
+				context,
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
 				});
@@ -1504,7 +1523,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_many({vpiArgument},
 				obj_h,
 				visited,
-				top_nodes,
+				context,
 				[&](AST::AstNode* node){
 					if (node) {
 						current_node->children.push_back(node);
@@ -1517,7 +1536,7 @@ AST::AstNode* UhdmAst::visit_object (
 			visit_one_to_many({vpiArgument},
 				obj_h,
 				visited,
-				top_nodes,
+				context,
 				[&](AST::AstNode* node){
 					if (node) {
 						current_node->children.push_back(node);
@@ -1546,7 +1565,8 @@ AST::AstNode* UhdmAst::visit_designs (const std::vector<vpiHandle>& designs) {
 
 	for (auto design : designs) {
 		std::set<const UHDM::BaseClass*> visited;
-		auto *nodes = visit_object(design, visited, nullptr);
+		UhdmAstContext context;
+		auto *nodes = visit_object(design, visited, context);
 		// Flatten multiple designs into one
 		for (auto child : nodes->children) {
 		  top_design->children.push_back(child);
