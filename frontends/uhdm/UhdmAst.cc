@@ -569,6 +569,7 @@ AST::AstNode* UhdmAst::visit_object (
 			}
 			break;
 		}
+		case vpiEnumVar:
 		case vpiStructVar: {
 			current_node->type = AST::AST_WIRE;
 			vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
