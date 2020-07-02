@@ -200,6 +200,7 @@ AST::AstNode* UhdmAst::visit_object (
 					if (typespec_h) {
 						int typespec_type = vpi_get(vpiType, typespec_h);
 						switch (typespec_type) {
+							case vpiBitTypespec:
 							case vpiLogicTypespec: {
 								current_node->is_logic = true;
 								visit_one_to_many({vpiRange},
@@ -503,6 +504,7 @@ AST::AstNode* UhdmAst::visit_object (
 					report.mark_handled(typespec_h);
 					break;
 				}
+				case vpiBitTypespec:
 				case vpiLogicTypespec: {
 					current_node->is_logic = true;
 					visit_one_to_many({vpiRange},
