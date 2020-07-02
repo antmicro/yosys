@@ -1003,7 +1003,17 @@ AST::AstNode* UhdmAst::visit_object (
 				context,
 				[&](AST::AstNode* node){
 					if (node) {
-						current_node->children.push_back(node);
+						if (node->type == AST::AST_ASSIGN_EQ && node->children.size() == 1) {
+							if (!context.contains("function_node")) return;
+							auto func_node = context["function_node"];
+							auto x = new AST::AstNode(AST::AST_WIRE);
+							x->type = AST::AST_WIRE;
+							x->str = node->children[0]->str;
+							func_node->children.push_back(x);
+							delete node;
+						} else {
+							current_node->children.push_back(node);
+						}
 					}
 				});
 			break;
