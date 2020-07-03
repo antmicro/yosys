@@ -3001,22 +3001,26 @@ skip_dynamic_range_lvalue_expansion:;
 	if(children.size() > 0) {
 		for (auto *c : this->children) {
 			if (c->type == AST_ASSIGN_EQ || c->type == AST_ASSIGN_LE || c->type == AST_ASSIGN) {
-				if(c->children[0]->type == AST_IDENTIFIER && c->children[0]->id2ast && c->children[0]->id2ast->type == AST_MEMORY && c->children[0]->children.size() == 0 && c->children[0]->id2ast->children.size() == 2) {
-					for (auto *cc : c->children) {
-						auto *identifier = cc;
-						AstNode *rangenode = new AstNode(AST_RANGE);
-						AstNode *id = new AstNode(AST_CONSTANT);
-						id->integer = 0;
-						rangenode->children.push_back(id);
-						rangenode->range_left = 0;
-						rangenode->range_right = 0;
-						identifier->children.push_back(rangenode);
-					}
-					const auto *range = c->children[0]->id2ast->children[1];
-					AstNode *mem = c->children[0]->id2ast;
+				const auto *lhs = c->children[0];
+				const auto *rhs = c->children[1];
+				if(lhs->type == AST_IDENTIFIER && lhs->id2ast && lhs->id2ast->type == AST_MEMORY && lhs->children.size() == 0 && lhs->id2ast->children.size() == 2) {
+					AstNode *mem = lhs->id2ast;
 					AstNode *force_reg = new AstNode(AST_CONSTANT);
 					force_reg->integer = 1;
 					mem->attributes[ID::mem2reg] = force_reg; //force mem to be changed to registers
+					for (auto *cc : c->children) {
+						if (cc->type == AST_IDENTIFIER) {
+							auto *identifier = cc;
+							AstNode *rangenode = new AstNode(AST_RANGE);
+							AstNode *id = new AstNode(AST_CONSTANT);
+							id->integer = 0;
+							rangenode->children.push_back(id);
+							rangenode->range_left = 0;
+							rangenode->range_right = 0;
+							identifier->children.push_back(rangenode);
+						}
+					}
+					const auto *range = lhs->id2ast->children[1];
 					AstNode *clone = c->clone();
 					auto pos = std::find(children.begin(), children.end(), c); // find position of current node
 					log_assert(pos != children.end());
@@ -3032,7 +3036,8 @@ skip_dynamic_range_lvalue_expansion:;
 						cl->children[0]->children[0]->range_left = i;
 						cl->children[0]->children[0]->range_right = i;
 						cl->children[0]->children[0]->children[0]->integer = i;
-						cl->children[1]->children[0]->children[0]->integer = i;
+						if(cl->children[1]->type != AST_CONCAT)
+							cl->children[1]->children[0]->children[0]->integer = i;
 						children.insert(pos, cl);
 					}
 					did_something = true;
