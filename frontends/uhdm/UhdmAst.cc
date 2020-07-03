@@ -340,62 +340,39 @@ AST::AstNode* UhdmAst::visit_object (
 				// Was created before, fill missing
 				elaboratedModule = context[type];
 				current_module = elaboratedModule;
-
-				visit_one_to_many({vpiTypedef},
-					obj_h,
-					visited,
-					context,
-					[&](AST::AstNode* node){
-						if (node) {
-							add_typedef(elaboratedModule, node);
-						}
-					});
-				visit_one_to_many({
-					vpiInterface,
-					vpiModule,
-					vpiContAssign,
-					vpiProcess,
-					vpiGenScopeArray
-					},
-					obj_h,
-					visited,
-					context,
-					[&](AST::AstNode* node){
-					if (node != nullptr)
-						elaboratedModule->children.push_back(node);
-					});
 			} else {
 				// Encountered for the first time
 				elaboratedModule = new AST::AstNode(AST::AST_MODULE);
 				elaboratedModule->str = type;
 				current_module = elaboratedModule;
-
-				visit_one_to_many({vpiTypedef},
-					obj_h,
-					visited,
-					context,
-					[&](AST::AstNode* node){
-						if (node) {
-							add_typedef(elaboratedModule, node);
-						}
-					});
-				visit_one_to_many({
-					vpiInterface,
-					vpiPort,
-					vpiModule,
-					vpiVariables,
-					vpiContAssign,
-					vpiProcess,
-					vpiGenScopeArray
-					},
-					obj_h,
-					visited,
-					context,
-					[&](AST::AstNode* node){
-					if (node != nullptr)
-						elaboratedModule->children.push_back(node);
-					});
 			}
+
+			visit_one_to_many({vpiTypedef},
+				obj_h,
+				visited,
+				context,
+				[&](AST::AstNode* node){
+					if (node) {
+						add_typedef(elaboratedModule, node);
+					}
+				});
+			visit_one_to_many({
+				vpiInterface,
+				vpiPort,
+				vpiModule,
+				vpiVariables,
+				vpiContAssign,
+				vpiProcess,
+				vpiGenScopeArray
+				},
+				obj_h,
+				visited,
+				context,
+				[&](AST::AstNode* node){
+					if (node) {
+						elaboratedModule->children.push_back(node);
+					}
+				});
 			context[elaboratedModule->str] = elaboratedModule;
 			report.mark_handled(object);
 			if (objectName != type) {
