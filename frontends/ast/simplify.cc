@@ -1817,6 +1817,11 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			if(identifier->type == AST_IDENTIFIER) {
 				if (identifier->children.size() == 0 && current_scope.count(identifier->str) > 0 && current_scope[identifier->str]->type == AST_MEMORY && current_scope[identifier->str]->children.size() == 2) {
 					identifier->children.push_back(current_scope[identifier->str]->children[1]->clone());
+
+					AstNode *mem = current_scope[identifier->str]; // force mem to be replaced by list of registers, as code below, assumes this
+					AstNode *force_reg = new AstNode(AST_CONSTANT);
+					force_reg->integer = 1;
+					mem->attributes[ID::mem2reg] = force_reg;
 				}
 			}
 			if (identifier->children.size() == 1 && identifier->children[0]->type == AST_RANGE) {
