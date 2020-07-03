@@ -66,26 +66,28 @@ void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::
 	vpiHandle port_itr = vpi_iterate(vpiPort, obj_h);
 	while (vpiHandle port_h = vpi_scan(port_itr) ) {
 		auto highConn_h = vpi_handle(vpiHighConn, port_h);
-		std::string argumentName, identifierName;
-		if (auto s = vpi_get_str(vpiName, highConn_h)) {
-			identifierName = s;
-			sanitize_symbol_name(identifierName);
+		if (highConn_h) {
+			std::string argumentName, identifierName;
+			if (auto s = vpi_get_str(vpiName, highConn_h)) {
+				identifierName = s;
+				sanitize_symbol_name(identifierName);
+			}
+			if (auto s = vpi_get_str(vpiName, port_h)) {
+				argumentName = s;
+				sanitize_symbol_name(argumentName);
+			}
+			auto argNode = new AST::AstNode(AST::AST_ARGUMENT);
+			argNode->str = argumentName;
+			argNode->filename = current_node->filename;
+			argNode->location = current_node->location;
+			auto identifierNode = new AST::AstNode(AST::AST_IDENTIFIER);
+			identifierNode->filename = current_node->filename;
+			identifierNode->location = current_node->location;
+			identifierNode->str = identifierName;
+			argNode->children.push_back(identifierNode);
+			current_node->children.push_back(argNode);
+			report.mark_handled(highConn_h);
 		}
-		if (auto s = vpi_get_str(vpiName, port_h)) {
-			argumentName = s;
-			sanitize_symbol_name(argumentName);
-		}
-		auto argNode = new AST::AstNode(AST::AST_ARGUMENT);
-		argNode->str = argumentName;
-		argNode->filename = current_node->filename;
-		argNode->location = current_node->location;
-		auto identifierNode = new AST::AstNode(AST::AST_IDENTIFIER);
-		identifierNode->filename = current_node->filename;
-		identifierNode->location = current_node->location;
-		identifierNode->str = identifierName;
-		argNode->children.push_back(identifierNode);
-		current_node->children.push_back(argNode);
-		report.mark_handled(highConn_h);
 		report.mark_handled(port_h);
 		vpi_free_object(port_h);
 	}
@@ -1345,7 +1347,12 @@ AST::AstNode* UhdmAst::visit_object (
 		case vpiGenScope: {
 			current_node->type = AST::AST_GENBLOCK;
 			visit_one_to_many({vpiParameter,
-							   vpiContAssign},
+							   vpiNet,
+							   vpiArrayNet,
+							   vpiProcess,
+							   vpiContAssign,
+							   vpiModule,
+							   vpiGenScopeArray},
 				obj_h, visited, context,
 				[&](AST::AstNode* node){
 					if (node) {
