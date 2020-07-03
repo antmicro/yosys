@@ -5260,6 +5260,11 @@ AstNode *AstNode::eval_const_function(AstNode *fcall, bool must_succeed)
 	AstNode *block = new AstNode(AST_BLOCK);
 	AstNode *result = nullptr;
 
+	auto package_str = str.find("::"); // if str is in package, remove it
+	if (package_str != std::string::npos) {
+		str = "\\" + str.substr(package_str + 2);
+	}
+
 	size_t argidx = 0;
 	for (auto child : children)
 	{
