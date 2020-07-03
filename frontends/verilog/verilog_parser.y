@@ -993,10 +993,10 @@ task_func_port:
 		}
 		albuf = $1;
 		astbuf1 = $2;
-		if ($3->type == AST_MULTIRANGE) {
+		if ($3 != NULL && $3->type == AST_MULTIRANGE) {
 			astbuf2 = $3;
 			astbuf2->is_packed = true;
-		} else {
+		} else if (astbuf1 != NULL && $3 != NULL) {
 			astbuf2 = checkRange(astbuf1, $3);
 		}
 	} wire_name |
