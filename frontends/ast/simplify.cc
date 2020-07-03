@@ -2978,16 +2978,16 @@ skip_dynamic_range_lvalue_expansion:;
 	}
 
 	if(children.size() > 0) {
-		for (auto *c : this->children) {
+		for (auto *c : children) {
 			if (c->type == AST_ASSIGN_EQ || c->type == AST_ASSIGN_LE || c->type == AST_ASSIGN) {
 				const auto *lhs = c->children[0];
-				const auto *rhs = c->children[1];
 				if(lhs->type == AST_IDENTIFIER && lhs->id2ast && lhs->id2ast->type == AST_MEMORY && lhs->children.size() == 0 && lhs->id2ast->children.size() == 2) {
 					AstNode *mem = lhs->id2ast;
 					AstNode *force_reg = new AstNode(AST_CONSTANT);
 					force_reg->integer = 1;
 					mem->attributes[ID::mem2reg] = force_reg; //force mem to be changed to registers
-					for (auto *cc : c->children) {
+
+					for (auto *cc : c->children) { //only for a = b
 						if (cc->type == AST_IDENTIFIER) {
 							auto *identifier = cc;
 							AstNode *rangenode = new AstNode(AST_RANGE);
@@ -2999,7 +2999,7 @@ skip_dynamic_range_lvalue_expansion:;
 							identifier->children.push_back(rangenode);
 						}
 					}
-					const auto *range = lhs->id2ast->children[1];
+					const auto *range = mem->children[1];
 					AstNode *clone = c->clone();
 					auto pos = std::find(children.begin(), children.end(), c); // find position of current node
 					log_assert(pos != children.end());
@@ -3010,14 +3010,27 @@ skip_dynamic_range_lvalue_expansion:;
 						left = right;
 						right = tmp;
 					}
-					for (int i = left + 1; i <= right ; ++i) { // skip cloned node
-						auto *cl = clone->clone();
+					for (int i = left; i <= right ; ++i) {
+						AstNode *cl;
+						if (i == left)
+							cl = c;
+						else
+							cl = clone->clone();
 						cl->children[0]->children[0]->range_left = i;
 						cl->children[0]->children[0]->range_right = i;
 						cl->children[0]->children[0]->children[0]->integer = i;
-						if(cl->children[1]->type != AST_CONCAT)
+						cl->children[0]->children[0]->range_valid = true;
+						if(cl->children[1]->type == AST_IDENTIFIER) {
+							cl->children[1]->children[0]->range_left = i;
+							cl->children[1]->children[0]->range_right = i;
 							cl->children[1]->children[0]->children[0]->integer = i;
-						children.insert(pos, cl);
+							cl->children[1]->children[0]->range_valid = true;
+						}
+						else if (cl->children[1]->type == AST_CONCAT) {
+							cl->children[1] = cl->children[1]->children[i];
+						}
+						if (i != left)
+							children.insert(pos, cl);
 					}
 					did_something = true;
 				}
