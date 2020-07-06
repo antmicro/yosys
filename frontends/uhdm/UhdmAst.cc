@@ -752,7 +752,8 @@ AST::AstNode* UhdmAst::visit_object (
 			current_node->type = AST::AST_PACKAGE;
 			visit_one_to_many({vpiParameter,
 							   vpiParamAssign,
-							   vpiTypedef},
+							   vpiTypedef,
+							   vpiTaskFunc},
 					obj_h,
 					visited,
 					context,
