@@ -227,6 +227,7 @@ namespace AST
 		AstNode *clone() const;
 		void cloneInto(AstNode *other) const;
 		void delete_children();
+		AstNode* find_child(const std::string& name);
 		AstNode* find_child(AstNodeType type, const std::string& name);
 		~AstNode();
 
