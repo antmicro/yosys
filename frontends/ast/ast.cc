@@ -275,12 +275,21 @@ void AstNode::delete_children()
 	attributes.clear();
 }
 
-AstNode* AstNode::find_child(AstNodeType type, const std::string& name)
+AstNode* AstNode::find_child(const std::string& name)
 {
 	for (auto child : children) {
-		if (child->type == type && child->str == name) {
+		if (child->str == name) {
 			return child;
 		}
+	}
+	return nullptr;
+}
+
+AstNode* AstNode::find_child(AstNodeType type, const std::string& name)
+{
+	auto child = find_child(name);
+	if (child && child->type == type) {
+		return child;
 	}
 	return nullptr;
 }
