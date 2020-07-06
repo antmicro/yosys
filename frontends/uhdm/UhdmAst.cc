@@ -370,7 +370,12 @@ AST::AstNode* UhdmAst::visit_object (
 				context,
 				[&](AST::AstNode* node){
 					if (node) {
-						elaboratedModule->children.push_back(node);
+						if ((node->type == AST::AST_INTERFACEPORT || node->type == AST::AST_WIRE)
+							 && elaboratedModule->find_child(node->str)) {
+							delete node;
+						} else {
+							elaboratedModule->children.push_back(node);
+						}
 					}
 				});
 			context[elaboratedModule->str] = elaboratedModule;
@@ -430,9 +435,7 @@ AST::AstNode* UhdmAst::visit_object (
 										return;
 									}
 								}
-							} else if (node->type == AST::AST_WIRE &&
-									   (elaboratedModule->find_child(AST::AST_WIRE, node->str) ||
-										elaboratedModule->find_child(AST::AST_MEMORY, node->str))) {
+							} else if (node->type == AST::AST_WIRE && elaboratedModule->find_child(node->str)) {
 								// If we already have this wire, do not add it again
 								delete node;
 								return;
