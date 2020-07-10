@@ -1465,11 +1465,12 @@ AST::AstNode* UhdmAst::visit_object (
 				});
 			break;
 		}
-		case vpiFunction: {
+		case vpiFunction:
+		case vpiTask: {
 			std::map<std::string, AST::AstNode*> nodes;
 			UhdmAstContext new_context(context);
 			new_context["function_node"] = current_node;
-			current_node->type = AST::AST_FUNCTION;
+			current_node->type = objectType == vpiFunction ? AST::AST_FUNCTION : AST::AST_TASK;
 			visit_one_to_one({vpiReturn},
 				obj_h,
 				visited,
@@ -1543,6 +1544,10 @@ AST::AstNode* UhdmAst::visit_object (
 						current_node->children.push_back(node);
 					}
 				});
+			break;
+		}
+		case vpiTaskCall: {
+			current_node->type = AST::AST_TCALL;
 			break;
 		}
 		// Explicitly unsupported
