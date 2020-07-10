@@ -114,6 +114,10 @@ struct SynthQuickLogicPass : public ScriptPass
             std::string readVelArgs = " +/quicklogic/" + family + "_cells_sim.v";
             run("read_verilog -lib -specify +/quicklogic/cells_sim.v" + readVelArgs);
             run(stringf("hierarchy -check %s", help_mode ? "-top <top>" : top_opt.c_str()));
+
+            run("read_verilog -lib +/quicklogic/cells_sim.v");
+
+            run(stringf("hierarchy -check %s", top_opt.c_str()));
         }
 
         if (check_label("prepare")) {
@@ -160,14 +164,10 @@ struct SynthQuickLogicPass : public ScriptPass
 
         if (check_label("map_gates")) {
             run("techmap");
-            run("opt -fast");
-            run("muxcover -mux8 -mux4");
-            run("opt_expr -clkinv");
-            run("opt -fast");
-            run("opt_expr");
-            run("opt_merge");
-            run("opt_rmdff");
-            run("opt_clean");
+            if (family == "pp3") {
+                run("muxcover -mux8 -mux4");
+                run("abc -luts 1,2,2,4");
+            }
             run("opt");
         }
 
@@ -182,6 +182,11 @@ struct SynthQuickLogicPass : public ScriptPass
             run("opt_expr");
             run("opt_merge");
             run("opt_rmdff");
+
+        if (check_label("map")) {
+            std::string techMapArgs = " -map +/quicklogic/cells_map.v";
+            techMapArgs += " -map +/quicklogic/" + family + "_cells_map.v";
+            run("techmap" + techMapArgs);
             run("opt_clean");
             run("opt");
         }
