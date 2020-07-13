@@ -1017,7 +1017,7 @@ AST::AstNode* UhdmAst::visit_object (
 						auto block_node = context["assign_node"];
 						auto lhs_node = block_node->children.front();
 						auto wire_node = current_module->find_child(AST::AST_WIRE, lhs_node->str);
-						if (!wire_node) break;
+						if (!wire_node || wire_node->children.empty()) break;
 						auto type_name = wire_node->children[0]->str;
 						auto type_node = current_module->find_child(AST::AST_TYPEDEF, type_name);
 						if (!type_node) break;
