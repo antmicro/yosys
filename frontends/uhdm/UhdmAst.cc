@@ -1239,6 +1239,40 @@ AST::AstNode* UhdmAst::visit_object (
 			current_node->children.push_back(range_node);
 			break;
 		}
+		case vpiIndexedPartSelect: {
+			current_node->type = AST::AST_IDENTIFIER;
+			visit_one_to_one({vpiParent},
+					obj_h,
+					visited,
+					context,
+					[&](AST::AstNode* node) {
+						current_node->str = node->str;
+						delete node;
+					});
+
+			auto range_node = new AST::AstNode(AST::AST_RANGE);
+			range_node->filename = current_node->filename;
+			range_node->location = current_node->location;
+			visit_one_to_one({vpiBaseExpr},
+					obj_h,
+					visited,
+					context,
+					[&](AST::AstNode* node) {
+						range_node->children.push_back(node);
+					});
+			visit_one_to_one({vpiWidthExpr},
+					obj_h,
+					visited,
+					context,
+					[&](AST::AstNode* node) {
+						auto right_range_node = new AST::AstNode(AST::AST_ADD);
+						right_range_node->children.push_back(range_node->children[0]->clone());
+						right_range_node->children.push_back(node);
+						range_node->children.push_back(right_range_node);
+					});
+			current_node->children.push_back(range_node);
+			break;
+		}
 		case vpiNamedBegin: {
 			current_node->type = AST::AST_BLOCK;
 			visit_one_to_many({
