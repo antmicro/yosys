@@ -1273,6 +1273,34 @@ AST::AstNode* UhdmAst::visit_object (
 			current_node->children.push_back(range_node);
 			break;
 		}
+		case vpiVarSelect: {
+			current_node->type = AST::AST_IDENTIFIER;
+			visit_one_to_many({vpiIndex},
+					obj_h,
+					visited,
+					context,
+					[&](AST::AstNode* node) {
+						if (node->type == AST::AST_IDENTIFIER) {
+							current_node->children.push_back(node->children[0]->clone());
+							delete node;
+						} else if (node->type == AST::AST_CONSTANT) {
+							auto range_node = new AST::AstNode(AST::AST_RANGE);
+							range_node->filename = current_node->filename;
+							range_node->location = current_node->location;
+							range_node->children.push_back(node);
+							current_node->children.push_back(range_node);
+						} else {
+							current_node->children.push_back(node);
+						}
+					});
+			if (current_node->children.size() > 1) {
+				auto multirange_node = new AST::AstNode(AST::AST_MULTIRANGE);
+				multirange_node->children = current_node->children;
+				current_node->children.clear();
+				current_node->children.push_back(multirange_node);
+			}
+			break;
+		}
 		case vpiNamedBegin: {
 			current_node->type = AST::AST_BLOCK;
 			visit_one_to_many({
