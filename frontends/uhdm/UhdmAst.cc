@@ -1173,6 +1173,9 @@ AST::AstNode* UhdmAst::visit_object (
 						case vpiLogOrOp: current_node->type = AST::AST_LOGIC_OR; break;
 						case vpiSubOp: current_node->type = AST::AST_SUB; break;
 						case vpiAddOp: current_node->type = AST::AST_ADD; break;
+						case vpiMultOp: current_node->type = AST::AST_MUL; break;
+						case vpiDivOp: current_node->type = AST::AST_DIV; break;
+						case vpiModOp: current_node->type = AST::AST_MOD; break;
 						case vpiArithRShiftOp: current_node->type = AST::AST_SHIFT_SRIGHT; break;
 						case vpiPostIncOp: {
 							// TODO: Make this an actual post-increment op (currently it's a pre-increment)
