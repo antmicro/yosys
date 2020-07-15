@@ -1158,8 +1158,8 @@ AST::AstNode* UhdmAst::visit_object (
 							current_node->children.push_back(node);
 						});
 					switch(operation) {
-						case vpiMinusOp: current_node->type = AST::AST_SUB; break;
-						case vpiPlusOp: current_node->type = AST::AST_ADD; break;
+						case vpiMinusOp: current_node->type = AST::AST_NEG; break;
+						case vpiPlusOp: current_node->type = AST::AST_POS; break;
 						case vpiPosedgeOp: current_node->type = AST::AST_POSEDGE; break;
 						case vpiNegedgeOp: current_node->type = AST::AST_NEGEDGE; break;
 						case vpiUnaryOrOp: current_node->type = AST::AST_REDUCE_OR; break;
