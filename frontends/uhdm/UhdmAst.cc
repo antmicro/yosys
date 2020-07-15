@@ -257,23 +257,25 @@ AST::AstNode* UhdmAst::visit_object (
 				switch (actual_type) {
 				case vpiModport: {
 						vpiHandle iface_h = vpi_handle(vpiInterface, actual_h);
-						std::string cellName, ifaceName;
-						if (auto s = vpi_get_str(vpiName, actual_h)) {
-							cellName = s;
-							sanitize_symbol_name(cellName);
+						if (iface_h) {
+							std::string cellName, ifaceName;
+							if (auto s = vpi_get_str(vpiName, actual_h)) {
+								cellName = s;
+								sanitize_symbol_name(cellName);
+							}
+							if (auto s = vpi_get_str(vpiDefName, iface_h)) {
+								ifaceName = s;
+								sanitize_symbol_name(ifaceName);
+							}
+							current_node->type = AST::AST_INTERFACEPORT;
+							current_node->str = objectName;
+							auto typeNode = new AST::AstNode(AST::AST_INTERFACEPORTTYPE);
+							// Skip '\' in cellName
+							typeNode->str = ifaceName + '.' + cellName.substr(1, cellName.length());
+							current_node->children.push_back(typeNode);
+							report.mark_handled(actual_h);
+							report.mark_handled(iface_h);
 						}
-						if (auto s = vpi_get_str(vpiDefName, iface_h)) {
-							ifaceName = s;
-							sanitize_symbol_name(ifaceName);
-						}
-						current_node->type = AST::AST_INTERFACEPORT;
-						current_node->str = objectName;
-						auto typeNode = new AST::AstNode(AST::AST_INTERFACEPORTTYPE);
-						// Skip '\' in cellName
-						typeNode->str = ifaceName + '.' + cellName.substr(1, cellName.length());
-						current_node->children.push_back(typeNode);
-						report.mark_handled(actual_h);
-						report.mark_handled(iface_h);
 						break;
 					}
 					case vpiInterface: {
