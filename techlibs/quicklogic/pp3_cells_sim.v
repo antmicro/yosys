@@ -1,21 +1,14 @@
 //                FZ        FS
 module LUT1(output O, input I0);
     parameter [1:0] INIT = 0;
-<<<<<<< HEAD
     parameter EQN = "(I0)";
-=======
->>>>>>> 7facc1678 (Updating cells map & sim files for pp3)
     assign O = I0 ? INIT[1] : INIT[0];
 endmodule
 
 //               TZ        TSL TAB
 module LUT2(output O, input I0, I1);
-<<<<<<< HEAD
     parameter [3:0] INIT = 4'h0;
 	parameter EQN = "(I0)";
-=======
-    parameter [3:0] INIT = 0;
->>>>>>> 7facc1678 (Updating cells map & sim files for pp3)
     assign O = INIT[{I1, I0}];
 endmodule
 
@@ -24,7 +17,6 @@ endmodule
 // I1: TSL
 // I2: TAB
 module LUT3(output O, input I0, I1, I2);
-<<<<<<< HEAD
     parameter [7:0] INIT = 8'h0;
 	parameter EQN = "(I0)";
     assign O = INIT[{I2, I1, I0}];
@@ -76,12 +68,6 @@ module bipad(
     assign P = EN ? A : 1'bz;
 endmodule
 
-=======
-    parameter [7:0] INIT = 0;
-    assign O = INIT[{I2, I1, I0}];
-endmodule
-
->>>>>>> 7facc1678 (Updating cells map & sim files for pp3)
 module dff(
     output reg Q,
     input D,
