@@ -32,6 +32,12 @@ class UhdmAst {
 				UhdmAstContext& context,
 				const std::function<void(AST::AstNode*)> &f);
 
+		// Visit children of type vpiRange that belong to the given parent node.
+		void visit_range(vpiHandle obj_h,
+				std::set<const UHDM::BaseClass*> visited,
+				UhdmAstContext& context,
+				const std::function<void(AST::AstNode*)> &f);
+
 		// Makes the passed node a cell node of the specified type
 		void make_cell(vpiHandle obj_h, AST::AstNode* node, const std::string& type);
 
