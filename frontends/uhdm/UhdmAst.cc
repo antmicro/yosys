@@ -1286,7 +1286,9 @@ AST::AstNode* UhdmAst::visit_object (
 					context,
 					[&](AST::AstNode* node) {
 						if (node->type == AST::AST_IDENTIFIER) {
-							current_node->children.push_back(node->children[0]->clone());
+							for (auto child : node->children) {
+								current_node->children.push_back(child->clone());
+							}
 							delete node;
 						} else if (node->type == AST::AST_CONSTANT) {
 							auto range_node = new AST::AstNode(AST::AST_RANGE);
