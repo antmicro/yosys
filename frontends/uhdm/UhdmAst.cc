@@ -36,6 +36,27 @@ void UhdmAst::visit_one_to_one (const std::vector<int> childrenNodeTypes,
 	}
 }
 
+void UhdmAst::visit_range(vpiHandle obj_h,
+		std::set<const UHDM::BaseClass*> visited,
+		UhdmAstContext& context,
+		const std::function<void(AST::AstNode*)> &f)  {
+	std::vector<AST::AstNode*> range_nodes;
+	visit_one_to_many({vpiRange},
+					   obj_h,
+					   visited,
+					   context,
+					   [&](AST::AstNode* node){
+						   range_nodes.push_back(node);
+					   });
+	if (range_nodes.size() > 1) {
+		auto multirange_node = new AST::AstNode(AST::AST_MULTIRANGE);
+		multirange_node->children = range_nodes;
+		f(multirange_node);
+	} else if (!range_nodes.empty()) {
+		f(range_nodes[0]);
+	}
+}
+
 void sanitize_symbol_name(std::string &name) {
 		// symbol names must begin with '\'
 		name.insert(0, "\\");
@@ -205,8 +226,7 @@ AST::AstNode* UhdmAst::visit_object (
 							case vpiBitTypespec:
 							case vpiLogicTypespec: {
 								current_node->is_logic = true;
-								visit_one_to_many({vpiRange},
-										typespec_h,
+								visit_range(typespec_h,
 										visited,
 										context,
 										[&](AST::AstNode* node){
@@ -291,8 +311,7 @@ AST::AstNode* UhdmAst::visit_object (
 						break;
 					}
 					case vpiLogicNet: {
-						visit_one_to_many({vpiRange},
-							actual_h,
+						visit_range(actual_h,
 							visited,
 							context,
 							[&](AST::AstNode* node){
@@ -491,8 +510,7 @@ AST::AstNode* UhdmAst::visit_object (
 				case vpiBitTypespec:
 				case vpiLogicTypespec: {
 					current_node->is_logic = true;
-					visit_one_to_many({vpiRange},
-							typespec_h,
+					visit_range(typespec_h,
 							visited,
 							context,
 							[&](AST::AstNode* node){
@@ -521,8 +539,7 @@ AST::AstNode* UhdmAst::visit_object (
 			int typespec_type = vpi_get(vpiType, typespec_h);
 			if (typespec_type == vpiLogicTypespec) {
 				current_node->is_logic = true;
-				visit_one_to_many({vpiRange},
-						typespec_h,
+				visit_range(typespec_h,
 						visited,
 						context,
 						[&](AST::AstNode* node){
@@ -581,8 +598,7 @@ AST::AstNode* UhdmAst::visit_object (
 				vpi_free_object(reg_h);
 			}
 			vpi_free_object(itr);
-			visit_one_to_many({vpiRange},
-					obj_h,
+			visit_range(obj_h,
 					visited,
 					context,
 					[&](AST::AstNode* node){
@@ -671,8 +687,14 @@ AST::AstNode* UhdmAst::visit_object (
 			auto net_type = vpi_get(vpiNetType, obj_h);
 			current_node->is_reg = net_type == vpiReg;
 			current_node->is_output = net_type == vpiOutput;
-			visit_one_to_many({vpiRange
-			//		vpiBit,
+			visit_range(obj_h,
+					visited,
+					context,
+					[&](AST::AstNode* node){
+						current_node->children.push_back(node);
+					});
+			// Unhandled relationships: will visit (and print) the object
+			//visit_one_to_many({vpiBit,
 			//		vpiPortInst,
 			//		vpiDriver,
 			//		vpiLoad,
@@ -682,14 +704,13 @@ AST::AstNode* UhdmAst::visit_object (
 			//		vpiContAssign,
 			//		vpiPathTerm,
 			//		vpiTchkTerm
-					},
-					obj_h,
-					visited,
-					context,
-					[&](AST::AstNode* node){
-						current_node->children.push_back(node);
-					});
-			// Unhandled relationships: will visit (and print) the object
+			//		},
+			//		obj_h,
+			//		visited,
+			//		context,
+			//		[&](AST::AstNode* node){
+			//			current_node->children.push_back(node);
+			//		});
 			//visit_one_to_one({vpiLeftRange,
 			//		vpiRightRange,
 			//		vpiSimNet,
@@ -706,8 +727,7 @@ AST::AstNode* UhdmAst::visit_object (
 			vpiHandle itr = vpi_iterate(vpiNet, obj_h);
 			while (vpiHandle net_h = vpi_scan(itr)) {
 				if (vpi_get(vpiType, net_h) == vpiLogicNet) {
-					visit_one_to_many({vpiRange},
-							net_h,
+					visit_range(net_h,
 							visited,
 							context,
 							[&](AST::AstNode* node) {
@@ -718,8 +738,7 @@ AST::AstNode* UhdmAst::visit_object (
 				vpi_free_object(net_h);
 			}
 			vpi_free_object(itr);
-			visit_one_to_many({vpiRange},
-					obj_h,
+			visit_range(obj_h,
 					visited,
 					context,
 					[&](AST::AstNode* node) {
@@ -900,8 +919,7 @@ AST::AstNode* UhdmAst::visit_object (
 					current_node->is_output = true;
 				}
 			}
-			visit_one_to_many({vpiRange},
-					obj_h,
+			visit_range(obj_h,
 					visited,
 					context,
 					[&](AST::AstNode* node) {
@@ -1571,8 +1589,7 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiLogicVar: {
 			current_node->type = AST::AST_WIRE;
-			visit_one_to_many({vpiRange},
-				obj_h,
+			visit_range(obj_h,
 				visited,
 				context,
 				[&](AST::AstNode* node) {
