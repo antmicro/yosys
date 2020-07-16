@@ -1376,27 +1376,36 @@ AST::AstNode* UhdmAst::visit_object (
 			break;
 		}
 		case vpiFor: {
-			current_node->type = AST::AST_BLOCK;
-			auto for_node = new AST::AstNode(AST::AST_FOR);
+			current_node->type = AST::AST_FOR;
+			AST::AstNode* loop_parent_node = nullptr;
+			if (context.contains("function_node")) {
+				loop_parent_node=context["function_node"];
+			} else if (context.contains("process_node")) {
+				loop_parent_node=context["process_node"];
+			}
 			visit_one_to_many({vpiForInitStmt}, obj_h, visited, context,
 				[&](AST::AstNode* node){
-					for_node->children.push_back(node);
+					current_node->children.push_back(node);
+					auto wire_node = new AST::AstNode(AST::AST_WIRE);
+					wire_node->range_left=31;
+					wire_node->is_reg=true;
+					wire_node->str = node->children[0]->str;
+					loop_parent_node->children.push_back(wire_node);
 				});
 			visit_one_to_one({vpiCondition}, obj_h, visited, context,
 				[&](AST::AstNode* node){
-					for_node->children.push_back(node);
+					current_node->children.push_back(node);
 				});
 			visit_one_to_many({vpiForIncStmt}, obj_h, visited, context,
 				[&](AST::AstNode* node){
-					for_node->children.push_back(node);
+					current_node->children.push_back(node);
 				});
 			visit_one_to_one({vpiStmt}, obj_h, visited, context,
 				[&](AST::AstNode* node){
 					auto *statements = new AST::AstNode(AST::AST_BLOCK);
 					statements->children.push_back(node);
-					for_node->children.push_back(statements);
+					current_node->children.push_back(statements);
 				});
-			current_node->children.push_back(for_node);
 			break;
 		}
 		case vpiGenScopeArray: {
