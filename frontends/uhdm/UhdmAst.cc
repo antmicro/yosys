@@ -1069,58 +1069,6 @@ AST::AstNode* UhdmAst::visit_object (
 					}
 					break;
 				}
-				case vpiNotOp: {
-					current_node->type = AST::AST_REDUCE_BOOL;
-					visit_one_to_many({vpiOperand}, obj_h, visited, context,
-						[&](AST::AstNode* node){
-							auto *negate = new AST::AstNode(AST::AST_LOGIC_NOT);
-							negate->children.push_back(node);
-							current_node->children.push_back(negate);
-						});
-					break;
-				}
-				case vpiEqOp: {
-					current_node->type = AST::AST_REDUCE_BOOL;
-					auto eq_node = new AST::AstNode(AST::AST_EQ);
-					current_node->children.push_back(eq_node);
-					visit_one_to_many({vpiOperand}, obj_h, visited, context,
-						[&](AST::AstNode* node){
-							eq_node->children.push_back(node);
-						});
-					break;
-				}
-				case vpiNeqOp: {
-					current_node->type = AST::AST_REDUCE_BOOL;
-					auto *not_node = new AST::AstNode(AST::AST_LOGIC_NOT);
-					current_node->children.push_back(not_node);
-					auto eq_node = new AST::AstNode(AST::AST_EQ);
-					not_node->children.push_back(eq_node);
-					visit_one_to_many({vpiOperand}, obj_h, visited, context,
-						[&](AST::AstNode* node){
-							eq_node->children.push_back(node);
-						});
-					break;
-				}
-				case vpiLtOp: {
-					current_node->type = AST::AST_REDUCE_BOOL;
-					auto lt_node = new AST::AstNode(AST::AST_LT);
-					current_node->children.push_back(lt_node);
-					visit_one_to_many({vpiOperand}, obj_h, visited, context,
-						[&](AST::AstNode* node){
-							lt_node->children.push_back(node);
-						});
-					break;
-				}
-				case vpiGtOp: {
-					current_node->type = AST::AST_REDUCE_BOOL;
-					auto lt_node = new AST::AstNode(AST::AST_GT);
-					current_node->children.push_back(lt_node);
-					visit_one_to_many({vpiOperand}, obj_h, visited, context,
-						[&](AST::AstNode* node){
-							lt_node->children.push_back(node);
-						});
-					break;
-				}
 				case vpiEventOrOp: {
 					// Add all operands as children of process node
 					if (context.contains("process_node")) {
@@ -1189,8 +1137,15 @@ AST::AstNode* UhdmAst::visit_object (
 						case vpiBitXorOp: current_node->type = AST::AST_BIT_XOR; break;
 						case vpiBitXnorOp: current_node->type = AST::AST_BIT_XNOR; break;
 						case vpiLShiftOp: current_node->type = AST::AST_SHIFT_LEFT; break;
+						case vpiNotOp: current_node->type = AST::AST_LOGIC_NOT; break;
 						case vpiLogAndOp: current_node->type = AST::AST_LOGIC_AND; break;
 						case vpiLogOrOp: current_node->type = AST::AST_LOGIC_OR; break;
+						case vpiEqOp: current_node->type = AST::AST_EQ; break;
+						case vpiNeqOp: current_node->type = AST::AST_NE; break;
+						case vpiGtOp: current_node->type = AST::AST_GT; break;
+						case vpiGeOp: current_node->type = AST::AST_GE; break;
+						case vpiLtOp: current_node->type = AST::AST_LT; break;
+						case vpiLeOp: current_node->type = AST::AST_LE; break;
 						case vpiSubOp: current_node->type = AST::AST_SUB; break;
 						case vpiAddOp: current_node->type = AST::AST_ADD; break;
 						case vpiMultOp: current_node->type = AST::AST_MUL; break;
