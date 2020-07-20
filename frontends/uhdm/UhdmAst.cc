@@ -1169,6 +1169,7 @@ AST::AstNode* UhdmAst::visit_object (
 						case vpiModOp: current_node->type = AST::AST_MOD; break;
 						case vpiArithLShiftOp: current_node->type = AST::AST_SHIFT_SLEFT; break;
 						case vpiArithRShiftOp: current_node->type = AST::AST_SHIFT_SRIGHT; break;
+						case vpiPowerOp: current_node->type = AST::AST_POW; break;
 						case vpiPostIncOp: {
 							// TODO: Make this an actual post-increment op (currently it's a pre-increment)
 							current_node->type = AST::AST_ASSIGN_EQ;
@@ -1186,6 +1187,7 @@ AST::AstNode* UhdmAst::visit_object (
 							break;
 						}
 						case vpiMultiConcatOp: current_node->type = AST::AST_REPLICATE; break;
+						case vpiAssignmentOp: current_node->type = AST::AST_ASSIGN_EQ; break;
 						default: {
 							error("Encountered unhandled operation: %d", operation);
 						}
