@@ -1170,11 +1170,21 @@ AST::AstNode* UhdmAst::visit_object (
 						case vpiArithLShiftOp: current_node->type = AST::AST_SHIFT_SLEFT; break;
 						case vpiArithRShiftOp: current_node->type = AST::AST_SHIFT_SRIGHT; break;
 						case vpiPowerOp: current_node->type = AST::AST_POW; break;
-						case vpiPostIncOp: {
-							// TODO: Make this an actual post-increment op (currently it's a pre-increment)
+						case vpiPostIncOp: // TODO: Make this an actual post-increment op (currently it's a pre-increment)
+						case vpiPreIncOp: {
 							current_node->type = AST::AST_ASSIGN_EQ;
 							auto id = current_node->children[0]->clone();
 							auto add_node = new AST::AstNode(AST::AST_ADD, id, AST::AstNode::mkconst_int(1, true));
+							add_node->filename = current_node->filename;
+							add_node->location = current_node->location;
+							current_node->children.push_back(add_node);
+							break;
+						}
+						case vpiPostDecOp: // TODO: Make this an actual post-decrement op (currently it's a pre-decrement)
+						case vpiPreDecOp: {
+							current_node->type = AST::AST_ASSIGN_EQ;
+							auto id = current_node->children[0]->clone();
+							auto add_node = new AST::AstNode(AST::AST_SUB, id, AST::AstNode::mkconst_int(1, true));
 							add_node->filename = current_node->filename;
 							add_node->location = current_node->location;
 							current_node->children.push_back(add_node);
