@@ -1069,6 +1069,7 @@ AST::AstNode* UhdmAst::visit_object (
 					}
 					break;
 				}
+				case vpiListOp:
 				case vpiEventOrOp: {
 					// Add all operands as children of process node
 					if (context.contains("process_node")) {
