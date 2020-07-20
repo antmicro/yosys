@@ -1130,13 +1130,29 @@ AST::AstNode* UhdmAst::visit_object (
 						case vpiPlusOp: current_node->type = AST::AST_POS; break;
 						case vpiPosedgeOp: current_node->type = AST::AST_POSEDGE; break;
 						case vpiNegedgeOp: current_node->type = AST::AST_NEGEDGE; break;
+						case vpiUnaryAndOp: current_node->type = AST::AST_REDUCE_AND; break;
 						case vpiUnaryOrOp: current_node->type = AST::AST_REDUCE_OR; break;
+						case vpiUnaryXorOp: current_node->type = AST::AST_REDUCE_XOR; break;
+						case vpiUnaryXNorOp: current_node->type = AST::AST_REDUCE_XNOR; break;
+						case vpiUnaryNandOp: {
+							current_node->type = AST::AST_REDUCE_AND;
+							auto not_node = new AST::AstNode(AST::AST_BIT_NOT, current_node);
+							current_node = not_node;
+							break;
+						}
+						case vpiUnaryNorOp: {
+							current_node->type = AST::AST_REDUCE_OR;
+							auto not_node = new AST::AstNode(AST::AST_BIT_NOT, current_node);
+							current_node = not_node;
+							break;
+						}
 						case vpiBitNegOp: current_node->type = AST::AST_BIT_NOT; break;
 						case vpiBitAndOp: current_node->type = AST::AST_BIT_AND; break;
 						case vpiBitOrOp: current_node->type = AST::AST_BIT_OR; break;
 						case vpiBitXorOp: current_node->type = AST::AST_BIT_XOR; break;
 						case vpiBitXnorOp: current_node->type = AST::AST_BIT_XNOR; break;
 						case vpiLShiftOp: current_node->type = AST::AST_SHIFT_LEFT; break;
+						case vpiRShiftOp: current_node->type = AST::AST_SHIFT_RIGHT; break;
 						case vpiNotOp: current_node->type = AST::AST_LOGIC_NOT; break;
 						case vpiLogAndOp: current_node->type = AST::AST_LOGIC_AND; break;
 						case vpiLogOrOp: current_node->type = AST::AST_LOGIC_OR; break;
@@ -1151,6 +1167,7 @@ AST::AstNode* UhdmAst::visit_object (
 						case vpiMultOp: current_node->type = AST::AST_MUL; break;
 						case vpiDivOp: current_node->type = AST::AST_DIV; break;
 						case vpiModOp: current_node->type = AST::AST_MOD; break;
+						case vpiArithLShiftOp: current_node->type = AST::AST_SHIFT_SLEFT; break;
 						case vpiArithRShiftOp: current_node->type = AST::AST_SHIFT_SRIGHT; break;
 						case vpiPostIncOp: {
 							// TODO: Make this an actual post-increment op (currently it's a pre-increment)
