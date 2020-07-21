@@ -535,21 +535,30 @@ AST::AstNode* UhdmAst::visit_object (
 					});
 			vpiHandle typespec_h = vpi_handle(vpiBaseTypespec, obj_h);
 			int typespec_type = vpi_get(vpiType, typespec_h);
-			if (typespec_type == vpiLogicTypespec) {
-				current_node->is_logic = true;
-				visit_range(typespec_h,
-						visited,
-						context,
-						[&](AST::AstNode* node){
-							for (auto child : current_node->children) {
-								child->children.push_back(node->clone());
-							}
-							delete node;
-						});
-				report.mark_handled(typespec_h);
-			} else {
-				error("Encountered unhandled typespec: %d", typespec_type);
-				break;
+			switch (typespec_type) {
+				case vpiLogicTypespec: {
+					current_node->is_logic = true;
+					visit_range(typespec_h,
+							visited,
+							context,
+							[&](AST::AstNode* node){
+								for (auto child : current_node->children) {
+									child->children.push_back(node->clone());
+								}
+								delete node;
+							});
+					report.mark_handled(typespec_h);
+					break;
+				}
+				case vpiIntTypespec: {
+					current_node->is_signed = true;
+					report.mark_handled(typespec_h);
+					break;
+				}
+				default: {
+					error("Encountered unhandled typespec: %d", typespec_type);
+					break;
+				}
 			}
 			break;
 		}
