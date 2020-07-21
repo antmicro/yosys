@@ -78,7 +78,9 @@ int parse_int_string(const char* int_str) {
 	}
 }
 
-void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::string& type) {
+void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::string& type,
+						std::set<const UHDM::BaseClass*> visited,
+						UhdmAstContext& context) {
 	current_node->type = AST::AST_CELL;
 	auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
 	typeNode->str = type;
@@ -86,29 +88,25 @@ void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::
 	// Add port connections as arguments
 	vpiHandle port_itr = vpi_iterate(vpiPort, obj_h);
 	while (vpiHandle port_h = vpi_scan(port_itr) ) {
-		auto highConn_h = vpi_handle(vpiHighConn, port_h);
-		if (highConn_h) {
-			std::string argumentName, identifierName;
-			if (auto s = vpi_get_str(vpiName, highConn_h)) {
-				identifierName = s;
-				sanitize_symbol_name(identifierName);
-			}
-			if (auto s = vpi_get_str(vpiName, port_h)) {
-				argumentName = s;
-				sanitize_symbol_name(argumentName);
-			}
-			auto argNode = new AST::AstNode(AST::AST_ARGUMENT);
-			argNode->str = argumentName;
-			argNode->filename = current_node->filename;
-			argNode->location = current_node->location;
-			auto identifierNode = new AST::AstNode(AST::AST_IDENTIFIER);
-			identifierNode->filename = current_node->filename;
-			identifierNode->location = current_node->location;
-			identifierNode->str = identifierName;
-			argNode->children.push_back(identifierNode);
-			current_node->children.push_back(argNode);
-			report.mark_handled(highConn_h);
+		std::string arg_name;
+		if (auto s = vpi_get_str(vpiName, port_h)) {
+			arg_name = s;
+			sanitize_symbol_name(arg_name);
 		}
+		auto arg_node = new AST::AstNode(AST::AST_ARGUMENT);
+		arg_node->str = arg_name;
+		arg_node->filename = current_node->filename;
+		arg_node->location = current_node->location;
+		visit_one_to_one({vpiHighConn},
+			port_h,
+			visited,
+			context,
+			[&](AST::AstNode* node){
+				if (node) {
+					arg_node->children.push_back(node);
+				}
+			});
+		current_node->children.push_back(arg_node);
 		report.mark_handled(port_h);
 		vpi_free_object(port_h);
 	}
@@ -403,7 +401,7 @@ AST::AstNode* UhdmAst::visit_object (
 			report.mark_handled(object);
 			if (objectName != type) {
 				// Not a top module, create instance
-				make_cell(obj_h, current_node, type);
+				make_cell(obj_h, current_node, type, visited, context);
 			}
 
 			visit_one_to_many({vpiParameter,
@@ -664,22 +662,7 @@ AST::AstNode* UhdmAst::visit_object (
 			break;
 		}
 		case vpiRefObj: {
-			// Unhandled relationships: will visit (and print) the object
-			visit_one_to_one({vpiInstance,
-					vpiTaskFunc,
-					vpiActual,
-					vpiTypespec},
-					obj_h,
-					visited,
-					context,
-					[](AST::AstNode*){});
-			visit_one_to_many({vpiPortInst},
-					obj_h,
-					visited,
-					context,
-					[](AST::AstNode*){});
 			current_node->type = AST::AST_IDENTIFIER;
-
 			break;
 		}
 		case vpiNet: {
@@ -841,7 +824,7 @@ AST::AstNode* UhdmAst::visit_object (
 
 			if (objectName != type) {
 				// Not a top module, create instance
-				make_cell(obj_h, current_node, type);
+				make_cell(obj_h, current_node, type, visited, context);
 				break;
 			}
 
