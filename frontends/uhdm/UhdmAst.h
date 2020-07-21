@@ -39,7 +39,9 @@ class UhdmAst {
 				const std::function<void(AST::AstNode*)> &f);
 
 		// Makes the passed node a cell node of the specified type
-		void make_cell(vpiHandle obj_h, AST::AstNode* node, const std::string& type);
+		void make_cell(vpiHandle obj_h, AST::AstNode* node, const std::string& type,
+			       std::set<const UHDM::BaseClass*> visited,
+			       UhdmAstContext& context);
 
 		// Adds a typedef node to the current node
 		void add_typedef(AST::AstNode* current_node, AST::AstNode* type_node);
