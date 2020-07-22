@@ -1034,32 +1034,38 @@ AST::AstNode* UhdmAst::visit_object (
 						if (!wire_node || wire_node->children.empty()) break;
 						auto type_name = wire_node->children[0]->str;
 						auto type_node = current_module->find_child(AST::AST_TYPEDEF, type_name);
-						if (!type_node) break;
-						type_node = type_node->children[0];
-						if (!type_node) break;
-						block_node->type = AST::AST_BLOCK;
-						block_node->children.clear();
-						std::unordered_set<std::string> visited_fields;
-						visit_one_to_many({vpiOperand}, obj_h, visited, context,
-							[&](AST::AstNode* rhs_node){
-								size_t next_index = block_node->children.size();
-								if (next_index < type_node->children.size()) {
-									auto field_name = type_node->children[next_index]->str;
-									if (visited_fields.find(field_name) == visited_fields.end()) {
-										visited_fields.insert(field_name);
-										auto assign_node = new AST::AstNode(AST::AST_ASSIGN_EQ);
-										auto lhs_field_node = lhs_node->clone();
-										lhs_field_node->str += '.' + field_name;
-										assign_node->children.push_back(lhs_field_node);
-										assign_node->children.push_back(rhs_node);
-										block_node->children.push_back(assign_node);
+						if (type_node) {
+							type_node = type_node->children[0];
+							block_node->type = AST::AST_BLOCK;
+							block_node->children.clear();
+							std::unordered_set<std::string> visited_fields;
+							visit_one_to_many({vpiOperand}, obj_h, visited, context,
+								[&](AST::AstNode* rhs_node){
+									size_t next_index = block_node->children.size();
+									if (next_index < type_node->children.size()) {
+										auto field_name = type_node->children[next_index]->str;
+										if (visited_fields.find(field_name) == visited_fields.end()) {
+											visited_fields.insert(field_name);
+											auto assign_node = new AST::AstNode(AST::AST_ASSIGN_EQ);
+											auto lhs_field_node = lhs_node->clone();
+											lhs_field_node->str += '.' + field_name;
+											assign_node->children.push_back(lhs_field_node);
+											assign_node->children.push_back(rhs_node);
+											block_node->children.push_back(assign_node);
+										}
 									}
-								}
-							});
-						delete current_node;
-						delete lhs_node;
-						report.mark_handled(object);
-						return nullptr;
+								});
+							delete current_node;
+							delete lhs_node;
+							report.mark_handled(object);
+							return nullptr;
+						} else {
+							visit_one_to_many({vpiOperand}, obj_h, visited, context,
+								[&](AST::AstNode* rhs_node){
+									delete current_node;
+									current_node = rhs_node;
+								});
+						}
 					}
 					break;
 				}
