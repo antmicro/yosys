@@ -1103,6 +1103,9 @@ AST::AstNode* UhdmAst::visit_object (
 							delete current_node;
 							current_node = node;
 						});
+					vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
+					report.mark_handled(typespec_h);
+					vpi_free_object(typespec_h);
 					break;
 				}
 				case vpiInsideOp: {
