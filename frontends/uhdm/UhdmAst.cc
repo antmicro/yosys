@@ -222,6 +222,7 @@ AST::AstNode* UhdmAst::visit_object (
 						int typespec_type = vpi_get(vpiType, typespec_h);
 						switch (typespec_type) {
 							case vpiBitTypespec:
+							case vpiEnumTypespec:
 							case vpiLogicTypespec: {
 								current_node->is_logic = true;
 								visit_range(typespec_h,
