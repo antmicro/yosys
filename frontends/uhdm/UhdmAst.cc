@@ -919,6 +919,16 @@ AST::AstNode* UhdmAst::visit_object (
 					[&](AST::AstNode* node) {
 						current_node->children.push_back(node);
 					});
+			visit_one_to_one({
+					vpiExpr,
+					},
+					obj_h,
+					visited,
+					context,
+					[&](AST::AstNode* node) {
+						delete current_node;
+						current_node = node;
+					});
 			break;
 		}
 		case vpiAlways: {
