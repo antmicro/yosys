@@ -1426,6 +1426,7 @@ AST::AstNode* UhdmAst::visit_object (
 							   vpiArrayNet,
 							   vpiProcess,
 							   vpiContAssign,
+							   vpiParamAssign,
 							   vpiModule,
 							   vpiGenScopeArray},
 				obj_h, visited, context,
