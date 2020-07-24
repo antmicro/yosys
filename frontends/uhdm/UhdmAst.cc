@@ -64,18 +64,19 @@ void sanitize_symbol_name(std::string &name) {
 }
 
 int parse_int_string(const char* int_str) {
-	const char* bin_str = std::strchr(int_str, 'b');
-	const char* dec_str = std::strchr(int_str, 'd');
 	const char* hex_str = std::strchr(int_str, 'h');
+	if (hex_str) {
+		return std::stoi(hex_str + 1, nullptr, 16);
+	}
+	const char* dec_str = std::strchr(int_str, 'd');
+	if (dec_str) {
+		return std::stoi(dec_str + 1, nullptr, 10);
+	}
+	const char* bin_str = std::strchr(int_str, 'b');
 	if (bin_str) {
 		return std::stoi(bin_str + 1, nullptr, 2);
-	} else if (dec_str) {
-		return std::stoi(dec_str + 1, nullptr, 10);
-	} else if (hex_str) {
-		return std::stoi(hex_str + 1, nullptr, 16);
-	} else {
-		return std::stoi(int_str);
 	}
+	return std::stoi(int_str);
 }
 
 AST::AstNode* UhdmAst::visit_constant(vpiHandle obj_h) {
