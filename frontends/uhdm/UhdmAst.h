@@ -38,6 +38,9 @@ class UhdmAst {
 				UhdmAstContext& context,
 				const std::function<void(AST::AstNode*)> &f);
 
+		// Visit a node of type vpiConstant.
+		AST::AstNode* visit_constant(vpiHandle obj_h);
+
 		// Makes the passed node a cell node of the specified type
 		void make_cell(vpiHandle obj_h, AST::AstNode* node, const std::string& type,
 			       std::set<const UHDM::BaseClass*> visited,
