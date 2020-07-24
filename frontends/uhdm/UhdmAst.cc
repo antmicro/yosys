@@ -78,6 +78,49 @@ int parse_int_string(const char* int_str) {
 	}
 }
 
+AST::AstNode* UhdmAst::visit_constant(vpiHandle obj_h) {
+	s_vpi_value val;
+	vpi_get_value(obj_h, &val);
+	if (val.format) { // Needed to handle parameter nodes without typespecs and constants
+		switch (val.format) {
+			case vpiScalarVal: {
+				return AST::AstNode::mkconst_int(val.value.scalar, false);
+			}
+			case vpiBinStrVal: {
+				try {
+					int int_val = parse_int_string(val.value.str);
+					return AST::AstNode::mkconst_int(int_val, false);
+				} catch(std::logic_error& e) {
+					error(std::string("Failed to parse binary string: ") + val.value.str);
+					break;
+				}
+			}
+			case vpiHexStrVal: {
+				try {
+					int int_val = parse_int_string(val.value.str);
+					return AST::AstNode::mkconst_int(int_val, false);
+				} catch(std::logic_error& e) {
+					error(std::string("Failed to parse hexadecimal string: ") + val.value.str);
+					break;
+				}
+			}
+			case vpiIntVal: {
+				return AST::AstNode::mkconst_int(val.value.integer, false);
+			}
+			case vpiRealVal: {
+				return AST::AstNode::mkconst_real(val.value.real);
+			}
+			case vpiStringVal: {
+				return AST::AstNode::mkconst_str(val.value.str);
+			}
+			default: {
+				error("Encountered unhandled constant format: %d", val.format);
+			}
+		}
+	}
+	return nullptr;
+}
+
 void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::string& type,
 						std::set<const UHDM::BaseClass*> visited,
 						UhdmAstContext& context) {
@@ -238,22 +281,7 @@ AST::AstNode* UhdmAst::visit_object (
 					}
 				}
 			} else {
-				s_vpi_value val;
-				vpi_get_value(obj_h, &val);
-				AST::AstNode* constant_node = nullptr;
-				switch (val.format) {
-					case vpiScalarVal: {
-						constant_node = AST::AstNode::mkconst_int(val.value.scalar, true);
-						break;
-					}
-					case vpiIntVal: {
-						constant_node = AST::AstNode::mkconst_int(val.value.integer, true);
-						break;
-					}
-					default: {
-						error("Encountered unhandled parameter format: %d", val.format);
-					}
-				}
+				AST::AstNode* constant_node = visit_constant(obj_h);
 				if (constant_node) {
 					constant_node->filename = current_node->filename;
 					constant_node->location = current_node->location;
@@ -563,16 +591,11 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiEnumConst: {
 			current_node->type = AST::AST_ENUM_ITEM;
-			s_vpi_value val;
-			vpi_get_value(obj_h, &val);
-			switch (val.format) {
-				case vpiIntVal: {
-					current_node->children.push_back(AST::AstNode::mkconst_int(val.value.integer, false));
-					break;
-				}
-				default: {
-					error("Encountered unhandled constant format: %d", val.format);
-				}
+			AST::AstNode* constant_node = visit_constant(obj_h);
+			if (constant_node) {
+				constant_node->filename = current_node->filename;
+				constant_node->location = current_node->location;
+				current_node->children.push_back(constant_node);
 			}
 			break;
 		}
@@ -1481,48 +1504,7 @@ AST::AstNode* UhdmAst::visit_object (
 			break;
 		}
 		case vpiConstant: {
-			s_vpi_value val;
-			vpi_get_value(obj_h, &val);
-			AST::AstNode* constant_node = nullptr;
-			switch (val.format) {
-				case vpiScalarVal: {
-					constant_node = AST::AstNode::mkconst_int(val.value.scalar, false);
-					break;
-				}
-				case vpiBinStrVal: {
-					try {
-						int int_val = parse_int_string(val.value.str);
-						constant_node = AST::AstNode::mkconst_int(int_val, false);
-					} catch(std::logic_error& e) {
-						error(std::string("Failed to parse binary string: ") + val.value.str);
-					}
-					break;
-				}
-				case vpiHexStrVal: {
-					try {
-						int int_val = parse_int_string(val.value.str);
-						constant_node = AST::AstNode::mkconst_int(int_val, false);
-					} catch(std::logic_error& e) {
-						error(std::string("Failed to parse hexadecimal string: ") + val.value.str);
-					}
-					break;
-				}
-				case vpiIntVal: {
-					constant_node = AST::AstNode::mkconst_int(val.value.integer, false);
-					break;
-				}
-				case vpiRealVal: {
-					constant_node = AST::AstNode::mkconst_real(val.value.real);
-					break;
-				}
-				case vpiStringVal: {
-					constant_node = AST::AstNode::mkconst_str(val.value.str);
-					break;
-				}
-				default: {
-					error("Encountered unhandled constant format: %d", val.format);
-				}
-			}
+			AST::AstNode* constant_node = visit_constant(obj_h);
 			if (constant_node) {
 				constant_node->filename = current_node->filename;
 				constant_node->location = current_node->location;
