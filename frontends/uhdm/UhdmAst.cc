@@ -212,55 +212,53 @@ AST::AstNode* UhdmAst::visit_object (
 		}
 		case vpiParameter: {
 			current_node->type = AST::AST_PARAMETER;
-			s_vpi_value val;
-			vpi_get_value(obj_h, &val);
-			AST::AstNode* constant_node = nullptr;
-			switch (val.format) {
-				case 0: {
-					vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
-					if (typespec_h) {
-						int typespec_type = vpi_get(vpiType, typespec_h);
-						switch (typespec_type) {
-							case vpiBitTypespec:
-							case vpiEnumTypespec:
-							case vpiLogicTypespec: {
-								current_node->is_logic = true;
-								visit_range(typespec_h,
-										visited,
-										context,
-										[&](AST::AstNode* node){
-											current_node->children.push_back(node);
-										});
-								report.mark_handled(typespec_h);
-								break;
-							}
-							case vpiIntTypespec: {
-								report.mark_handled(typespec_h);
-								break;
-							}
-							default: {
-								error("Encountered unhandled typespec: %d", typespec_type);
-							}
-						}
+			vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
+			if (typespec_h) {
+				int typespec_type = vpi_get(vpiType, typespec_h);
+				switch (typespec_type) {
+					case vpiBitTypespec:
+					case vpiLogicTypespec: {
+						current_node->is_logic = true;
+						visit_range(typespec_h,
+								visited,
+								context,
+								[&](AST::AstNode* node){
+									current_node->children.push_back(node);
+								});
+						report.mark_handled(typespec_h);
+						break;
 					}
-					break;
+					case vpiEnumTypespec:
+					case vpiIntTypespec: {
+						report.mark_handled(typespec_h);
+						break;
+					}
+					default: {
+						error("Encountered unhandled typespec: %d", typespec_type);
+					}
 				}
-				case vpiScalarVal: {
-					constant_node = AST::AstNode::mkconst_int(val.value.scalar, true);
-					break;
+			} else {
+				s_vpi_value val;
+				vpi_get_value(obj_h, &val);
+				AST::AstNode* constant_node = nullptr;
+				switch (val.format) {
+					case vpiScalarVal: {
+						constant_node = AST::AstNode::mkconst_int(val.value.scalar, true);
+						break;
+					}
+					case vpiIntVal: {
+						constant_node = AST::AstNode::mkconst_int(val.value.integer, true);
+						break;
+					}
+					default: {
+						error("Encountered unhandled parameter format: %d", val.format);
+					}
 				}
-				case vpiIntVal: {
-					constant_node = AST::AstNode::mkconst_int(val.value.integer, true);
-					break;
+				if (constant_node) {
+					constant_node->filename = current_node->filename;
+					constant_node->location = current_node->location;
+					current_node->children.push_back(constant_node);
 				}
-				default: {
-					error("Encountered unhandled parameter format: %d", val.format);
-				}
-			}
-			if (constant_node) {
-				constant_node->filename = current_node->filename;
-				constant_node->location = current_node->location;
-				current_node->children.push_back(constant_node);
 			}
 			break;
 		}
