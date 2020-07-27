@@ -213,9 +213,9 @@ AST::AstNode* UhdmAst::visit_object (
 	}
 
 	const unsigned int objectType = vpi_get(vpiType, obj_h);
-	std::cout << "Object: " << objectName
-		<< " of type " << objectType
-		<< std::endl;
+	if (debug_flag) {
+		std::cout << "Object: " << objectName << " of type " << objectType << std::endl;
+	}
 
 	if (alreadyVisited) {
 		report.mark_handled(object);
