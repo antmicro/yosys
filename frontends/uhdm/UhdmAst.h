@@ -70,6 +70,7 @@ class UhdmAst {
 
 		UhdmAstReport report;
 		bool stop_on_error = true;
+		bool debug_flag = false;
 };
 #endif	// Guard
 

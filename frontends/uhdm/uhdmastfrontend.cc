@@ -55,6 +55,9 @@ struct UhdmAstFrontend : public Frontend {
 		log("\n");
 		log("Load design from a UHDM file into the current design\n");
 		log("\n");
+		log("    -debug\n");
+		log("        print debug info to stdout");
+		log("\n");
 		log("    -report [directory]\n");
 		log("        write a coverage report for the UHDM file\n");
 		log("\n");
@@ -67,7 +70,9 @@ struct UhdmAstFrontend : public Frontend {
 
 		std::string report_directory;
 		for (size_t i = 1; i < args.size(); i++) {
-			if (args[i] == "-report" && ++i < args.size()) {
+			if (args[i] == "-debug") {
+				parser.debug_flag = true;
+			} else if (args[i] == "-report" && ++i < args.size()) {
 				report_directory = args[i];
 				parser.stop_on_error = false;
 			}
@@ -83,15 +88,16 @@ struct UhdmAstFrontend : public Frontend {
 
 		std::vector<vpiHandle> restoredDesigns = serializer.Restore(filename);
 		for (auto design : restoredDesigns) {
-			UHDM::visit_object(design, 1, "", &parser.report.unhandled, std::cout);
+			std::stringstream strstr;
+			UHDM::visit_object(design, 1, "", &parser.report.unhandled, parser.debug_flag ? std::cout : strstr);
 		}
 		current_ast = parser.visit_designs(restoredDesigns);
 		if (report_directory != "") {
 			parser.report.write(report_directory);
 		}
 
-		bool dump_ast1 = true;
-		bool dump_ast2 = true;
+		bool dump_ast1 = parser.debug_flag;
+		bool dump_ast2 = parser.debug_flag;
 		bool dont_redefine = false;
 		bool default_nettype_wire = true;
 		AST::process(design, current_ast,
