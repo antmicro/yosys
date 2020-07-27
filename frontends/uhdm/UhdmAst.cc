@@ -179,6 +179,19 @@ void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
 	}
 }
 
+static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
+	if (!child->str.empty()) {
+		for (auto& existing_child : parent->children) {
+			if (existing_child->str == child->str) {
+				std::swap(existing_child, child);
+				delete child;
+				return;
+			}
+		}
+	}
+	parent->children.push_back(child);
+}
+
 AST::AstNode* UhdmAst::visit_object (
 		vpiHandle obj_h,
 		std::set<const UHDM::BaseClass*> visited,
@@ -227,9 +240,9 @@ AST::AstNode* UhdmAst::visit_object (
 			UhdmAstContext new_context(context);
 			visit_one_to_many({
 					UHDM::uhdmallInterfaces,
-					UHDM::uhdmtopModules,
 					UHDM::uhdmallModules,
-					UHDM::uhdmallPackages
+					UHDM::uhdmallPackages,
+					UHDM::uhdmtopModules
 					},
 					obj_h,
 					visited,
@@ -381,126 +394,95 @@ AST::AstNode* UhdmAst::visit_object (
 				sanitize_symbol_name(type);
 			}
 
-			AST::AstNode* elaboratedModule;
-			// Check if we have encountered this object before
-			if (context.contains(type)) {
-				// Was created before, fill missing
-				elaboratedModule = context[type];
-				current_module = elaboratedModule;
-			} else {
-				// Encountered for the first time
-				elaboratedModule = new AST::AstNode(AST::AST_MODULE);
-				elaboratedModule->str = type;
-				current_module = elaboratedModule;
-			}
-
-			visit_one_to_many({vpiTypedef},
-				obj_h,
-				visited,
-				context,
-				[&](AST::AstNode* node){
-					if (node) {
-						add_typedef(elaboratedModule, node);
-					}
-				});
-			visit_one_to_many({
-				vpiInterface,
-				vpiPort,
-				vpiModule,
-				vpiVariables,
-				vpiContAssign,
-				vpiProcess,
-				vpiGenScopeArray
-				},
-				obj_h,
-				visited,
-				context,
-				[&](AST::AstNode* node){
-					if (node) {
-						if ((node->type == AST::AST_INTERFACEPORT || node->type == AST::AST_WIRE)
-							 && elaboratedModule->find_child(node->str)) {
-							delete node;
-						} else {
-							elaboratedModule->children.push_back(node);
-						}
-					}
-				});
-			context[elaboratedModule->str] = elaboratedModule;
 			report.mark_handled(object);
-			if (objectName != type) {
-				// Not a top module, create instance
-				make_cell(obj_h, current_node, type, visited, context);
-			}
-
-			visit_one_to_many({vpiParameter,
-					vpiParamAssign,
-					vpiNet,
-					vpiArrayNet,
-					vpiTaskFunc
-			// Unhandled relationships:
-			//		vpiProcess,
-			//		vpiPrimitive,
-			//		vpiPrimitiveArray,
-			//		vpiInterfaceArray,
-			//		//vpiModule,
-			//		vpiModuleArray,
-			//		vpiModPath,
-			//		vpiTchk,
-			//		vpiDefParam,
-			//		vpiIODecl,
-			//		vpiAliasStmt,
-			//		vpiClockingBlock,
-			//		vpiAssertion,
-			//		vpiClassDefn,
-			//		vpiProgram,
-			//		vpiProgramArray,
-			//		vpiSpecParam,
-			//		vpiConcurrentAssertions,
-			//		vpiInternalScope,
-			//		vpiPropertyDecl,
-			//		vpiSequenceDecl,
-			//		vpiNamedEvent,
-			//		vpiNamedEventArray,
-			//		vpiVirtualInterfaceVar,
-			//		vpiReg,
-			//		vpiRegArray,
-			//		vpiMemory,
-			//		vpiLetDecl,
-			//		vpiImport
-					},
-					obj_h,
-					visited,
-					context,
-					[&](AST::AstNode* node){
-						if (node != nullptr) {
-							if (node->type == AST::AST_PARAMETER) {
-								// If we already have this parameter, replace it
-								for (auto& child : elaboratedModule->children) {
-									if (child->str == node->str) {
-										std::swap(child, node);
-										delete node;
-										return;
-									}
-								}
-							} else if (node->type == AST::AST_WIRE && elaboratedModule->find_child(node->str)) {
-								// If we already have this wire, do not add it again
-								delete node;
-								return;
+			if (objectName == type) {
+				if (context.contains(type)) {
+					AST::AstNode* elaboratedModule = context[type];
+					current_module = elaboratedModule;
+					visit_one_to_many({
+						vpiPort,
+						vpiModule,
+						vpiGenScopeArray,
+						vpiParameter
+						},
+						obj_h,
+						visited,
+						context,
+						[&](AST::AstNode* node){
+							if (node) {
+								add_or_replace_child(elaboratedModule, node);
 							}
-							elaboratedModule->children.push_back(node);
-						}
-					});
-			//visit_one_to_one({vpiDefaultDisableIff,
-			//		vpiInstanceArray,
-			//		vpiGlobalClocking,
-			//		vpiDefaultClocking,
-			//		vpiModuleArray,
-			//		vpiInstance,
-			//		vpiModule  // TODO: Both here and in one-to-many?
-			//		},
-			//		obj_h,
-			//		visited,
-			//		[](AST::AstNode*){});
+						});
+				} else {
+					AST::AstNode* elaboratedModule = new AST::AstNode(AST::AST_MODULE);
+					elaboratedModule->str = type;
+					current_module = elaboratedModule;
+					context[elaboratedModule->str] = elaboratedModule;
+					visit_one_to_many({vpiTypedef},
+						obj_h,
+						visited,
+						context,
+						[&](AST::AstNode* node){
+							if (node) {
+								add_typedef(elaboratedModule, node);
+							}
+						});
+					visit_one_to_many({
+							vpiInterface,
+							vpiPort,
+							vpiModule,
+							vpiVariables,
+							vpiContAssign,
+							vpiProcess,
+							vpiGenScopeArray,
+							vpiParameter,
+							vpiParamAssign,
+							vpiNet,
+							vpiArrayNet,
+							vpiTaskFunc
+							},
+							obj_h,
+							visited,
+							context,
+							[&](AST::AstNode* node){
+								add_or_replace_child(elaboratedModule, node);
+							});
+				}
+
+			} else {
+				// Not a top module, create instance
+				bool cloned = false;
+				AST::AstNode* elaboratedModule = context[type];
+				visit_one_to_many({vpiParameter},
+								obj_h,
+								visited,
+								context,
+								[&](AST::AstNode* node){
+									if (node) {
+										if (!cloned) {
+											elaboratedModule = elaboratedModule->clone();
+											elaboratedModule->str += '$' + objectName;
+											context[elaboratedModule->str] = elaboratedModule;
+											cloned = true;
+										}
+										add_or_replace_child(elaboratedModule, node);
+									}
+				});
+				visit_one_to_many({
+								vpiModule,
+								vpiPort,
+								vpiGenScopeArray
+								},
+								obj_h,
+								visited,
+								context,
+								[&](AST::AstNode* node){
+									if (node) {
+										add_or_replace_child(elaboratedModule, node);
+									}
+				});
+				make_cell(obj_h, current_node, elaboratedModule->str, visited, context);
+			}
 			break;
 		}
 		case vpiStructTypespec: {
