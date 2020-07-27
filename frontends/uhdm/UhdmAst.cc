@@ -402,8 +402,10 @@ AST::AstNode* UhdmAst::visit_object (
 					visit_one_to_many({
 						vpiPort,
 						vpiModule,
+						vpiNet,
+						vpiArrayNet,
+						vpiParameter,
 						vpiGenScopeArray,
-						vpiParameter
 						},
 						obj_h,
 						visited,
@@ -431,14 +433,14 @@ AST::AstNode* UhdmAst::visit_object (
 							vpiInterface,
 							vpiPort,
 							vpiModule,
+							vpiParamAssign,
+							vpiParameter,
+							vpiNet,
+							vpiArrayNet,
+							vpiGenScopeArray,
 							vpiVariables,
 							vpiContAssign,
 							vpiProcess,
-							vpiGenScopeArray,
-							vpiParameter,
-							vpiParamAssign,
-							vpiNet,
-							vpiArrayNet,
 							vpiTaskFunc
 							},
 							obj_h,
@@ -467,11 +469,15 @@ AST::AstNode* UhdmAst::visit_object (
 										}
 										add_or_replace_child(elaboratedModule, node);
 									}
-				});
+								});
 				visit_one_to_many({
 								vpiModule,
 								vpiPort,
-								vpiGenScopeArray
+								vpiNet,
+								vpiNetArray,
+								vpiGenScopeArray,
+								vpiVariables,
+								vpiProcess
 								},
 								obj_h,
 								visited,
@@ -480,7 +486,7 @@ AST::AstNode* UhdmAst::visit_object (
 									if (node) {
 										add_or_replace_child(elaboratedModule, node);
 									}
-				});
+								});
 				make_cell(obj_h, current_node, elaboratedModule->str, visited, context);
 			}
 			break;
