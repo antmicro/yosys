@@ -1,6 +1,5 @@
-
 OBJS += techlibs/quicklogic/synth_quicklogic.o
-OBJS += techlibs/quicklogic/quicklogic_fixcarry.o
+#OBJS += techlibs/quicklogic/quicklogic_fixcarry.o
 OBJS += techlibs/quicklogic/quicklogic_eqn.o
 OBJS += techlibs/quicklogic/pp3_braminit.o
 
