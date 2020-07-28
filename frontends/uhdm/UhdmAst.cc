@@ -455,6 +455,10 @@ AST::AstNode* UhdmAst::visit_object (
 				// Not a top module, create instance
 				bool cloned = false;
 				AST::AstNode* elaboratedModule = context[type];
+				if (!elaboratedModule) {
+					elaboratedModule = new AST::AstNode(AST::AST_MODULE);
+					elaboratedModule->str = objectName;
+				}
 				visit_one_to_many({vpiParameter},
 								obj_h,
 								visited,
