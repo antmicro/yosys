@@ -17,6 +17,22 @@ static void sanitize_symbol_name(std::string &name) {
 	}
 }
 
+static int parse_int_string(const char* int_str) {
+	const char* hex_str = std::strchr(int_str, 'h');
+	if (hex_str) {
+		return std::stoi(hex_str + 1, nullptr, 16);
+	}
+	const char* dec_str = std::strchr(int_str, 'd');
+	if (dec_str) {
+		return std::stoi(dec_str + 1, nullptr, 10);
+	}
+	const char* bin_str = std::strchr(int_str, 'b');
+	if (bin_str) {
+		return std::stoi(bin_str + 1, nullptr, 2);
+	}
+	return std::stoi(int_str);
+}
+
 void UhdmAst::visit_one_to_many(const std::vector<int> childrenNodeTypes,
 		vpiHandle parentHandle, const std::function<void(AST::AstNode*)> &f) {
 	for (auto child : childrenNodeTypes) {
@@ -59,22 +75,6 @@ void UhdmAst::visit_range(vpiHandle obj_h,
 	} else if (!range_nodes.empty()) {
 		f(range_nodes[0]);
 	}
-}
-
-int parse_int_string(const char* int_str) {
-	const char* hex_str = std::strchr(int_str, 'h');
-	if (hex_str) {
-		return std::stoi(hex_str + 1, nullptr, 16);
-	}
-	const char* dec_str = std::strchr(int_str, 'd');
-	if (dec_str) {
-		return std::stoi(dec_str + 1, nullptr, 10);
-	}
-	const char* bin_str = std::strchr(int_str, 'b');
-	if (bin_str) {
-		return std::stoi(bin_str + 1, nullptr, 2);
-	}
-	return std::stoi(int_str);
 }
 
 AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, vpiHandle obj_h) {
