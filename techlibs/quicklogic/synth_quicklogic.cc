@@ -26,6 +26,7 @@ PRIVATE_NAMESPACE_BEGIN
 
 struct SynthQuickLogicPass : public ScriptPass {
 
+<<<<<<< HEAD
 	SynthQuickLogicPass() : ScriptPass("synth_quicklogic", "Synthesis for QuickLogic FPGAs") {}
 
 	void help() override
@@ -59,6 +60,59 @@ struct SynthQuickLogicPass : public ScriptPass {
 		help_script();
 		log("\n");
 	}
+=======
+    SynthQuickLogicPass() : ScriptPass("synth_quicklogic", "Synthesis for QuickLogic FPGAs") {}
+
+    void help() override
+    {
+        log("\n");
+        log("   synth_quicklogic [options]\n");
+        log("This command runs synthesis for QuickLogic FPGAs\n");
+        log("\n");
+        log("    -top <module>\n");
+        log("         use the specified module as top module\n");
+        log("\n");
+        log("    -family <family>\n");
+        log("        run synthesis for the specified QuickLogic architecture\n");
+        log("        generate the synthesis netlist for the specified family.\n");
+        log("        supported values:\n");
+        log("        - pp3: PolarPro 3 \n");
+        log("        - ap3: ArcticPro 3 \n");
+        log("\n");
+        log("    -edif <file>\n");
+        log("        write the design to the specified edif file. writing of an output file\n");
+        log("        is omitted if this parameter is not specified.\n");
+        log("\n");
+        log("    -blif <file>\n");
+        log("        write the design to the specified BLIF file. writing of an output file\n");
+        log("        is omitted if this parameter is not specified.\n");
+        log("\n");
+        log("    -adder\n");
+        log("        use adder cells in output netlist\n");
+        log("\n");
+        log("The following commands are executed by this synthesis command:\n");
+        help_script();
+        log("\n");
+    }
+
+    string top_opt, edif_file, blif_file, family, currmodule;
+    bool inferAdder;
+
+    void clear_flags() YS_OVERRIDE
+    {
+        top_opt = "-auto-top";
+        edif_file = "";
+        blif_file = "";
+        currmodule = "";
+        family = "pp3";
+        inferAdder = false;
+    }
+
+    void execute(std::vector<std::string> args, RTLIL::Design *design) YS_OVERRIDE
+    {
+        string run_from, run_to;
+        clear_flags();
+>>>>>>> 1f90e7e0b (Correcting indentation)
 
 	std::string top_opt, edif_file, blif_file, family, currmodule;
 	bool inferAdder;
@@ -116,40 +170,41 @@ struct SynthQuickLogicPass : public ScriptPass {
         log_pop();
     }
 
-	void script() override
-	{
-		if (check_label("begin"))
-		{
-            std::string readVelArgs = "+/quicklogic/" + family + "_cells_sim.v";
-            run("read_verilog -lib -specify " + readVelArgs);
+    void script() override
+    {
+        if (check_label("begin"))
+        {
+            std::string readVelArgs = " +/quicklogic/" + family + "_cells_sim.v";
+            run("read_verilog -lib +/quicklogic/cells_sim.v" + readVelArgs);
+            run(stringf("hierarchy -check %s", help_mode ? "-top <top>" : top_opt.c_str()));
+        }
+
+        if (check_label("flatten"))
+        {
+            run("proc");
+            run("flatten");
+        }
+
+        if (check_label("coarse"))
+        {
+            run("tribuf -logic");
+            run("deminout");
+            run("opt_expr");
+            run("opt_clean");
+            run("check");
+            run("opt");
+            run("wreduce -keepdc");
+            run("peepopt");
+            run("opt_clean");
+            run("alumacc");
+            run("share");
+            run("opt");
+            run("fsm");
+            run("opt -fast");
 
             run("read_verilog -lib +/quicklogic/cells_sim.v");
 
 			run(stringf("hierarchy -check %s", help_mode ? "-top <top>" : top_opt.c_str()));
-		}
-
-		if (check_label("flatten"))
-		{
-			run("proc");
-			run("flatten");
-            run("wreduce -keepdc");
-            run("muxpack");
-			run("tribuf -logic");
-			run("deminout");
-			run("opt");
-			run("opt_clean");
-			run("peepopt");
-		}
-
-		if (check_label("coarse"))
-		{
-			run("synth -run coarse");
-			/*run("opt");
-			run("opt_clean");
-			run("peepopt");
-			run("techmap");
-			run("opt");
-			run("check");*/
 		}
 
 		if (check_label("map_ffram"))
@@ -202,12 +257,9 @@ struct SynthQuickLogicPass : public ScriptPass {
         {
             std::string techMapArgs = " -map +/quicklogic/cells_map.v";
             techMapArgs += " -map +/quicklogic/" + family + "_cells_map.v";
-			run("techmap" + techMapArgs);
-            run("opt_clean");
-            run("check");
-            run("autoname");
-			run("clean");
-		}
+            run("techmap" + techMapArgs);
+            run("clean");
+        }
 
 		if (check_label("check"))
 		{
