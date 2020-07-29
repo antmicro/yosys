@@ -10,9 +10,11 @@
 YOSYS_NAMESPACE_BEGIN
 
 static void sanitize_symbol_name(std::string &name) {
-	// symbol names must begin with '\'
-	name.insert(0, "\\");
-	std::replace(name.begin(), name.end(), '@','_');
+	if (!name.empty()) {
+		// symbol names must begin with '\'
+		name.insert(0, "\\");
+		std::replace(name.begin(), name.end(), '@','_');
+	}
 }
 
 void UhdmAst::visit_one_to_many(const std::vector<int> childrenNodeTypes,
@@ -82,9 +84,7 @@ AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, vpiHandle obj_h) {
 	} else if (auto name = vpi_get_str(vpiDefName, obj_h)) {
 		node->str = name;
 	}
-	if (!node->str.empty()) {
-		sanitize_symbol_name(node->str);
-	}
+	sanitize_symbol_name(node->str);
 	if (auto filename = vpi_get_str(vpiFile, obj_h)) {
 		node->filename = filename;
 	}
@@ -286,9 +286,7 @@ AST::AstNode* UhdmAst::handle_port(vpiHandle obj_h) {
 AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h) {
 	auto current_node = make_ast_node(AST::AST_NONE, obj_h);
 	std::string type = vpi_get_str(vpiDefName, obj_h);
-	if (type != "") {
-		sanitize_symbol_name(type);
-	}
+	sanitize_symbol_name(type);
 	if (current_node->str == type) {
 		if (shared.top_nodes.find(type) != shared.top_nodes.end()) {
 			AST::AstNode* elaboratedModule = shared.top_nodes[type];
@@ -615,9 +613,7 @@ AST::AstNode* UhdmAst::handle_package(vpiHandle obj_h) {
 AST::AstNode* UhdmAst::handle_interface(vpiHandle obj_h) {
 	auto current_node = make_ast_node(AST::AST_NONE, obj_h);
 	std::string type = vpi_get_str(vpiDefName, obj_h);
-	if (type != "") {
-		sanitize_symbol_name(type);
-	}
+	sanitize_symbol_name(type);
 	AST::AstNode* elaboratedInterface;
 	// Check if we have encountered this object before
 	if (context.contains(type)) {
