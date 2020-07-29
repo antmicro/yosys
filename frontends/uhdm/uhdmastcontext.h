@@ -20,6 +20,7 @@ class UhdmAstContext {
 
 		UhdmAstContext(UhdmAstContext* p) {
 			parent = p;
+			current_module = parent->current_module;
 		}
 
 		// Start iterator of the context
@@ -52,6 +53,9 @@ class UhdmAstContext {
 			}
 			return nodes[key];
 		}
+
+		// AST node of the module currently being processed
+		AST::AstNode* current_module = nullptr;
 };
 
 YOSYS_NAMESPACE_END
