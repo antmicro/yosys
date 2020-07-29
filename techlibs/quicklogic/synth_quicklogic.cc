@@ -226,8 +226,7 @@ struct SynthQuickLogicPass : public ScriptPass {
 
         if (check_label("map_ffs"))
         {
-            std::string techMapArgs = " -map +/quicklogic/cells_map.v";
-            techMapArgs += " -map +/quicklogic/" + family + "_cells_map.v";
+            std::string techMapArgs = " -map +/quicklogic/" + family + "_cells_map.v";
             run("techmap -D NO_LUT " + techMapArgs);
             run("opt_expr -mux_undef");
             run("simplemap");
@@ -246,8 +245,7 @@ struct SynthQuickLogicPass : public ScriptPass {
             }
             run("abc" + abc_opts);
 
-            std::string techMapArgs = " -map +/quicklogic/cells_map.v";
-            techMapArgs += " -map +/quicklogic/" + family + "_cells_map.v";
+            std::string techMapArgs = " -map +/quicklogic/" + family + "_cells_map.v";
 
             run("techmap" + techMapArgs);
             run("clean");
@@ -255,8 +253,7 @@ struct SynthQuickLogicPass : public ScriptPass {
 
         if (check_label("map_cells"))
         {
-            std::string techMapArgs = " -map +/quicklogic/cells_map.v";
-            techMapArgs += " -map +/quicklogic/" + family + "_cells_map.v";
+            std::string techMapArgs = " -map +/quicklogic/" + family + "_cells_map.v";
             run("techmap" + techMapArgs);
             run("clean");
         }
