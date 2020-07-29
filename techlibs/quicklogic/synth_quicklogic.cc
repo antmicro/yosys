@@ -103,6 +103,7 @@ struct SynthQuicklogicPass : public ScriptPass
                 inferAdder = true;
                 continue;
             }
+            break;
         }
         extra_args(args, argidx, design);
 
@@ -119,16 +120,6 @@ struct SynthQuicklogicPass : public ScriptPass
 
     void script() override
     {
-        if (check_label("begin")) {
-            std::string readVelArgs = " +/quicklogic/" + family + "_cells_sim.v";
-            run("read_verilog -lib -specify +/quicklogic/cells_sim.v" + readVelArgs);
-            run(stringf("hierarchy -check %s", help_mode ? "-top <top>" : top_opt.c_str()));
-
-            run("read_verilog -lib +/quicklogic/cells_sim.v");
-
-            run(stringf("hierarchy -check %s", top_opt.c_str()));
-        }
-
         if (check_label("begin"))
         {
             std::string readVelArgs = " +/quicklogic/" + family + "_cells_sim.v";
@@ -140,13 +131,27 @@ struct SynthQuicklogicPass : public ScriptPass
         {
             run("proc");
             run("flatten");
-            run("tribuf -logic");
-            run("deminout");
         }
 
         if (check_label("coarse"))
         {
-            run("synth -run coarse");
+            run("tribuf -logic");
+            run("deminout");
+            run("opt_expr");
+            run("opt_clean");
+            run("check");
+            run("opt");
+            run("wreduce -keepdc");
+            run("peepopt");
+            run("opt_clean");
+            run("alumacc");
+            run("share");
+            run("opt");
+            run("fsm");
+            run("opt -fast");
+
+            run("memory -nomap");
+            run("opt_clean");
         }
 
         if (check_label("map_ffram"))
@@ -160,10 +165,9 @@ struct SynthQuicklogicPass : public ScriptPass
         {
             if (inferAdder)
             {
-            run("techmap -map +/techmap.v -map +/quicklogic/" + family + "_arith_map.v");
-            } else {
-                run("techmap -map +/techmap.v");
+                run("techmap -map +/techmap.v -map +/quicklogic/" + family + "_arith_map.v");
             }
+            run("techmap -map +/techmap.v");
             run("opt -fast");
         }
 
