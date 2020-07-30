@@ -101,6 +101,7 @@ class UhdmAst {
 		AST::AstNode* visit_designs(const std::vector<vpiHandle>& designs);
 
 };
-#endif	// Guard
 
 YOSYS_NAMESPACE_END
+
+#endif
