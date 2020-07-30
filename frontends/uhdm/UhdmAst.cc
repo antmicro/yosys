@@ -290,7 +290,8 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 	sanitize_symbol_name(type);
 	if (current_node->str == type) {
 		if (shared.top_nodes.find(type) != shared.top_nodes.end()) {
-			AST::AstNode* elaboratedModule = shared.top_nodes[type];
+			delete current_node;
+			current_node = shared.top_nodes[type];
 			visit_one_to_many({vpiModule,
 							   vpiInterface,
 							   vpiParameter,
@@ -302,11 +303,9 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 							  obj_h, {&parent, current_node},
 							  [&](AST::AstNode* node) {
 								  if (node) {
-									  add_or_replace_child(elaboratedModule, node);
+									  add_or_replace_child(current_node, node);
 								  }
 							  });
-			delete current_node;
-			return elaboratedModule;
 		} else {
 			current_node->type = AST::AST_MODULE;
 			current_node->str = type;
@@ -338,23 +337,23 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 	} else {
 		// Not a top module, create instance
 		bool cloned = false;
-		auto elaboratedModule = shared.top_nodes[type];
-		if (!elaboratedModule) {
-			elaboratedModule = new AST::AstNode(AST::AST_MODULE);
-			elaboratedModule->str = current_node->str;
-					shared.top_nodes[elaboratedModule->str] = elaboratedModule;
+		auto module_node = shared.top_nodes[type];
+		if (!module_node) {
+			module_node = new AST::AstNode(AST::AST_MODULE);
+			module_node->str = type;
+			shared.top_nodes[module_node->str] = module_node;
 		}
 		visit_one_to_many({vpiParameter},
-						  obj_h, {&parent, current_node},
+						  obj_h, {&parent, module_node},
 						  [&](AST::AstNode* node) {
 							  if (node) {
 								  if (!cloned) {
-									  elaboratedModule = elaboratedModule->clone();
-									  elaboratedModule->str += '$' + current_node->str;
-									  shared.top_nodes[elaboratedModule->str] = elaboratedModule;
+									  module_node = module_node->clone();
+									  module_node->str += '$' + current_node->str;
+									  shared.top_nodes[module_node->str] = module_node;
 									  cloned = true;
 								  }
-								  add_or_replace_child(elaboratedModule, node);
+								  add_or_replace_child(module_node, node);
 							  }
 						  });
 		visit_one_to_many({vpiInterface,
@@ -365,13 +364,13 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 						   vpiGenScopeArray,
 						   vpiVariables,
 						   vpiProcess},
-						  obj_h, {&parent, current_node},
+						  obj_h, {&parent, module_node},
 						  [&](AST::AstNode* node) {
 							  if (node) {
-								  add_or_replace_child(elaboratedModule, node);
+								  add_or_replace_child(module_node, node);
 							  }
 						  });
-		make_cell(obj_h, current_node, elaboratedModule->str, parent);
+		make_cell(obj_h, current_node, type, parent);
 	}
 	return current_node;
 }
