@@ -67,8 +67,7 @@ struct UhdmAstFrontend : public Frontend {
 		log_header(design, "Executing UHDM frontend.\n");
 
 		UhdmAstShared shared;
-		UhdmAstContext context;
-		UhdmAst parser(shared, context);
+		UhdmAst uhdm_ast(shared);
 
 		std::string report_directory;
 		for (size_t i = 1; i < args.size(); i++) {
@@ -93,7 +92,7 @@ struct UhdmAstFrontend : public Frontend {
 			std::stringstream strstr;
 			UHDM::visit_object(design, 1, "", &shared.report.unhandled, shared.debug_flag ? std::cout : strstr);
 		}
-		current_ast = parser.visit_designs(restoredDesigns);
+		current_ast = uhdm_ast.visit_designs(restoredDesigns);
 		if (report_directory != "") {
 			shared.report.write(report_directory);
 		}
