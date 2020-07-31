@@ -4,6 +4,7 @@
 
 #include "headers/uhdm.h"
 #include "frontends/ast/ast.h"
+#include "frontends/verilog/verilog_frontend.h"
 #include "UhdmAst.h"
 #include "vpi_user.h"
 
@@ -15,22 +16,6 @@ static void sanitize_symbol_name(std::string &name) {
 		name.insert(0, "\\");
 		std::replace(name.begin(), name.end(), '@','_');
 	}
-}
-
-static int parse_int_string(const char* int_str) {
-	const char* hex_str = std::strchr(int_str, 'h');
-	if (hex_str) {
-		return std::stoi(hex_str + 1, nullptr, 16);
-	}
-	const char* dec_str = std::strchr(int_str, 'd');
-	if (dec_str) {
-		return std::stoi(dec_str + 1, nullptr, 10);
-	}
-	const char* bin_str = std::strchr(int_str, 'b');
-	if (bin_str) {
-		return std::stoi(bin_str + 1, nullptr, 2);
-	}
-	return std::stoi(int_str);
 }
 
 void UhdmAst::visit_one_to_many(const std::vector<int> childrenNodeTypes,
@@ -1175,39 +1160,13 @@ AST::AstNode* UhdmAst::handle_constant(vpiHandle obj_h) {
 	vpi_get_value(obj_h, &val);
 	if (val.format) { // Needed to handle parameter nodes without typespecs and constants
 		switch (val.format) {
-			case vpiScalarVal: {
-				return AST::AstNode::mkconst_int(val.value.scalar, false);
-			}
-			case vpiBinStrVal: {
-				try {
-					int int_val = parse_int_string(val.value.str);
-					return AST::AstNode::mkconst_int(int_val, false);
-				} catch(std::logic_error& e) {
-					error(std::string("Failed to parse binary string: ") + val.value.str);
-					break;
-				}
-			}
-			case vpiHexStrVal: {
-				try {
-					int int_val = parse_int_string(val.value.str);
-					return AST::AstNode::mkconst_int(int_val, false);
-				} catch(std::logic_error& e) {
-					error(std::string("Failed to parse hexadecimal string: ") + val.value.str);
-					break;
-				}
-			}
-			case vpiIntVal: {
-				return AST::AstNode::mkconst_int(val.value.integer, false);
-			}
-			case vpiRealVal: {
-				return AST::AstNode::mkconst_real(val.value.real);
-			}
-			case vpiStringVal: {
-				return AST::AstNode::mkconst_str(val.value.str);
-			}
-			default: {
-				error("Encountered unhandled constant format: %d", val.format);
-			}
+			case vpiScalarVal: return AST::AstNode::mkconst_int(val.value.scalar, false);
+			case vpiBinStrVal:
+			case vpiHexStrVal: return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
+			case vpiIntVal: return AST::AstNode::mkconst_int(val.value.integer, false);
+			case vpiRealVal: return AST::AstNode::mkconst_real(val.value.real);
+			case vpiStringVal: return AST::AstNode::mkconst_str(val.value.str);
+			default: error("Encountered unhandled constant format: %d", val.format);
 		}
 	}
 	return nullptr;
