@@ -36,6 +36,12 @@ class UhdmAstShared {
 
 		// UHDM node coverage report
 		UhdmAstReport report;
+
+		// Maps module name and variable name to assignment pattern nodes that need
+		// additional work in a second pass
+		std::unordered_map<std::string,
+			std::unordered_map<std::string,
+				std::vector<AST::AstNode*>>> unresolved_assignment_patterns;
 };
 
 YOSYS_NAMESPACE_END
