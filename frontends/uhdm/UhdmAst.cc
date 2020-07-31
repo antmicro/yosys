@@ -915,7 +915,7 @@ AST::AstNode* UhdmAst::handle_operation(vpiHandle obj_h, AstNodeList& parent) {
 						shared.unresolved_assignment_patterns[module_node->str][lhs_node->str].push_back(assign_node);
 					}
 					current_node->type = AST::AST_CONCAT;
-				
+					std::reverse(current_node->children.begin(), current_node->children.end());
 					break;
 				}
 				case vpiConcatOp: {
@@ -1326,7 +1326,7 @@ void UhdmAst::resolve_assignment_pattern(AST::AstNode* module_node, AST::AstNode
 				auto id_node = new AST::AstNode(AST::AST_IDENTIFIER);
 				id_node->str = assign_node->children[0]->str + '.' + struct_node->children[i]->str;
 				asgn_node->children.push_back(id_node);
-				asgn_node->children.push_back(concat_node->children[i]);
+				asgn_node->children.push_back(concat_node->children[concat_node->children.size() - 1 - i]);
 				assign_node->children.push_back(asgn_node);
 			}
 			assign_node->children.erase(assign_node->children.begin());
