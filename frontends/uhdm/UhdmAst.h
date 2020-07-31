@@ -91,6 +91,9 @@ class UhdmAst {
 		AST::AstNode* handle_func_call(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_task_call(vpiHandle obj_h, AstNodeList& parent);
 
+		// Handles assignment patterns for which we didn't have the relevant type information before
+		void resolve_assignment_pattern(AST::AstNode* module_node, AST::AstNode* wire_node);
+
 	public:
 		UhdmAst(UhdmAstShared& s) : shared(s) {}
 
