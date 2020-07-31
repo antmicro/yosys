@@ -2521,24 +2521,10 @@ assert_property:
 
 simple_behavioral_stmt:
 	attr lvalue '=' delay expr {
-		if($5->type == AST_BLOCK) { //struct assigment list
-			for (auto *child : $5->children) {
-				if (child->children[0]->str.compare(0, 1, "\\") == 0)
-					child->children[0]->str = child->children[0]->str.substr(1);
-				if(child->children[0]->str != "")
-					child->children[0]->str = $2->str + "." + child->children[0]->str;
-				else
-					child->children[0]->str = $2->str;
-				child->type = AST_ASSIGN_EQ;
-				ast_stack.back()->children.push_back(child);
-				SET_AST_NODE_LOC(child, @2, @5);
-			}
-		} else {
-			AstNode *node = new AstNode(AST_ASSIGN_EQ, $2, $5);
-			ast_stack.back()->children.push_back(node);
-			SET_AST_NODE_LOC(node, @2, @5);
-			append_attr(node, $1);
-		}
+		AstNode *node = new AstNode(AST_ASSIGN_EQ, $2, $5);
+		ast_stack.back()->children.push_back(node);
+		SET_AST_NODE_LOC(node, @2, @5);
+		append_attr(node, $1);
 	} |
 	TOK_INT lvalue '=' delay expr {
 		add_genvar = true; // XXX: it's not but who cares
@@ -2571,24 +2557,10 @@ simple_behavioral_stmt:
 		append_attr(node, $1);
 	} |
 	attr lvalue OP_LE delay expr {
-		if($5->type == AST_BLOCK) { //struct assigment list
-			for (auto *child : $5->children) {
-				if (child->children[0]->str.compare(0, 1, "\\") == 0)
-					child->children[0]->str = child->children[0]->str.substr(1);
-				if(child->children[0]->str != "")
-					child->children[0]->str = $2->str + "." + child->children[0]->str;
-				else
-					child->children[0]->str = $2->str;
-				child->type = AST_ASSIGN_LE;
-				ast_stack.back()->children.push_back(child);
-				SET_AST_NODE_LOC(child, @2, @5);
-			}
-		} else {
-			AstNode *node = new AstNode(AST_ASSIGN_LE, $2, $5);
-			ast_stack.back()->children.push_back(node);
-			SET_AST_NODE_LOC(node, @2, @5);
-			append_attr(node, $1);
-		}
+		AstNode *node = new AstNode(AST_ASSIGN_LE, $2, $5);
+		ast_stack.back()->children.push_back(node);
+		SET_AST_NODE_LOC(node, @2, @5);
+		append_attr(node, $1);
 	} |
 	attr lvalue TOK_XOR_ASSIGN delay expr {
 		AstNode *xor_node = new AstNode(AST_BIT_XOR, $2->clone(), $5);
@@ -3141,9 +3113,6 @@ basic_expr:
 	'{' concat_list '}' {
 		$$ = $2;
 	} |
-	OP_CAST '{' concat_list '}' {
-		$$ = $3;
-	} |
 	OP_CAST '{' assigment_pattern '}' {
 		$$ = $3;
 	} |
@@ -3376,32 +3345,67 @@ concat_list:
 	};
 
 assigment_pattern:
+	expr {
+		$$ = new AstNode(AST_ASSIGNMENTPATTERN);
+		AstNode *node = new AstNode(AST_ASSIGNMENTITEM, $1);
+		SET_AST_NODE_LOC(node, @1, @1);
+		$$->children.push_back(node);
+	} |
+	expr ',' assigment_pattern {
+		$$ = $3;
+		AstNode *node = new AstNode(AST_ASSIGNMENTITEM, $1);
+		SET_AST_NODE_LOC(node, @1, @1);
+		$$->children.push_back(node);
+	} |
+	expr ':' expr {
+		$$ = new AstNode(AST_ASSIGNMENTPATTERN);
+		AstNode *node = new AstNode(AST_ASSIGNMENTITEM, $1, $3);
+		SET_AST_NODE_LOC(node, @1, @3);
+		$$->children.push_back(node);
+	} |
+	expr ':' expr ',' assigment_pattern {
+		$$ = $5;
+		AstNode *node = new AstNode(AST_ASSIGNMENTITEM, $1, $3);
+		SET_AST_NODE_LOC(node, @1, @3);
+		$$->children.push_back(node);
+	} |
+	TOK_DEFAULT ':' expr { 
+		$$ = new AstNode(AST_ASSIGNMENTPATTERN);
+		AstNode *node = new AstNode(AST_ASSIGNMENTITEM, new AstNode(AST_DEFAULT), $3);
+		SET_AST_NODE_LOC(node, @1, @3);
+		$$->children.push_back(node);
+	} |
+	TOK_DEFAULT ':' expr ',' assigment_pattern { 
+		$$ = $5;
+		AstNode *node = new AstNode(AST_ASSIGNMENTITEM, new AstNode(AST_DEFAULT), $3);
+		SET_AST_NODE_LOC(node, @1, @3);
+		$$->children.push_back(node);
+	};/*
+	/*structure_pattern_key ':' expr {
+	} |
+	array_pattern_key ':' expr {
+	} |
+	constant_expression '{' assigment_pattern '}' {
+	} |
 	lvalue ':' expr {
 		AstNode *lval = $1->clone();
 		AstNode *node = new AstNode(AST_ASSIGN_EQ, lval, $3);
 		SET_AST_NODE_LOC(node, @1, @3);
 		$$ = new AstNode(AST_BLOCK, node);
 	} |
-	TOK_DEFAULT ':' expr { /* only supports packed structs, treating struct as vector and assigning default value before other values */
+	TOK_DEFAULT ':' expr { 
 		AstNode *lval = new AstNode(AST_IDENTIFIER);
 		AstNode *node = new AstNode(AST_ASSIGN_EQ, lval, $3);
 		SET_AST_NODE_LOC(node, @1, @3);
 		$$ = new AstNode(AST_BLOCK, node);
-	} |
-	lvalue ':' expr ',' assigment_pattern {
+	};/*
+	/*lvalue ':' expr ',' assigment_pattern {
 		AstNode *lval = $1->clone();
 		AstNode *node = new AstNode(AST_ASSIGN_EQ, lval, $3);
 		SET_AST_NODE_LOC(node, @1, @3);
 		$$ = $5;
 		$$->children.push_back(node);
-	} |
-	TOK_DEFAULT ':' expr ',' assigment_pattern {
-		AstNode *lval = new AstNode(AST_IDENTIFIER);
-		AstNode *node = new AstNode(AST_ASSIGN_EQ, lval, $3);
-		SET_AST_NODE_LOC(node, @1, @3);
-		$$ = $5;
-		$$->children.insert($$->children.begin(), node);
-	};
+	} |*/
 
 integral_number:
 	TOK_CONSTVAL { $$ = $1; } |

@@ -177,6 +177,8 @@ std::string AST::type2str(AstNodeType type)
 	X(AST_UNION)
 	X(AST_STRUCT_ITEM)
 	X(AST_INSIDE)
+	X(AST_ASSIGNMENTPATTERN)
+	X(AST_ASSIGNMENTITEM)
 #undef X
 	default:
 		log_abort();

@@ -929,6 +929,98 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 	bool child_2_is_self_determined = false;
 	bool children_are_self_determined = false;
 	bool reset_width_after_children = false;
+	
+	// resolve assignment patterns, only supports assignment patterns on right side
+	for(auto *child : children) {
+		if(GetSize(child->children) == 2 && child->children[1]->type == AST_ASSIGNMENTPATTERN) {
+			std::vector<AstNode *> result_vector;
+			auto *identifier = child->children[0];
+			identifier->simplify(false, false, true, stage, -1, false, in_param);
+
+			auto *assignment_pattern = child->children[1];
+			for(auto *assignment_item : assignment_pattern->children) {
+				if(assignment_item->type == AST_ASSIGNMENTITEM && GetSize(assignment_item->children) == 2) { // key: val
+					auto *key = assignment_item->children[0]->clone();
+					auto *value = assignment_item->children[1]->clone();
+
+					auto *identifier_range = identifier->clone();
+					if(key->type == AST_DEFAULT) {
+						assignment_item->children.clear();
+						assignment_item->type = child->type;
+
+						assignment_item->children.push_back(identifier_range);
+						AstNode *node = new AstNode(AST_CONSTANT);
+						uint32_t v = value->integer;
+						node->integer = v;
+						node->is_signed = value->is_signed;
+						for (int i = 0; i < 32; i++) {
+							node->bits.push_back((v == 1) ? State::S1 : State::S0);
+						}
+						node->range_valid = true;
+						node->range_left = 32-1;
+						node->range_right = 0;
+						assignment_item->children.push_back(node);
+						result_vector.insert(result_vector.begin(), assignment_item->clone());
+					} else if (key->type == AST_CONSTANT) { // vector access
+						identifier_range->children.push_back(new AstNode(AST_RANGE, key));
+
+						assignment_item->children.clear();
+						assignment_item->type = child->type;
+
+						assignment_item->children.push_back(identifier_range);
+						assignment_item->children.push_back(value);
+						result_vector.push_back(assignment_item->clone());
+					} else if (key->type == AST_IDENTIFIER) { // struct 
+						assignment_item->children.clear();
+						assignment_item->type = child->type;
+						std::string str = identifier_range->str + "." + key->str.substr(1);
+						if (current_scope.count(str) > 0) {
+							auto item_node = current_scope[str];
+							if (item_node->type == AST_STRUCT_ITEM) {
+								auto range = make_range(item_node->range_left, item_node->range_right);
+								AstNode *struct_access = new AstNode(AST_IDENTIFIER, range);
+								struct_access->str = identifier_range->str;
+								struct_access->dumpAst(NULL, "* ");
+								struct_access->basic_prep = true;
+								assignment_item->children.push_back(struct_access);
+								assignment_item->children.push_back(value);
+							}
+						}
+						result_vector.push_back(assignment_item->clone());
+					}
+				} else if (assignment_item->type == AST_ASSIGNMENTITEM && GetSize(assignment_item->children) == 1) { // val, array assignment
+					auto *identifier_range = identifier->clone();
+					auto *concat = new AstNode(AST_CONCAT);
+					for (auto *ass_item : assignment_pattern->children) {
+						auto *value = ass_item->children[0]->clone();
+						concat->children.push_back(value);
+					}
+					assignment_item->type = child->type;
+					assignment_item->children.clear();
+					assignment_item->children.push_back(identifier_range);
+					assignment_item->children.push_back(concat);
+					result_vector.push_back(assignment_item->clone());
+					break;
+				}
+			}
+			newNode = this->clone();
+			//newNode->dumpAst(NULL, "newNode> ");
+			auto it = std::find_if(newNode->children.begin(), newNode->children.end(), [](AstNode *v){
+					return GetSize(v->children) == 2 && v->children[1]->type == AST_ASSIGNMENTPATTERN;
+					});
+			auto insert_pos = newNode->children.erase(it);
+			for(int i = 0; i < GetSize(result_vector); i++) {
+				insert_pos = newNode->children.insert(insert_pos, result_vector[i]);
+				if (insert_pos != newNode->children.end()) {
+				    insert_pos++;
+				}
+			}
+			//newNode->dumpAst(NULL, "newNode remove> ");
+
+			did_something = true;
+			goto apply_newNode;
+		}
+	}
 
 	switch (type)
 	{
@@ -2107,6 +2199,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			did_something = true;
 		}
 	}
+
 
 	// split memory access with bit select to individual statements
 	if (type == AST_IDENTIFIER && children.size() == 2 && children[0]->type == AST_RANGE && children[1]->type == AST_RANGE && !in_lvalue)
