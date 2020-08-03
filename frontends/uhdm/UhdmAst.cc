@@ -117,18 +117,18 @@ void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
 	typedef_node->location = type_node->location;
 	typedef_node->filename = type_node->filename;
 	typedef_node->str = type_node->str;
-	type_node->str = "";
 	if (type_node->type == AST::AST_STRUCT) {
 		typedef_node->children.push_back(type_node);
 		current_node->children.push_back(typedef_node);
 	} else if (type_node->type == AST::AST_ENUM) {
-		auto wire_node = new AST::AstNode(AST::AST_WIRE);
-		wire_node->attributes["\\enum_type"] = AST::AstNode::mkconst_str(type_node->str);
-		typedef_node->children.push_back(wire_node);
+		type_node = type_node->clone();
 		type_node->str = "$enum" + std::to_string(shared.next_enum_id());
 		for (auto* enum_item : type_node->children) {
 			enum_item->attributes["\\enum_base_type"] = AST::AstNode::mkconst_str(type_node->str);
 		}
+		auto wire_node = new AST::AstNode(AST::AST_WIRE);
+		wire_node->attributes["\\enum_type"] = AST::AstNode::mkconst_str(type_node->str);
+		typedef_node->children.push_back(wire_node);
 		current_node->children.push_back(type_node);
 		current_node->children.push_back(typedef_node);
 	}
