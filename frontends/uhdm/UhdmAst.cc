@@ -575,27 +575,27 @@ AST::AstNode* UhdmAst::handle_array_net(vpiHandle obj_h, AstNodeList& parent) {
 AST::AstNode* UhdmAst::handle_package(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_PACKAGE, obj_h);
 	visit_one_to_many({vpiParameter,
-						vpiParamAssign,
-						vpiTypedef,
-						vpiTaskFunc},
-						obj_h, {&parent, current_node},
-						[&](AST::AstNode* node) {
-							if (node) {
-								if (node->type == AST::AST_PARAMETER) {
-									// If we already have this parameter, replace it
-									for (auto& child : current_node->children) {
-										if (child->str == node->str) {
-											std::swap(child, node);
-											delete node;
-											return;
-										}
-									}
-									current_node->children.push_back(node);
-								} else {
-									add_typedef(current_node, node);
-								}
-							}
-						});
+					   vpiParamAssign},
+					  obj_h, {&parent, current_node},
+					  [&](AST::AstNode* node) {
+						  if (node) {
+							  add_or_replace_child(current_node, node);
+						  }
+					  });
+	visit_one_to_many({vpiTypedef},
+					  obj_h, {&parent, current_node},
+					  [&](AST::AstNode* node) {
+						  if (node) {
+							  add_typedef(current_node, node);
+						  }
+					  });
+	visit_one_to_many({vpiTaskFunc},
+					  obj_h, {&parent, current_node},
+					  [&](AST::AstNode* node) {
+						  if (node) {
+							  current_node->children.push_back(node);
+						  }
+					  });
 	return current_node;
 }
 
