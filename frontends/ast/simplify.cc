@@ -931,9 +931,27 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 	bool reset_width_after_children = false;
 	
 	// resolve assignment patterns, only supports assignment patterns on right side
-	for(auto *child : children) {
-		if(GetSize(child->children) == 2 && child->children[1]->type == AST_ASSIGNMENTPATTERN) {
-			std::vector<AstNode *> result_vector;
+	std::vector<AstNode *> result_vector;
+	auto it = std::find_if(children.begin(), children.end(), [](AstNode *v){
+		return (v->type == AST_ASSIGNMENTPATTERN);
+	});
+	if (it != children.end()) {
+		auto *assignment_pattern = *it;
+		auto *concat = new AstNode(AST_CONCAT);
+		for (auto *ass_item : assignment_pattern->children) {
+			auto *value = ass_item->children[0]->clone();
+			concat->children.push_back(value);
+		}
+		concat->dumpAst(NULL, "concat >");
+		result_vector.push_back(concat);
+	}
+	
+	if (it == children.end()) {
+		it = std::find_if(children.begin(), children.end(), [](AstNode *v){
+				return (GetSize(v->children) >= 2 && v->children[1]->type == AST_ASSIGNMENTPATTERN);
+			});
+		if (it != children.end()) {
+			auto *child = *it;
 			auto *identifier = child->children[0];
 			identifier->simplify(false, false, true, stage, -1, false, in_param);
 
@@ -1000,26 +1018,23 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					assignment_item->children.push_back(identifier_range);
 					assignment_item->children.push_back(concat);
 					result_vector.push_back(assignment_item->clone());
-					break;
 				}
 			}
-			newNode = this->clone();
-			//newNode->dumpAst(NULL, "newNode> ");
-			auto it = std::find_if(newNode->children.begin(), newNode->children.end(), [](AstNode *v){
-					return GetSize(v->children) == 2 && v->children[1]->type == AST_ASSIGNMENTPATTERN;
-					});
-			auto insert_pos = newNode->children.erase(it);
-			for(int i = 0; i < GetSize(result_vector); i++) {
-				insert_pos = newNode->children.insert(insert_pos, result_vector[i]);
-				if (insert_pos != newNode->children.end()) {
-				    insert_pos++;
-				}
-			}
-			//newNode->dumpAst(NULL, "newNode remove> ");
-
-			did_something = true;
-			goto apply_newNode;
 		}
+	}
+	this->dumpAst(NULL, "this> ");
+	if (it != this->children.end()) {
+		auto insert_pos = this->children.erase(it);
+		for(int i = 0; i < GetSize(result_vector); i++) {
+			insert_pos = this->children.insert(insert_pos, result_vector[i]);
+			if (insert_pos != this->children.end()) {
+			    insert_pos++;
+			}
+		}
+		result_vector.clear();
+		this->dumpAst(NULL, "this a4> ");
+
+		did_something = true;
 	}
 
 	switch (type)
