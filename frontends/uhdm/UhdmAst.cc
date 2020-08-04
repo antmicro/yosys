@@ -118,6 +118,7 @@ void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
 	typedef_node->filename = type_node->filename;
 	typedef_node->str = type_node->str;
 	if (type_node->type == AST::AST_STRUCT) {
+		type_node->str.clear();
 		typedef_node->children.push_back(type_node);
 		current_node->children.push_back(typedef_node);
 	} else if (type_node->type == AST::AST_ENUM) {
