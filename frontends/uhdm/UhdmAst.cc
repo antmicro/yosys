@@ -1368,7 +1368,7 @@ AST::AstNode* UhdmAst::visit_object(vpiHandle obj_h, AstNodeList parent) {
 		case vpiLogicVar: node = handle_logic_var(obj_h, parent); break;
 		case vpiSysFuncCall: node = handle_sys_func_call(obj_h, parent); break;
 		case vpiFuncCall: node = handle_func_call(obj_h, parent); break;
-		case vpiTaskCall: node->type = AST::AST_TCALL; break;
+		case vpiTaskCall: node = make_ast_node(AST::AST_TCALL, obj_h); break;
 		case vpiProgram:
 		default: error("Encountered unhandled object type: %d", object_type); break;
 	}
