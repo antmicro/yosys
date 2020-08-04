@@ -21,8 +21,6 @@
 
 #include "kernel/yosys.h"
 #include "frontends/ast/ast.h"
-#include "uhdm.h"
-#include "vpi_visitor.h"
 #include "UhdmAst.h"
 
 namespace UHDM {

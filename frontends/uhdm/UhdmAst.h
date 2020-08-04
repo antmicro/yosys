@@ -2,9 +2,10 @@
 #define _UHDM_AST_H_ 1
 
 #include <vector>
+#include "frontends/ast/ast.h"
+#undef cover
 
 #include "uhdm.h"
-#include "frontends/ast/ast.h"
 #include "astnodelist.h"
 #include "uhdmastshared.h"
 

@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include "kernel/yosys.h"
+#undef cover
 #include "headers/uhdm.h"
 
 YOSYS_NAMESPACE_BEGIN
