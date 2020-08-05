@@ -937,13 +937,9 @@ AST::AstNode* UhdmAst::handle_bit_select(vpiHandle obj_h, AstNodeList& parent) {
 }
 
 AST::AstNode* UhdmAst::handle_part_select(vpiHandle obj_h, AstNodeList& parent) {
-	auto current_node = make_ast_node(AST::AST_IDENTIFIER, obj_h);
-	visit_one_to_one({vpiParent},
-					 obj_h, {&parent, current_node},
-					 [&](AST::AstNode* node) {
-						 current_node->str = node->str;
-						 delete node;
-					 });
+	vpiHandle parent_h = vpi_handle(vpiParent, obj_h);
+	auto current_node = make_ast_node(AST::AST_IDENTIFIER, parent_h);
+	vpi_free_object(parent_h);
 	auto range_node = new AST::AstNode(AST::AST_RANGE);
 	range_node->filename = current_node->filename;
 	range_node->location = current_node->location;
@@ -958,13 +954,9 @@ AST::AstNode* UhdmAst::handle_part_select(vpiHandle obj_h, AstNodeList& parent) 
 }
 
 AST::AstNode* UhdmAst::handle_indexed_part_select(vpiHandle obj_h, AstNodeList& parent) {
-	auto current_node = make_ast_node(AST::AST_IDENTIFIER, obj_h);
-	visit_one_to_one({vpiParent},
-					 obj_h, {&parent, current_node},
-					 [&](AST::AstNode* node) {
-						 current_node->str = node->str;
-						 delete node;
-					 });
+	vpiHandle parent_h = vpi_handle(vpiParent, obj_h);
+	auto current_node = make_ast_node(AST::AST_IDENTIFIER, parent_h);
+	vpi_free_object(parent_h);
 	auto range_node = new AST::AstNode(AST::AST_RANGE);
 	range_node->filename = current_node->filename;
 	range_node->location = current_node->location;
@@ -994,7 +986,6 @@ AST::AstNode* UhdmAst::handle_var_select(vpiHandle obj_h, AstNodeList& parent) {
 							  for (auto child : node->children) {
 								  current_node->children.push_back(child->clone());
 							  }
-							  delete node;
 						  } else if (node->type == AST::AST_CONSTANT) {
 							  auto range_node = new AST::AstNode(AST::AST_RANGE);
 							  range_node->filename = current_node->filename;
