@@ -476,7 +476,8 @@ AST::AstNode* UhdmAst::handle_var(vpiHandle obj_h) {
 
 AST::AstNode* UhdmAst::handle_array_var(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_MEMORY, obj_h);
-	vpiHandle itr = vpi_iterate(vpiReg, obj_h);
+	vpiHandle itr = vpi_iterate(vpi_get(vpiType, obj_h) == vpiArrayVar ?
+								vpiReg : vpiElement, obj_h);
 	while (vpiHandle reg_h = vpi_scan(itr)) {
 		if (vpi_get(vpiType, reg_h) == vpiStructVar) {
 			vpiHandle typespec_h = vpi_handle(vpiTypespec, reg_h);
@@ -1331,6 +1332,7 @@ AST::AstNode* UhdmAst::visit_object(vpiHandle obj_h, AstNodeList parent) {
 		case vpiEnumConst: node = handle_enum_const(obj_h); break;
 		case vpiEnumVar:
 		case vpiStructVar: node = handle_var(obj_h); break;
+		case vpiPackedArrayVar:
 		case vpiArrayVar: node = handle_array_var(obj_h, parent); break;
 		case vpiParamAssign: node = handle_param_assign(obj_h, parent); break;
 		case vpiContAssign: node = handle_cont_assign(obj_h, parent); break;
