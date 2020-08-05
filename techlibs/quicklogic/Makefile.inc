@@ -9,6 +9,12 @@ $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/pp3_latches_ma
 GENFILES += techlibs/quicklogic/bram_init_8_16.vh
 GENFILES += techlibs/quicklogic/bram_init_32.vh
 
+$(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/ap3_ffs_map.v))
+$(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/pp3_ffs_map.v))
+$(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/ap3_lut_map.v))
+$(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/pp3_lut_map.v))
+$(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/ap3_latches_map.v))
+$(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/pp3_latches_map.v))
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/ap3_cells_map.v))
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/ap3_arith_map.v))
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/pp3_cells_map.v))
