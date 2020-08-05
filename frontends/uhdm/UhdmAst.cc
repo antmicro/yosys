@@ -344,7 +344,8 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 							  if (node) {
 								  if (!cloned) {
 									  module_node = module_node->clone();
-									  module_node->str += '$' + current_node->str;
+									  type = module_node->str + current_node->str;
+									  module_node->str = type;
 									  shared.top_nodes[module_node->str] = module_node;
 									  cloned = true;
 								  }
