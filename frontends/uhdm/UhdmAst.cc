@@ -24,7 +24,7 @@ void UhdmAst::visit_one_to_many(const std::vector<int> childrenNodeTypes,
 	for (auto child : childrenNodeTypes) {
 		vpiHandle itr = vpi_iterate(child, parentHandle);
 		while (vpiHandle vpi_child_obj = vpi_scan(itr) ) {
-			UhdmAst uhdm_ast(shared);
+			UhdmAst uhdm_ast(shared, indent + "  ");
 			auto *childNode = uhdm_ast.visit_object(vpi_child_obj, parent);
 			f(childNode);
 			vpi_free_object(vpi_child_obj);
@@ -39,7 +39,7 @@ void UhdmAst::visit_one_to_one(const std::vector<int> childrenNodeTypes,
 	for (auto child : childrenNodeTypes) {
 		vpiHandle itr = vpi_handle(child, parentHandle);
 		if (itr) {
-			UhdmAst uhdm_ast(shared);
+			UhdmAst uhdm_ast(shared, indent + "  ");
 			auto *childNode = uhdm_ast.visit_object(itr, parent);
 			f(childNode);
 		}
@@ -1305,7 +1305,7 @@ AST::AstNode* UhdmAst::visit_object(vpiHandle obj_h, AstNodeList parent) {
 	const unsigned object_type = vpi_get(vpiType, obj_h);
 	if (shared.debug_flag) {
 		const char* object_name = vpi_get_str(vpiName, obj_h);
-		std::cout << "Object: " << (object_name ? object_name : "") << " of type " << object_type << std::endl;
+		std::cout << indent << "Object: " << (object_name ? object_name : "") << " of type " << object_type << std::endl;
 	}
 
 	if (shared.visited.find(object) != shared.visited.end()) {
