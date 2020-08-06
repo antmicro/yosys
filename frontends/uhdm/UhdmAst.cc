@@ -1269,10 +1269,6 @@ void UhdmAst::resolve_assignment_pattern(AST::AstNode* module_node, AST::AstNode
 		auto struct_node = typedef_node->children[0];
 		for (auto assign_node : shared.unresolved_assignment_patterns[module_node->str][wire_node->str]) {
 			auto concat_node = assign_node->children[1];
-			// Erase every other node on the RHS as they're duplicated in UHDM
-			for (auto it = concat_node->children.begin(); it != concat_node->children.end(); ++it) {
-				concat_node->children.erase(it);
-			}
 			assign_node->children.resize(1); // Remove the RHS from the assignment node
 			// Create assignment nodes for all the fields
 			for (size_t i = 0; i < concat_node->children.size(); i++) {
