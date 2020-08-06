@@ -550,6 +550,7 @@ AST::AstNode* UhdmAst::handle_net(vpiHandle obj_h, AstNodeList& parent) {
 	visit_range(obj_h, {&parent, current_node},
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
+					node->is_packed = true;
 				});
 	return current_node;
 }
