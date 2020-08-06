@@ -95,8 +95,11 @@ class UhdmAst {
 		// Handles assignment patterns for which we didn't have the relevant type information before
 		void resolve_assignment_pattern(AST::AstNode* module_node, AST::AstNode* wire_node);
 
+		// Indentation used for debug printing
+		std::string indent;
+
 	public:
-		UhdmAst(UhdmAstShared& s) : shared(s) {}
+		UhdmAst(UhdmAstShared& s, const std::string& i = "") : shared(s), indent(i) {}
 
 		// Visits single VPI object and creates proper AST node
 		AST::AstNode* visit_object(vpiHandle obj_h, AstNodeList parent = AstNodeList());
