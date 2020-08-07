@@ -986,18 +986,16 @@ AST::AstNode* UhdmAst::handle_var_select(vpiHandle obj_h, AstNodeList& parent) {
 	visit_one_to_many({vpiIndex},
 					  obj_h, {&parent, current_node},
 					  [&](AST::AstNode* node) {
-						  if (node->type == AST::AST_IDENTIFIER) {
+						  if (node->str == current_node->str) {
 							  for (auto child : node->children) {
 								  current_node->children.push_back(child->clone());
 							  }
-						  } else if (node->type == AST::AST_CONSTANT) {
+						  } else {
 							  auto range_node = new AST::AstNode(AST::AST_RANGE);
 							  range_node->filename = current_node->filename;
 							  range_node->location = current_node->location;
 							  range_node->children.push_back(node);
 							  current_node->children.push_back(range_node);
-						  } else {
-							  current_node->children.push_back(node);
 						  }
 					  });
 	if (current_node->children.size() > 1) {
