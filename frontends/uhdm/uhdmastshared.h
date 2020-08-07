@@ -37,6 +37,10 @@ class UhdmAstShared {
 		// UHDM node coverage report
 		UhdmAstReport report;
 
+		// Map from AST type nodes to their names (used mostly for referencing
+		// types contained in packages)
+		std::unordered_map<AST::AstNode*, std::string> type_names;
+
 		// Maps module name and variable name to assignment pattern nodes that need
 		// additional work in a second pass
 		std::unordered_map<std::string,
