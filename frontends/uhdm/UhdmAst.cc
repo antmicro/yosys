@@ -113,16 +113,18 @@ void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::
 }
 
 void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
+
 	auto typedef_node = new AST::AstNode(AST::AST_TYPEDEF);
 	typedef_node->location = type_node->location;
 	typedef_node->filename = type_node->filename;
 	typedef_node->str = type_node->str;
+	shared.type_names[type_node] = type_node->str;
+	type_node = type_node->clone();
 	if (type_node->type == AST::AST_STRUCT) {
 		type_node->str.clear();
 		typedef_node->children.push_back(type_node);
 		current_node->children.push_back(typedef_node);
 	} else if (type_node->type == AST::AST_ENUM) {
-		type_node = type_node->clone();
 		type_node->str = "$enum" + std::to_string(shared.next_enum_id());
 		for (auto* enum_item : type_node->children) {
 			enum_item->attributes["\\enum_base_type"] = AST::AstNode::mkconst_str(type_node->str);
@@ -462,15 +464,16 @@ AST::AstNode* UhdmAst::handle_enum_const(vpiHandle obj_h) {
 	return current_node;
 }
 
-AST::AstNode* UhdmAst::handle_var(vpiHandle obj_h) {
+AST::AstNode* UhdmAst::handle_var(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_WIRE, obj_h);
-	vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
-	std::string name = vpi_get_str(vpiName, typespec_h);
-	sanitize_symbol_name(name);
-	auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
-	wiretype_node->str = name;
+	visit_one_to_one({vpiTypespec},
+					 obj_h, {&parent, current_node},
+					 [&](AST::AstNode* node) {
+						 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+						 wiretype_node->str = shared.type_names[node];
+						 current_node->children.push_back(wiretype_node);
+					 });
 	current_node->is_custom_type = true;
-	current_node->children.push_back(wiretype_node);
 	return current_node;
 }
 
@@ -1319,7 +1322,7 @@ AST::AstNode* UhdmAst::visit_object(vpiHandle obj_h, AstNodeList parent) {
 		case vpiEnumTypespec: node = handle_enum_typespec(obj_h, parent); break;
 		case vpiEnumConst: node = handle_enum_const(obj_h); break;
 		case vpiEnumVar:
-		case vpiStructVar: node = handle_var(obj_h); break;
+		case vpiStructVar: node = handle_var(obj_h, parent); break;
 		case vpiPackedArrayVar:
 		case vpiArrayVar: node = handle_array_var(obj_h, parent); break;
 		case vpiParamAssign: node = handle_param_assign(obj_h, parent); break;
