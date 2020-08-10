@@ -332,7 +332,9 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 			module_node->str = type;
 			shared.top_nodes[module_node->str] = module_node;
 		}
-		visit_one_to_many({vpiVariables},
+		visit_one_to_many({vpiVariables,
+						   vpiNet,
+						   vpiArrayNet},
 						  obj_h, {&parent, module_node},
 						  [&](AST::AstNode* node) {
 							  if (node) {
@@ -356,8 +358,6 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 						  });
 		visit_one_to_many({vpiInterface,
 						   vpiModule,
-						   vpiNet,
-						   vpiNetArray,
 						   vpiPort,
 						   vpiGenScopeArray},
 						  obj_h, {&parent, module_node},
