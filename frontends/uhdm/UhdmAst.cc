@@ -495,10 +495,12 @@ AST::AstNode* UhdmAst::handle_array_var(vpiHandle obj_h, AstNodeList& parent) {
 		vpi_free_object(reg_h);
 	}
 	vpi_free_object(itr);
-	visit_range(obj_h, {&parent, current_node},
-				[&](AST::AstNode* node) {
-					current_node->children.push_back(node);
-				});
+	visit_one_to_many({vpiRange},
+					  obj_h, {&parent, current_node},
+					  [&](AST::AstNode* node) {
+						  current_node->children.push_back(node);
+					  });
+	current_node->is_custom_type = true;
 	return current_node;
 }
 
