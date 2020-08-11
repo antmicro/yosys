@@ -574,10 +574,15 @@ AST::AstNode* UhdmAst::handle_array_net(vpiHandle obj_h, AstNodeList& parent) {
 		vpi_free_object(net_h);
 	}
 	vpi_free_object(itr);
-	visit_range(obj_h, {&parent, current_node},
-				[&](AST::AstNode* node) {
-					current_node->children.push_back(node);
-				});
+	visit_one_to_many({vpiRange},
+					  obj_h, {&parent, current_node},
+					  [&](AST::AstNode* node) {
+						  current_node->children.push_back(node);
+					  });
+	if (current_node->children.size() == 1) { // There need to be two range nodes
+		auto first_range = new AST::AstNode(AST::AST_RANGE, AST::AstNode::mkconst_int(0, false));
+		current_node->children.insert(current_node->children.begin(), first_range);
+	}
 	return current_node;
 }
 
