@@ -328,8 +328,11 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 		bool cloned = false;
 		auto module_node = shared.top_nodes[type];
 		if (!module_node) {
-			module_node = new AST::AstNode(AST::AST_MODULE);
-			module_node->str = type;
+			module_node = shared.top_node_templates[type];
+			if (!module_node) {
+				module_node = new AST::AstNode(AST::AST_MODULE);
+				module_node->str = type;
+			}
 			shared.top_nodes[module_node->str] = module_node;
 		}
 		visit_one_to_many({vpiVariables,
@@ -347,8 +350,10 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 						  [&](AST::AstNode* node) {
 							  if (node) {
 								  if (!cloned) {
+									  shared.top_node_templates[module_node->str] = module_node;
+									  shared.top_nodes.erase(module_node->str);
 									  module_node = module_node->clone();
-									  type = module_node->str + current_node->str;
+									  type = parent.find({AST::AST_MODULE})->str + '$' + current_node->str.substr(1);
 									  module_node->str = type;
 									  shared.top_nodes[module_node->str] = module_node;
 									  cloned = true;
