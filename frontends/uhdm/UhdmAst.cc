@@ -78,6 +78,9 @@ AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, vpiHandle obj_h) {
 	if (unsigned int line = vpi_get(vpiLineNo, obj_h)) {
 		node->location.first_line = node->location.last_line = line;
 	}
+	const uhdm_handle* const handle = (const uhdm_handle*) obj_h;
+	const UHDM::BaseClass* const object = (const UHDM::BaseClass*) handle->object;
+	shared.visited[object] = node;
 	return node;
 }
 
@@ -953,9 +956,12 @@ AST::AstNode* UhdmAst::handle_bit_select(vpiHandle obj_h, AstNodeList& parent) {
 }
 
 AST::AstNode* UhdmAst::handle_part_select(vpiHandle obj_h, AstNodeList& parent) {
-	vpiHandle parent_h = vpi_handle(vpiParent, obj_h);
-	auto current_node = make_ast_node(AST::AST_IDENTIFIER, parent_h);
-	vpi_free_object(parent_h);
+	auto current_node = make_ast_node(AST::AST_IDENTIFIER, obj_h);
+	visit_one_to_one({vpiParent},
+					 obj_h, {&parent, current_node},
+					 [&](AST::AstNode* node) {
+						 current_node->str = node->str;
+					 });
 	auto range_node = new AST::AstNode(AST::AST_RANGE);
 	range_node->filename = current_node->filename;
 	range_node->location = current_node->location;
@@ -970,9 +976,12 @@ AST::AstNode* UhdmAst::handle_part_select(vpiHandle obj_h, AstNodeList& parent) 
 }
 
 AST::AstNode* UhdmAst::handle_indexed_part_select(vpiHandle obj_h, AstNodeList& parent) {
-	vpiHandle parent_h = vpi_handle(vpiParent, obj_h);
-	auto current_node = make_ast_node(AST::AST_IDENTIFIER, parent_h);
-	vpi_free_object(parent_h);
+	auto current_node = make_ast_node(AST::AST_IDENTIFIER, obj_h);
+	visit_one_to_one({vpiParent},
+					 obj_h, {&parent, current_node},
+					 [&](AST::AstNode* node) {
+						 current_node->str = node->str;
+					 });
 	auto range_node = new AST::AstNode(AST::AST_RANGE);
 	range_node->filename = current_node->filename;
 	range_node->location = current_node->location;
@@ -1307,9 +1316,6 @@ void UhdmAst::resolve_assignment_pattern(AST::AstNode* module_node, AST::AstNode
 }
 
 AST::AstNode* UhdmAst::visit_object(vpiHandle obj_h, AstNodeList parent) {
-	// Current object data
-	const uhdm_handle* const handle = (const uhdm_handle*) obj_h;
-	const UHDM::BaseClass* const object = (const UHDM::BaseClass*) handle->object;
 
 	const unsigned object_type = vpi_get(vpiType, obj_h);
 	if (shared.debug_flag) {
@@ -1317,6 +1323,8 @@ AST::AstNode* UhdmAst::visit_object(vpiHandle obj_h, AstNodeList parent) {
 		std::cout << indent << "Object: " << (object_name ? object_name : "") << " of type " << object_type << std::endl;
 	}
 
+	const uhdm_handle* const handle = (const uhdm_handle*) obj_h;
+	const UHDM::BaseClass* const object = (const UHDM::BaseClass*) handle->object;
 	if (shared.visited.find(object) != shared.visited.end()) {
 		return shared.visited[object];
 	}
@@ -1381,10 +1389,10 @@ AST::AstNode* UhdmAst::visit_object(vpiHandle obj_h, AstNodeList parent) {
 	// Check if we initialized the node in switch-case
 	if (node) {
 		if (node->type != AST::AST_NONE) {
-			shared.visited.insert(std::make_pair(object, node));
 			shared.report.mark_handled(object);
 			return node;
 		}
+		shared.visited.erase(object);
 		delete node;
 	}
 	return nullptr;
