@@ -277,6 +277,9 @@ namespace AST
 		void dumpAst(FILE *f, std::string indent) const;
 		void dumpVlog(FILE *f, std::string indent) const;
 
+		// Visit each descendant of this node and call the passed function on it
+		void visitEachDescendant(const std::function<void(AST::AstNode*)>& f);
+
 		// used by genRTLIL() for detecting expression width and sign
 		void detectSignWidthWorker(int &width_hint, bool &sign_hint, bool *found_real = NULL);
 		void detectSignWidth(int &width_hint, bool &sign_hint, bool *found_real = NULL);

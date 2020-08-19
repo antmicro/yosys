@@ -442,6 +442,13 @@ void AstNode::dumpAst(FILE *f, std::string indent) const
 	fflush(f);
 }
 
+void AstNode::visitEachDescendant(const std::function<void(AST::AstNode*)>& f) {
+	for (auto child : children) {
+		f(child);
+		child->visitEachDescendant(f);
+	}
+}
+
 // helper function for AstNode::dumpVlog()
 static std::string id2vl(std::string txt)
 {
