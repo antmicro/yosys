@@ -85,7 +85,6 @@ AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, vpiHandle obj_h) {
 }
 
 void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::string& type, AstNodeList& parent) {
-	current_node->type = AST::AST_CELL;
 	auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
 	typeNode->str = type;
 	current_node->children.push_back(typeNode);
@@ -272,17 +271,18 @@ AST::AstNode* UhdmAst::handle_port(vpiHandle obj_h, AstNodeList& parent) {
 			current_node->is_output = true;
 		}
 	}
+
 	return current_node;
 }
 
 AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
-	auto current_node = make_ast_node(AST::AST_NONE, obj_h);
 	std::string type = vpi_get_str(vpiDefName, obj_h);
+	std::string name = vpi_get_str(vpiName, obj_h) ? vpi_get_str(vpiName, obj_h) : type;
 	sanitize_symbol_name(type);
-	if (current_node->str == type) {
+	sanitize_symbol_name(name);
+	if (name == type) {
 		if (shared.top_nodes.find(type) != shared.top_nodes.end()) {
-			delete current_node;
-			current_node = shared.top_nodes[type];
+			auto current_node = shared.top_nodes[type];
 			visit_one_to_many({vpiModule,
 							   vpiInterface,
 							   vpiParameter,
@@ -299,8 +299,9 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 									  resolve_assignment_pattern(current_node, node);
 								  }
 							  });
+			return current_node;
 		} else {
-			current_node->type = AST::AST_MODULE;
+			auto current_node = make_ast_node(AST::AST_MODULE, obj_h);
 			current_node->str = type;
 			shared.top_nodes[current_node->str] = current_node;
 			visit_one_to_many({vpiTypedef},
@@ -325,9 +326,11 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 							  [&](AST::AstNode* node) {
 								  add_or_replace_child(current_node, node);
 							  });
+			return current_node;
 		}
 	} else {
 		// Not a top module, create instance
+		auto current_node = make_ast_node(AST::AST_CELL, obj_h);
 		bool cloned = false;
 		auto module_node = shared.top_nodes[type];
 		if (!module_node) {
@@ -375,8 +378,8 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 							  }
 						  });
 		make_cell(obj_h, current_node, type, parent);
+		return current_node;
 	}
-	return current_node;
 }
 
 AST::AstNode* UhdmAst::handle_struct_typespec(vpiHandle obj_h, AstNodeList& parent) {
@@ -397,15 +400,14 @@ AST::AstNode* UhdmAst::handle_typespec_member(vpiHandle obj_h, AstNodeList& pare
 	switch (typespec_type) {
 		case vpiStructTypespec: {
 			auto struct_node = visit_object(typespec_h, parent);
-			struct_node->str = current_node->str;
-			delete current_node;
-			current_node = struct_node;
-			shared.report.mark_handled(typespec_h);
+			auto str = current_node->str;
+			struct_node->cloneInto(current_node);
+			current_node->str = str;
 			break;
 		}
 		case vpiEnumTypespec: {
-			current_node->children.push_back(visit_object(typespec_h, parent));
-			shared.report.mark_handled(typespec_h);
+			auto enum_node = visit_object(typespec_h, parent);
+			current_node->children.push_back(enum_node);
 			break;
 		}
 		case vpiBitTypespec:
@@ -443,7 +445,6 @@ AST::AstNode* UhdmAst::handle_enum_typespec(vpiHandle obj_h, AstNodeList& parent
 							for (auto child : current_node->children) {
 								child->children.push_back(node->clone());
 							}
-							delete node;
 						});
 			shared.report.mark_handled(typespec_h);
 			break;
@@ -622,16 +623,17 @@ AST::AstNode* UhdmAst::handle_package(vpiHandle obj_h, AstNodeList& parent) {
 }
 
 AST::AstNode* UhdmAst::handle_interface(vpiHandle obj_h, AstNodeList& parent) {
-	auto current_node = make_ast_node(AST::AST_NONE, obj_h);
 	std::string type = vpi_get_str(vpiDefName, obj_h);
+	std::string name = vpi_get_str(vpiName, obj_h) ? vpi_get_str(vpiName, obj_h) : type;
 	sanitize_symbol_name(type);
+	sanitize_symbol_name(name);
 	AST::AstNode* elaboratedInterface;
 	// Check if we have encountered this object before
 	if (shared.top_nodes.find(type) != shared.top_nodes.end()) {
 		// Was created before, fill missing
 		elaboratedInterface = shared.top_nodes[type];
 		visit_one_to_many({vpiPort},
-						  obj_h, {&parent, current_node},
+						  obj_h, {&parent, elaboratedInterface},
 						  [&](AST::AstNode* node) {
 							  if (node) {
 								  add_or_replace_child(elaboratedInterface, node);
@@ -640,11 +642,11 @@ AST::AstNode* UhdmAst::handle_interface(vpiHandle obj_h, AstNodeList& parent) {
 	} else {
 		// Encountered for the first time
 		elaboratedInterface = new AST::AstNode(AST::AST_INTERFACE);
-		elaboratedInterface->str = current_node->str;
+		elaboratedInterface->str = name;
 		visit_one_to_many({vpiNet,
 						   vpiPort,
 						   vpiModport},
-						   obj_h, {&parent, current_node},
+						   obj_h, {&parent, elaboratedInterface},
 						   [&](AST::AstNode* node) {
 							   if (node) {
 								   add_or_replace_child(elaboratedInterface, node);
@@ -652,14 +654,14 @@ AST::AstNode* UhdmAst::handle_interface(vpiHandle obj_h, AstNodeList& parent) {
 						   });
 	}
 	shared.top_nodes[elaboratedInterface->str] = elaboratedInterface;
-	if (current_node->str != type) {
+	if (name != type) {
 		// Not a top module, create instance
+		auto current_node = make_ast_node(AST::AST_CELL, obj_h);
 		make_cell(obj_h, current_node, type, parent);
+		return current_node;
 	} else {
-		delete current_node;
-		current_node = elaboratedInterface;
+		return elaboratedInterface;
 	}
-	return current_node;
 }
 
 AST::AstNode* UhdmAst::handle_modport(vpiHandle obj_h, AstNodeList& parent) {
@@ -675,7 +677,16 @@ AST::AstNode* UhdmAst::handle_modport(vpiHandle obj_h, AstNodeList& parent) {
 }
 
 AST::AstNode* UhdmAst::handle_io_decl(vpiHandle obj_h, AstNodeList& parent) {
-	auto current_node = make_ast_node(AST::AST_MODPORTMEMBER, obj_h);
+	AST::AstNode* current_node = nullptr;
+	visit_one_to_one({vpiExpr},
+					 obj_h, parent,
+					 [&](AST::AstNode* node) {
+						 current_node = node;
+					 });
+	if (current_node) {
+		return current_node;
+	}
+	current_node = make_ast_node(AST::AST_MODPORTMEMBER, obj_h);
 	if (const int n = vpi_get(vpiDirection, obj_h)) {
 		if (n == vpiInput) {
 			current_node->is_input = true;
@@ -690,12 +701,6 @@ AST::AstNode* UhdmAst::handle_io_decl(vpiHandle obj_h, AstNodeList& parent) {
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
 				});
-	visit_one_to_one({vpiExpr},
-					 obj_h, {&parent, current_node},
-					 [&](AST::AstNode* node) {
-						 delete current_node;
-						 current_node = node;
-					 });
 	return current_node;
 }
 
@@ -771,7 +776,6 @@ AST::AstNode* UhdmAst::handle_begin(vpiHandle obj_h, AstNodeList& parent) {
 								  wire_node->type = AST::AST_WIRE;
 								  wire_node->str = node->children[0]->str;
 								  func_node->children.push_back(wire_node);
-								  delete node;
 							  } else {
 								  current_node->children.push_back(node);
 							  }
@@ -781,34 +785,31 @@ AST::AstNode* UhdmAst::handle_begin(vpiHandle obj_h, AstNodeList& parent) {
 }
 
 AST::AstNode* UhdmAst::handle_operation(vpiHandle obj_h, AstNodeList& parent) {
-	auto current_node = make_ast_node(AST::AST_NONE, obj_h);
 	auto operation = vpi_get(vpiOpType, obj_h);
-	switch (operation) {
-		case vpiListOp:
-		case vpiEventOrOp: {
-			// Add all operands as children of process node
-			if (auto process_node = parent.find({AST::AST_ALWAYS})) {
-				visit_one_to_many({vpiOperand},
-								  obj_h, {&parent, current_node},
-								  [&](AST::AstNode* node) {
-									  // add directly to process node
-									  if (node) {
-										  process_node->children.push_back(node);
-									  }
-								  });
-			}
-			// Do not return a node
-			// Parent should not use returned value
-			shared.report.mark_handled(obj_h);
-			delete current_node;
-			return nullptr;
+	if (operation == vpiEventOrOp || operation == vpiListOp) {
+		// Add all operands as children of process node
+		if (auto process_node = parent.find({AST::AST_ALWAYS})) {
+			visit_one_to_many({vpiOperand},
+								obj_h, parent,
+								[&](AST::AstNode* node) {
+									// add directly to process node
+									if (node) {
+										process_node->children.push_back(node);
+									}
+								});
 		}
+		// Do not return a node
+		// Parent should not use returned value
+		shared.report.mark_handled(obj_h);
+		return nullptr;
+	}
+	auto current_node = make_ast_node(AST::AST_NONE, obj_h);
+	switch (operation) {
 		case vpiCastOp: {
 			visit_one_to_many({vpiOperand},
 							  obj_h, {&parent, current_node},
 							  [&](AST::AstNode* node) {
-								  delete current_node;
-								  current_node = node;
+								  node->cloneInto(current_node);
 							  });
 			vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
 			shared.report.mark_handled(typespec_h);
@@ -1393,7 +1394,6 @@ AST::AstNode* UhdmAst::visit_object(vpiHandle obj_h, AstNodeList parent) {
 			return node;
 		}
 		shared.visited.erase(object);
-		delete node;
 	}
 	return nullptr;
 }
