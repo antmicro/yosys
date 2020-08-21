@@ -568,10 +568,13 @@ AST::AstNode* UhdmAst::handle_net(vpiHandle obj_h, AstNodeList& parent) {
 	auto net_type = vpi_get(vpiNetType, obj_h);
 	current_node->is_reg = net_type == vpiReg;
 	current_node->is_output = net_type == vpiOutput;
+	current_node->is_logic = true;
 	visit_range(obj_h, {&parent, current_node},
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
-					node->is_packed = true;
+					if (node->type == AST::AST_MULTIRANGE) {
+						node->is_packed = true;
+					}
 				});
 	return current_node;
 }
