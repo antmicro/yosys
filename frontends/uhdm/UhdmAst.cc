@@ -147,6 +147,13 @@ static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
 								   return existing_child->str == child->str;
 							   });
 		if (it != parent->children.end()) {
+			if (!(*it)->children.empty() && child->children.empty()) {
+				// This is a bit ugly, but if the child we're replacing has children and
+				// our node doesn't, we copy its children to not lose any information
+				for (auto grandchild : (*it)->children) {
+					child->children.push_back(grandchild->clone());
+				}
+			}
 			*it = child;
 			return;
 		}
