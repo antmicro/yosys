@@ -25,7 +25,7 @@ void UhdmAst::visit_one_to_many(const std::vector<int> childrenNodeTypes,
 		vpiHandle itr = vpi_iterate(child, parentHandle);
 		while (vpiHandle vpi_child_obj = vpi_scan(itr) ) {
 			UhdmAst uhdm_ast(shared, indent + "  ");
-			auto *childNode = uhdm_ast.visit_object(vpi_child_obj, parent);
+			auto *childNode = uhdm_ast.handle_object(vpi_child_obj, parent);
 			f(childNode);
 			vpi_free_object(vpi_child_obj);
 		}
@@ -40,7 +40,7 @@ void UhdmAst::visit_one_to_one(const std::vector<int> childrenNodeTypes,
 		vpiHandle itr = vpi_handle(child, parentHandle);
 		if (itr) {
 			UhdmAst uhdm_ast(shared, indent + "  ");
-			auto *childNode = uhdm_ast.visit_object(itr, parent);
+			auto *childNode = uhdm_ast.handle_object(itr, parent);
 			f(childNode);
 		}
 		vpi_free_object(itr);
@@ -406,14 +406,14 @@ AST::AstNode* UhdmAst::handle_typespec_member(vpiHandle obj_h, AstNodeList& pare
 	int typespec_type = vpi_get(vpiType, typespec_h);
 	switch (typespec_type) {
 		case vpiStructTypespec: {
-			auto struct_node = visit_object(typespec_h, parent);
+			auto struct_node = handle_object(typespec_h, parent);
 			auto str = current_node->str;
 			struct_node->cloneInto(current_node);
 			current_node->str = str;
 			break;
 		}
 		case vpiEnumTypespec: {
-			auto enum_node = visit_object(typespec_h, parent);
+			auto enum_node = handle_object(typespec_h, parent);
 			current_node->children.push_back(enum_node);
 			break;
 		}
@@ -1326,7 +1326,7 @@ void UhdmAst::resolve_assignment_pattern(AST::AstNode* module_node, AST::AstNode
 	}
 }
 
-AST::AstNode* UhdmAst::visit_object(vpiHandle obj_h, AstNodeList parent) {
+AST::AstNode* UhdmAst::handle_object(vpiHandle obj_h, AstNodeList parent) {
 
 	const unsigned object_type = vpi_get(vpiType, obj_h);
 	if (shared.debug_flag) {
@@ -1411,7 +1411,7 @@ AST::AstNode* UhdmAst::visit_object(vpiHandle obj_h, AstNodeList parent) {
 AST::AstNode* UhdmAst::visit_designs(const std::vector<vpiHandle>& designs) {
 	auto *top_design = new AST::AstNode(AST::AST_DESIGN);
 	for (auto design : designs) {
-		auto *nodes = visit_object(design);
+		auto *nodes = handle_object(design);
 		// Flatten multiple designs into one
 		for (auto child : nodes->children) {
 			top_design->children.push_back(child);

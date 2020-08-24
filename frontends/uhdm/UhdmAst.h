@@ -102,7 +102,7 @@ class UhdmAst {
 		UhdmAst(UhdmAstShared& s, const std::string& i = "") : shared(s), indent(i) {}
 
 		// Visits single VPI object and creates proper AST node
-		AST::AstNode* visit_object(vpiHandle obj_h, AstNodeList parent = AstNodeList());
+		AST::AstNode* handle_object(vpiHandle obj_h, AstNodeList parent = AstNodeList());
 
 		// Visits all VPI design objects and returns created ASTs
 		AST::AstNode* visit_designs(const std::vector<vpiHandle>& designs);
