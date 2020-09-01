@@ -89,7 +89,7 @@ class UhdmAst {
 		AST::AstNode* handle_logic_var(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_sys_func_call(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_func_call(vpiHandle obj_h, AstNodeList& parent);
-		AST::AstNode* handle_task_call(vpiHandle obj_h, AstNodeList& parent);
+		AST::AstNode* handle_immediate_assert(vpiHandle obj_h, AstNodeList& parent);
 
 		// Handles assignment patterns for which we didn't have the relevant type information before
 		void resolve_assignment_pattern(AST::AstNode* module_node, AST::AstNode* wire_node);

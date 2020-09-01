@@ -1297,6 +1297,18 @@ AST::AstNode* UhdmAst::handle_func_call(vpiHandle obj_h, AstNodeList& parent) {
 	return current_node;
 }
 
+AST::AstNode* UhdmAst::handle_immediate_assert(vpiHandle obj_h, AstNodeList& parent) {
+	auto current_node = make_ast_node(AST::AST_ASSERT, obj_h);
+	visit_one_to_one({vpiExpr},
+					 obj_h, {&parent, current_node},
+					 [&](AST::AstNode* n) {
+						 if (n) {
+							 current_node->children.push_back(n);
+						 }
+					 });
+	return current_node;
+}
+
 void UhdmAst::resolve_assignment_pattern(AST::AstNode* module_node, AST::AstNode* wire_node) {
 	if (wire_node->type != AST::AST_WIRE || wire_node->children.empty()
 		|| wire_node->children[0]->type != AST::AST_WIRETYPE) return;
@@ -1396,6 +1408,7 @@ AST::AstNode* UhdmAst::handle_object(vpiHandle obj_h, AstNodeList parent) {
 		case vpiSysFuncCall: node = handle_sys_func_call(obj_h, parent); break;
 		case vpiFuncCall: node = handle_func_call(obj_h, parent); break;
 		case vpiTaskCall: node = make_ast_node(AST::AST_TCALL, obj_h); break;
+		case vpiImmediateAssert: node = handle_immediate_assert(obj_h, parent); break;
 		case UHDM::uhdmimport: break;
 		case vpiProgram:
 		default: report_error("Encountered unhandled object type: %d\n", object_type); break;
