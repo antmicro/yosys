@@ -202,7 +202,7 @@ AST::AstNode* UhdmAst::handle_parameter(vpiHandle obj_h, AstNodeList& parent) {
 				break;
 			}
 			default: {
-				error("Encountered unhandled typespec: %d", typespec_type);
+				report_error("Encountered unhandled typespec: %d\n", typespec_type);
 			}
 		}
 	} else {
@@ -428,7 +428,7 @@ AST::AstNode* UhdmAst::handle_typespec_member(vpiHandle obj_h, AstNodeList& pare
 			break;
 		}
 		default: {
-			error("Encountered unhandled typespec: %d", typespec_type);
+			report_error("Encountered unhandled typespec: %d\n", typespec_type);
 			break;
 		}
 	}
@@ -462,7 +462,7 @@ AST::AstNode* UhdmAst::handle_enum_typespec(vpiHandle obj_h, AstNodeList& parent
 			break;
 		}
 		default: {
-			error("Encountered unhandled typespec: %d", typespec_type);
+			report_error("Encountered unhandled typespec: %d\n", typespec_type);
 			break;
 		}
 	}
@@ -944,7 +944,7 @@ AST::AstNode* UhdmAst::handle_operation(vpiHandle obj_h, AstNodeList& parent) {
 				case vpiMultiConcatOp: current_node->type = AST::AST_REPLICATE; break;
 				case vpiAssignmentOp: current_node->type = AST::AST_ASSIGN_EQ; break;
 				default: {
-					error("Encountered unhandled operation: %d", operation);
+					report_error("Encountered unhandled operation: %d\n", operation);
 				}
 			}
 			break;
@@ -1194,7 +1194,7 @@ AST::AstNode* UhdmAst::handle_constant(vpiHandle obj_h) {
 			case vpiIntVal: return AST::AstNode::mkconst_int(val.value.integer, false);
 			case vpiRealVal: return AST::AstNode::mkconst_real(val.value.real);
 			case vpiStringVal: return AST::AstNode::mkconst_str(val.value.str);
-			default: error("Encountered unhandled constant format: %d", val.format);
+			default: report_error("Encountered unhandled constant format: %d\n", val.format);
 		}
 	}
 	return nullptr;
@@ -1395,7 +1395,7 @@ AST::AstNode* UhdmAst::handle_object(vpiHandle obj_h, AstNodeList parent) {
 		case vpiTaskCall: node = make_ast_node(AST::AST_TCALL, obj_h); break;
 			case UHDM::uhdmimport: break;
 		case vpiProgram:
-		default: error("Encountered unhandled object type: %d", object_type); break;
+		default: report_error("Encountered unhandled object type: %d\n", object_type); break;
 	}
 
 	// Check if we initialized the node in switch-case
@@ -1421,21 +1421,13 @@ AST::AstNode* UhdmAst::visit_designs(const std::vector<vpiHandle>& designs) {
 	return top_design;
 }
 
-void UhdmAst::error(std::string message, unsigned object_type) const {
-	message += '\n';
+void UhdmAst::report_error(const char *format, ...) const {
+	va_list args;
+	va_start(args, format);
 	if (shared.stop_on_error) {
-		log_error(message.c_str(), object_type);
+		logv_error(format, args);
 	} else {
-		log_warning(message.c_str(), object_type);
-	}
-}
-
-void UhdmAst::error(std::string message) const {
-	message += '\n';
-	if (shared.stop_on_error) {
-		log_error(message.c_str());
-	} else {
-		log_warning(message.c_str());
+		logv_warning(format, args);
 	}
 }
 
