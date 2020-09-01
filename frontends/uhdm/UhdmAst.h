@@ -41,9 +41,8 @@ class UhdmAst {
 		// Adds a typedef node to the current node
 		void add_typedef(AST::AstNode* current_node, AST::AstNode* type_node);
 
-		// Reports that something went wrong with reading the AST
-		void error(std::string message, unsigned object_type) const;
-		void error(std::string message) const;
+		// Reports that something went wrong with reading the UHDM file
+		void report_error(const char *format, ...) const;
 
 		// Data shared between all UhdmAst objects
 		UhdmAstShared& shared;
