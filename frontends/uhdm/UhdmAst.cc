@@ -115,12 +115,15 @@ void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::
 }
 
 void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
-
 	auto typedef_node = new AST::AstNode(AST::AST_TYPEDEF);
 	typedef_node->location = type_node->location;
 	typedef_node->filename = type_node->filename;
 	typedef_node->str = type_node->str;
-	shared.type_names[type_node] = type_node->str;
+	if (current_node->type == AST::AST_PACKAGE && type_node->type == AST::AST_STRUCT) {
+		shared.type_names[type_node] = current_node->str + "::" + type_node->str.substr(1);
+	} else {
+		shared.type_names[type_node] = type_node->str;
+	}
 	type_node = type_node->clone();
 	if (type_node->type == AST::AST_STRUCT) {
 		type_node->str.clear();
