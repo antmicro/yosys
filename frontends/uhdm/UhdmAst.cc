@@ -448,6 +448,11 @@ AST::AstNode* UhdmAst::handle_typespec_member(vpiHandle obj_h, AstNodeList& pare
 			shared.report.mark_handled(typespec_h);
 			break;
 		}
+		case vpiIntTypespec: {
+			current_node->is_signed = true;
+			shared.report.mark_handled(typespec_h);
+			break;
+		}
 		default: {
 			report_error("Encountered unhandled typespec: %d\n", typespec_type);
 			break;
