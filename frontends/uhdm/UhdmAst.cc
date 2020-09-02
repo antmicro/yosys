@@ -64,6 +64,24 @@ void UhdmAst::visit_range(vpiHandle obj_h, AstNodeList parent,
 	}
 }
 
+void UhdmAst::visit_default_expr(vpiHandle obj_h, AstNodeList parent)  {
+	visit_one_to_one({vpiExpr},
+					 obj_h, parent,
+					 [&](AST::AstNode* expr_node) {
+						 auto mod = parent.find({AST::AST_MODULE});
+						 auto initial_node = new AST::AstNode(AST::AST_INITIAL);
+						 auto block_node = new AST::AstNode(AST::AST_BLOCK);
+						 auto assign_node = new AST::AstNode(AST::AST_ASSIGN_EQ);
+						 auto id_node = new AST::AstNode(AST::AST_IDENTIFIER);
+						 id_node->str = parent.node->str;
+						 initial_node->children.push_back(block_node);
+						 block_node->children.push_back(assign_node);
+						 assign_node->children.push_back(id_node);
+						 assign_node->children.push_back(expr_node);
+						 mod->children.push_back(initial_node);
+					 });
+}
+
 AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, vpiHandle obj_h) {
 	auto node = new AST::AstNode(type);
 	if (auto name = vpi_get_str(vpiName, obj_h)) {
@@ -483,7 +501,7 @@ AST::AstNode* UhdmAst::handle_enum_const(vpiHandle obj_h) {
 	return current_node;
 }
 
-AST::AstNode* UhdmAst::handle_var(vpiHandle obj_h, AstNodeList& parent) {
+AST::AstNode* UhdmAst::handle_custom_var(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_WIRE, obj_h);
 	visit_one_to_one({vpiTypespec},
 					 obj_h, {&parent, current_node},
@@ -492,7 +510,14 @@ AST::AstNode* UhdmAst::handle_var(vpiHandle obj_h, AstNodeList& parent) {
 						 wiretype_node->str = shared.type_names[node];
 						 current_node->children.push_back(wiretype_node);
 					 });
+	visit_default_expr(obj_h, {&parent, current_node});
 	current_node->is_custom_type = true;
+	return current_node;
+}
+
+AST::AstNode* UhdmAst::handle_int_var(vpiHandle obj_h, AstNodeList& parent) {
+	auto current_node = make_ast_node(AST::AST_IDENTIFIER, obj_h);
+	visit_default_expr(obj_h, {&parent, current_node});
 	return current_node;
 }
 
@@ -1366,7 +1391,8 @@ AST::AstNode* UhdmAst::handle_object(vpiHandle obj_h, AstNodeList parent) {
 		case vpiEnumTypespec: node = handle_enum_typespec(obj_h, parent); break;
 		case vpiEnumConst: node = handle_enum_const(obj_h); break;
 		case vpiEnumVar:
-		case vpiStructVar: node = handle_var(obj_h, parent); break;
+		case vpiStructVar: node = handle_custom_var(obj_h, parent); break;
+		case vpiIntVar: node = handle_int_var(obj_h, parent); break;
 		case vpiPackedArrayVar:
 		case vpiArrayVar: node = handle_array_var(obj_h, parent); break;
 		case vpiParamAssign: node = handle_param_assign(obj_h, parent); break;
@@ -1385,7 +1411,6 @@ AST::AstNode* UhdmAst::handle_object(vpiHandle obj_h, AstNodeList parent) {
 		case vpiInitial: node = handle_initial(obj_h, parent); break;
 		case vpiNamedBegin:
 		case vpiBegin: node = handle_begin(obj_h, parent); break;
-		case vpiIntVar: node = make_ast_node(AST::AST_IDENTIFIER, obj_h); break;
 		case vpiCondition:
 		case vpiOperation: node = handle_operation(obj_h, parent); break;
 		case vpiBitSelect: node = handle_bit_select(obj_h, parent); break;

@@ -31,6 +31,9 @@ class UhdmAst {
 		void visit_range(vpiHandle obj_h, AstNodeList parent,
 				const std::function<void(AST::AstNode*)> &f);
 
+		// Visit the default expression assigned to a variable.
+		void visit_default_expr(vpiHandle obj_h, AstNodeList parent);
+
 		// Create an AstNode of the specified type with metadata extracted from
 		// the given vpiHandle.
 		AST::AstNode* make_ast_node(AST::AstNodeType type, vpiHandle obj_h);
@@ -56,7 +59,8 @@ class UhdmAst {
 		AST::AstNode* handle_typespec_member(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_enum_typespec(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_enum_const(vpiHandle obj_h);
-		AST::AstNode* handle_var(vpiHandle obj_h, AstNodeList& parent);
+		AST::AstNode* handle_custom_var(vpiHandle obj_h, AstNodeList& parent);
+		AST::AstNode* handle_int_var(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_array_var(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_param_assign(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_cont_assign(vpiHandle obj_h, AstNodeList& parent);
