@@ -123,7 +123,7 @@ struct UhdmAstFrontend : public Frontend {
 			erase_repeating(node, visited); // Prevent deleting some nodes multiple times
 		}
 		for (auto node : nodes_to_delete) {
-			//delete node;
+			delete node;
 		}
 		shared.visited.clear();
 	}
