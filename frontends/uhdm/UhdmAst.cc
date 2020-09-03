@@ -18,6 +18,26 @@ static void sanitize_symbol_name(std::string &name) {
 	}
 }
 
+static std::string strip_package_name(std::string name) {
+	auto sep_index = name.find("::");
+	if (sep_index != string::npos) {
+		name = name.substr(sep_index + 1);
+		name[0] = '\\';
+	}
+	return name;
+}
+
+static void resolve_wiretypes(AST::AstNode* module_node) {
+	for (auto node : module_node->children) {
+		if (node->type == AST::AST_WIRE && node->children.size() && node->children[0]->type == AST::AST_WIRETYPE) {
+			auto str = strip_package_name(node->children[0]->str);
+			if (module_node->find_child(str)) {
+				node->children[0]->str = str;
+			}
+		}
+	}
+}
+
 void UhdmAst::visit_one_to_many(const std::vector<int> childrenNodeTypes,
 								vpiHandle parentHandle, AstNodeList parent,
 								const std::function<void(AST::AstNode*)>& f) {
@@ -137,7 +157,7 @@ void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
 	typedef_node->location = type_node->location;
 	typedef_node->filename = type_node->filename;
 	typedef_node->str = type_node->str;
-	if (current_node->type == AST::AST_PACKAGE && type_node->type == AST::AST_STRUCT) {
+	if (current_node->type == AST::AST_PACKAGE) {
 		shared.type_names[type_node] = current_node->str + "::" + type_node->str.substr(1);
 	} else {
 		shared.type_names[type_node] = type_node->str;
@@ -327,6 +347,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 									  resolve_assignment_pattern(current_node, node);
 								  }
 							  });
+			resolve_wiretypes(current_node);
 			return current_node;
 		} else {
 			auto current_node = make_ast_node(AST::AST_MODULE, obj_h);
@@ -405,6 +426,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 								  add_or_replace_child(module_node, node);
 							  }
 						  });
+		resolve_wiretypes(module_node);
 		make_cell(obj_h, current_node, type, parent);
 		return current_node;
 	}
