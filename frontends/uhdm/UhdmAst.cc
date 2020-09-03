@@ -308,6 +308,14 @@ AST::AstNode* UhdmAst::handle_port(vpiHandle obj_h, AstNodeList& parent) {
 		}
 		shared.report.mark_handled(lowConn_h);
 	}
+	visit_one_to_one({vpiTypedef},
+					 obj_h, {&parent, current_node},
+					 [&](AST::AstNode* node) {
+						 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+						 wiretype_node->str = shared.type_names[node];
+						 current_node->children.push_back(wiretype_node);
+						 current_node->is_custom_type=true;
+					 });
 	if (const int n = vpi_get(vpiDirection, obj_h)) {
 		if (n == vpiInput) {
 			current_node->is_input = true;
@@ -319,7 +327,6 @@ AST::AstNode* UhdmAst::handle_port(vpiHandle obj_h, AstNodeList& parent) {
 			current_node->is_output = true;
 		}
 	}
-
 	return current_node;
 }
 
