@@ -174,6 +174,9 @@ void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
 		}
 		auto wire_node = new AST::AstNode(AST::AST_WIRE);
 		wire_node->attributes["\\enum_type"] = AST::AstNode::mkconst_str(type_node->str);
+		if (!type_node->children.empty() && type_node->children[0]->children.size() > 1) {
+			wire_node->children.push_back(type_node->children[0]->children[1]->clone());
+		}
 		typedef_node->children.push_back(wire_node);
 		current_node->children.push_back(type_node);
 		current_node->children.push_back(typedef_node);
