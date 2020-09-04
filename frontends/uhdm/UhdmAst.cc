@@ -553,7 +553,13 @@ AST::AstNode* UhdmAst::handle_custom_var(vpiHandle obj_h, AstNodeList& parent) {
 }
 
 AST::AstNode* UhdmAst::handle_int_var(vpiHandle obj_h, AstNodeList& parent) {
-	auto current_node = make_ast_node(AST::AST_IDENTIFIER, obj_h);
+	auto current_node = make_ast_node(parent.node->type == AST::AST_MODULE ? AST::AST_WIRE : AST::AST_IDENTIFIER, obj_h);
+	if (current_node->type == AST::AST_WIRE) {
+		auto left_const = AST::AstNode::mkconst_int(31, true);
+		auto right_const = AST::AstNode::mkconst_int(0, true);
+		auto range = new AST::AstNode(AST::AST_RANGE, left_const, right_const);
+		current_node->children.push_back(range);
+	}
 	visit_default_expr(obj_h, {&parent, current_node});
 	return current_node;
 }
