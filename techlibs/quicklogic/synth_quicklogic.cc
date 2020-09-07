@@ -176,7 +176,7 @@ struct SynthQuickLogicPass : public ScriptPass {
         if (check_label("map_gates")) {
             if (inferAdder && family != "pp3")
             {
-                run("quicklogic_fixcarry");
+                //run("quicklogic_fixcarry");
                 run("techmap -map +/techmap.v -map +/quicklogic/" + family + "_arith_map.v");
             } else {
                 run("techmap");
@@ -233,7 +233,7 @@ struct SynthQuickLogicPass : public ScriptPass {
             }
 
             if(family != "pp3") {
-                run("ap3_wrapcarry -unwrap");
+                //run("ap3_wrapcarry -unwrap");
             }
             techMapArgs = " -map +/quicklogic/" + family + "_ffs_map.v";
             run("techmap " + techMapArgs);
