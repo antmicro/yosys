@@ -10,6 +10,7 @@ CONFIG := clang
 # CONFIG := msys2-64
 
 # features (the more the better)
+ENABLE_CCACHE ?= 0
 ENABLE_TCL := 1
 ENABLE_ABC := 1
 ENABLE_GLOB := 1
@@ -344,6 +345,10 @@ EXE = .exe
 
 else ifneq ($(CONFIG),none)
 $(error Invalid CONFIG setting '$(CONFIG)'. Valid values: clang, gcc, gcc-4.8, emcc, mxe, msys2, msys2-64)
+endif
+
+ifeq ($(ENABLE_CCACHE),1)
+CXX := ccache $(CXX)
 endif
 
 ifeq ($(ENABLE_LIBYOSYS),1)
