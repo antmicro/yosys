@@ -268,7 +268,7 @@ AST::AstNode* UhdmAst::handle_port(vpiHandle obj_h, AstNodeList& parent) {
 		vpiHandle actual_h = vpi_handle(vpiActual, lowConn_h);
 		auto actual_type = vpi_get(vpiType, actual_h);
 		switch (actual_type) {
-		case vpiModport: {
+			case vpiModport: {
 				vpiHandle iface_h = vpi_handle(vpiInterface, actual_h);
 				if (iface_h) {
 					std::string cellName, ifaceName;
