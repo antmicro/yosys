@@ -1434,7 +1434,9 @@ AST::AstNode* UhdmAst::handle_object(vpiHandle obj_h, AstNodeList parent) {
 		case vpiEnumTypespec: node = handle_enum_typespec(obj_h, parent); break;
 		case vpiEnumConst: node = handle_enum_const(obj_h); break;
 		case vpiEnumVar:
-		case vpiStructVar: node = handle_custom_var(obj_h, parent); break;
+		case vpiEnumNet:
+		case vpiStructVar:
+		case vpiStructNet: node = handle_custom_var(obj_h, parent); break;
 		case vpiIntVar: node = handle_int_var(obj_h, parent); break;
 		case vpiPackedArrayVar:
 		case vpiArrayVar: node = handle_array_var(obj_h, parent); break;
