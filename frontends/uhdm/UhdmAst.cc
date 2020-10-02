@@ -354,7 +354,6 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 							  [&](AST::AstNode* node) {
 								  if (node) {
 									  add_or_replace_child(current_node, node);
-									  resolve_assignment_pattern(current_node, node);
 								  }
 							  });
 			resolve_wiretypes(current_node);
@@ -407,7 +406,6 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 						  [&](AST::AstNode* node) {
 							  if (node) {
 								  add_or_replace_child(module_node, node);
-								  resolve_assignment_pattern(current_node, node);
 							  }
 						  });
 		visit_one_to_many({vpiParameter},
@@ -924,6 +922,59 @@ AST::AstNode* UhdmAst::handle_operation(vpiHandle obj_h, AstNodeList& parent) {
 							  });
 			break;
 		}
+		case vpiAssignmentPatternOp: {
+			auto assign_node = parent.find({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ});
+			auto proc_node = parent.find({AST::AST_ALWAYS, AST::AST_MODULE});
+			auto assign_type = assign_node->type;
+			auto lhs_node = assign_node->children[0];
+			vpiHandle itr = vpi_iterate(vpiOperand, obj_h);
+			std::vector<AST::AstNode*> assignments;
+			while (vpiHandle operand_h = vpi_scan(itr) ) {
+				UhdmAst uhdm_ast(shared, indent + "  ");
+				if (vpi_get(vpiType, operand_h) == vpiTaggedPattern) {
+					auto assign_node = make_ast_node(assign_type, obj_h);
+					assign_node->children.push_back(lhs_node->clone());
+					auto typespec_h = vpi_handle(vpiTypespec, operand_h);
+					if (vpi_get(vpiType, typespec_h) == vpiStringTypespec) {
+						std::string field_name = vpi_get_str(vpiName, typespec_h);
+						if (field_name != "default") { // TODO: better support of the default keyword
+							assign_node->children[0]->str += '.' + field_name;
+						}
+					} else if (vpi_get(vpiType, typespec_h) == vpiIntTypespec) {
+						s_vpi_value val;
+						vpi_get_value(obj_h, &val);
+						auto index = AST::AstNode::mkconst_int(val.value.integer, false);
+						assign_node->children[0]->children.push_back(index);
+					}
+					vpi_free_object(typespec_h);
+					auto pattern_h = vpi_handle(vpiPattern, operand_h);
+					auto *rhs_node = uhdm_ast.handle_object(pattern_h, parent);
+					assign_node->children.push_back(rhs_node);
+					vpi_free_object(pattern_h);
+					assignments.push_back(assign_node);
+				} else {
+					auto *node = uhdm_ast.handle_object(operand_h, parent);
+					current_node->children.push_back(node);
+				}
+				vpi_free_object(operand_h);
+			}
+			vpi_free_object(itr);
+			current_node->type = AST::AST_CONCAT;
+			std::reverse(current_node->children.begin(), current_node->children.end());
+			if (!assignments.empty()) {
+				if (current_node->children.empty()) {
+					assign_node->children[0] = assignments[0]->children[0];
+					delete current_node;
+					current_node = assignments[0]->children[1];
+					assignments[0]->children.clear();
+					delete assignments[0];
+					proc_node->children.insert(proc_node->children.end(), assignments.begin() + 1, assignments.end());
+				} else {
+					proc_node->children.insert(proc_node->children.end(), assignments.begin(), assignments.end());
+				}
+			}
+			break;
+		}
 		default: {
 			visit_one_to_many({vpiOperand},
 							  obj_h, {&parent, current_node},
@@ -996,17 +1047,7 @@ AST::AstNode* UhdmAst::handle_operation(vpiHandle obj_h, AstNodeList& parent) {
 					break;
 				}
 				case vpiConditionOp: current_node->type = AST::AST_TERNARY; break;
-				case vpiAssignmentPatternOp: {
-					auto assign_node = parent.find({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ});
-					if (assign_node) {
-						auto lhs_node = assign_node->children[0];
-						auto module_node = parent.find({AST::AST_MODULE});
-						shared.unresolved_assignment_patterns[module_node->str][lhs_node->str].push_back(assign_node);
-					}
-					current_node->type = AST::AST_CONCAT;
-					std::reverse(current_node->children.begin(), current_node->children.end());
-					break;
-				}
+
 				case vpiConcatOp: {
 					current_node->type = AST::AST_CONCAT;
 					std::reverse(current_node->children.begin(), current_node->children.end());
@@ -1375,38 +1416,6 @@ AST::AstNode* UhdmAst::handle_immediate_assert(vpiHandle obj_h, AstNodeList& par
 						 }
 					 });
 	return current_node;
-}
-
-void UhdmAst::resolve_assignment_pattern(AST::AstNode* module_node, AST::AstNode* wire_node) {
-	if (wire_node->type != AST::AST_WIRE || wire_node->children.empty()
-		|| wire_node->children[0]->type != AST::AST_WIRETYPE) return;
-	auto typedef_node = module_node->find_child(AST::AST_TYPEDEF, wire_node->children[0]->str);
-	if (typedef_node) {
-		auto struct_node = typedef_node->children[0];
-		for (auto assign_node : shared.unresolved_assignment_patterns[module_node->str][wire_node->str]) {
-			auto concat_node = assign_node->children[1];
-			assign_node->children.resize(1); // Remove the RHS from the assignment node
-			// Create assignment nodes for all the fields
-			for (size_t i = 0; i < concat_node->children.size(); i++) {
-				auto asgn_node = new AST::AstNode(assign_node->type);
-				auto id_node = new AST::AstNode(AST::AST_IDENTIFIER);
-				id_node->str = assign_node->children[0]->str + '.' + struct_node->children[i]->str;
-				asgn_node->children.push_back(id_node);
-				asgn_node->children.push_back(concat_node->children[concat_node->children.size() - 1 - i]);
-				assign_node->children.push_back(asgn_node);
-			}
-			assign_node->children.erase(assign_node->children.begin());
-			auto it = std::find(module_node->children.begin(), module_node->children.end(), assign_node);
-			if (it != module_node->children.end()) { // If the assignment is directly in a module
-				// Move all the assignments directly to the module
-				module_node->children.erase(it);
-				module_node->children.insert(module_node->children.end(), assign_node->children.begin(), assign_node->children.end());
-			} else { // If the assignment is in a process
-				assign_node->type = AST::AST_BLOCK;
-			}
-			shared.unresolved_assignment_patterns[module_node->str][wire_node->str].clear();
-		}
-	}
 }
 
 AST::AstNode* UhdmAst::handle_object(vpiHandle obj_h, AstNodeList parent) {
