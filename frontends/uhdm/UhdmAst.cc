@@ -197,6 +197,15 @@ static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
 				for (auto grandchild : (*it)->children) {
 					child->children.push_back(grandchild->clone());
 				}
+				// Special case for a wire with multirange
+				if (child->children.size() > 1 && child->type == AST::AST_WIRE &&
+					child->children[0]->type == AST::AST_RANGE && child->children[1]->type == AST::AST_RANGE) {
+					auto multirange_node = new AST::AstNode(AST::AST_MULTIRANGE);
+					multirange_node->is_packed = true;
+					multirange_node->children = child->children;
+					child->children.clear();
+					child->children.push_back(multirange_node);
+				}
 			}
 			*it = child;
 			return;
