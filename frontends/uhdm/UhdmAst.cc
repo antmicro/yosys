@@ -874,117 +874,14 @@ AST::AstNode* UhdmAst::handle_begin(vpiHandle obj_h, AstNodeList& parent) {
 
 AST::AstNode* UhdmAst::handle_operation(vpiHandle obj_h, AstNodeList& parent) {
 	auto operation = vpi_get(vpiOpType, obj_h);
-	if (operation == vpiEventOrOp || operation == vpiListOp) {
-		// Add all operands as children of process node
-		if (auto process_node = parent.find({AST::AST_ALWAYS})) {
-			visit_one_to_many({vpiOperand},
-								obj_h, parent,
-								[&](AST::AstNode* node) {
-									// add directly to process node
-									if (node) {
-										process_node->children.push_back(node);
-									}
-								});
-		}
-		// Do not return a node
-		// Parent should not use returned value
-		shared.report.mark_handled(obj_h);
-		return nullptr;
-	}
-	auto current_node = make_ast_node(AST::AST_NONE, obj_h);
 	switch (operation) {
-		case vpiCastOp: {
-			visit_one_to_many({vpiOperand},
-							  obj_h, {&parent, current_node},
-							  [&](AST::AstNode* node) {
-								  node->cloneInto(current_node);
-							  });
-			vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
-			shared.report.mark_handled(typespec_h);
-			vpi_free_object(typespec_h);
-			break;
-		}
-		case vpiInsideOp: {
-			current_node->type = AST::AST_EQ;
-			AST::AstNode* lhs = nullptr;
-			visit_one_to_many({vpiOperand},
-							  obj_h, {&parent, current_node},
-							  [&](AST::AstNode* node) {
-								  if (!lhs) {
-									  lhs = node;
-								  }
-								  if (current_node->children.size() < 2) {
-									  current_node->children.push_back(node);
-								  } else {
-									  auto or_node = new AST::AstNode(AST::AST_LOGIC_OR);
-									  or_node->filename = current_node->filename;
-									  or_node->location = current_node->location;
-									  auto eq_node = new AST::AstNode(AST::AST_EQ);
-									  eq_node->filename = current_node->filename;
-									  eq_node->location = current_node->location;
-									  or_node->children.push_back(current_node);
-									  or_node->children.push_back(eq_node);
-									  eq_node->children.push_back(lhs->clone());
-									  eq_node->children.push_back(node);
-									  current_node = or_node;
-								  }
-							  });
-			break;
-		}
-		case vpiAssignmentPatternOp: {
-			auto assign_node = parent.find({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ});
-			auto proc_node = parent.find({AST::AST_ALWAYS, AST::AST_MODULE});
-			auto assign_type = assign_node->type;
-			auto lhs_node = assign_node->children[0];
-			vpiHandle itr = vpi_iterate(vpiOperand, obj_h);
-			std::vector<AST::AstNode*> assignments;
-			while (vpiHandle operand_h = vpi_scan(itr) ) {
-				UhdmAst uhdm_ast(shared, indent + "  ");
-				if (vpi_get(vpiType, operand_h) == vpiTaggedPattern) {
-					auto assign_node = make_ast_node(assign_type, obj_h);
-					assign_node->children.push_back(lhs_node->clone());
-					auto typespec_h = vpi_handle(vpiTypespec, operand_h);
-					if (vpi_get(vpiType, typespec_h) == vpiStringTypespec) {
-						std::string field_name = vpi_get_str(vpiName, typespec_h);
-						if (field_name != "default") { // TODO: better support of the default keyword
-							assign_node->children[0]->str += '.' + field_name;
-						}
-					} else if (vpi_get(vpiType, typespec_h) == vpiIntTypespec) {
-						s_vpi_value val;
-						vpi_get_value(obj_h, &val);
-						auto index = AST::AstNode::mkconst_int(val.value.integer, false);
-						assign_node->children[0]->children.push_back(index);
-					}
-					vpi_free_object(typespec_h);
-					auto pattern_h = vpi_handle(vpiPattern, operand_h);
-					auto *rhs_node = uhdm_ast.handle_object(pattern_h, parent);
-					assign_node->children.push_back(rhs_node);
-					vpi_free_object(pattern_h);
-					assignments.push_back(assign_node);
-				} else {
-					auto *node = uhdm_ast.handle_object(operand_h, parent);
-					current_node->children.push_back(node);
-				}
-				vpi_free_object(operand_h);
-			}
-			vpi_free_object(itr);
-			current_node->type = AST::AST_CONCAT;
-			std::reverse(current_node->children.begin(), current_node->children.end());
-			if (!assignments.empty()) {
-				if (current_node->children.empty()) {
-					assign_node->children[0] = assignments[0]->children[0];
-					delete current_node;
-					current_node = assignments[0]->children[1];
-					assignments[0]->children.clear();
-					delete assignments[0];
-					proc_node->children.insert(proc_node->children.end(), assignments.begin() + 1, assignments.end());
-				} else {
-					proc_node->children.insert(proc_node->children.end(), assignments.begin(), assignments.end());
-				}
-			}
-			break;
-		}
+		case vpiEventOrOp:
+		case vpiListOp: return handle_event_list_op(obj_h, parent);
+		case vpiCastOp: return handle_cast_op(obj_h, parent);
+		case vpiInsideOp: return handle_inside_op(obj_h, parent);
+		case vpiAssignmentPatternOp: return handle_assignment_pattern_op(obj_h, parent);
 		default: {
+			auto current_node = make_ast_node(AST::AST_NONE, obj_h);
 			visit_one_to_many({vpiOperand},
 							  obj_h, {&parent, current_node},
 							  [&](AST::AstNode* node) {
@@ -1056,7 +953,6 @@ AST::AstNode* UhdmAst::handle_operation(vpiHandle obj_h, AstNodeList& parent) {
 					break;
 				}
 				case vpiConditionOp: current_node->type = AST::AST_TERNARY; break;
-
 				case vpiConcatOp: {
 					current_node->type = AST::AST_CONCAT;
 					std::reverse(current_node->children.begin(), current_node->children.end());
@@ -1068,7 +964,119 @@ AST::AstNode* UhdmAst::handle_operation(vpiHandle obj_h, AstNodeList& parent) {
 					report_error("Encountered unhandled operation: %d\n", operation);
 				}
 			}
-			break;
+			return current_node;
+		}
+	}
+}
+
+AST::AstNode* UhdmAst::handle_event_list_op(vpiHandle obj_h, AstNodeList& parent) {
+	// Add all operands as children of process node
+	if (auto process_node = parent.find({AST::AST_ALWAYS})) {
+		visit_one_to_many({vpiOperand},
+							obj_h, parent,
+							[&](AST::AstNode* node) {
+								// add directly to process node
+								if (node) {
+									process_node->children.push_back(node);
+								}
+							});
+	}
+	// Do not return a node
+	// Parent should not use returned value
+	shared.report.mark_handled(obj_h);
+	return nullptr;
+}
+
+AST::AstNode* UhdmAst::handle_cast_op(vpiHandle obj_h, AstNodeList& parent) {
+	auto current_node = make_ast_node(AST::AST_NONE, obj_h);
+	visit_one_to_many({vpiOperand},
+					  obj_h, {&parent, current_node},
+					  [&](AST::AstNode* node) {
+						  node->cloneInto(current_node);
+					  });
+	vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
+	shared.report.mark_handled(typespec_h);
+	vpi_free_object(typespec_h);
+	return current_node;
+}
+
+AST::AstNode* UhdmAst::handle_inside_op(vpiHandle obj_h, AstNodeList& parent) {
+	auto current_node = make_ast_node(AST::AST_EQ, obj_h);
+	AST::AstNode* lhs = nullptr;
+	visit_one_to_many({vpiOperand},
+						obj_h, {&parent, current_node},
+						[&](AST::AstNode* node) {
+							if (!lhs) {
+								lhs = node;
+							}
+							if (current_node->children.size() < 2) {
+								current_node->children.push_back(node);
+							} else {
+								auto or_node = new AST::AstNode(AST::AST_LOGIC_OR);
+								or_node->filename = current_node->filename;
+								or_node->location = current_node->location;
+								auto eq_node = new AST::AstNode(AST::AST_EQ);
+								eq_node->filename = current_node->filename;
+								eq_node->location = current_node->location;
+								or_node->children.push_back(current_node);
+								or_node->children.push_back(eq_node);
+								eq_node->children.push_back(lhs->clone());
+								eq_node->children.push_back(node);
+								current_node = or_node;
+							}
+						});
+	return current_node;
+}
+
+AST::AstNode* UhdmAst::handle_assignment_pattern_op(vpiHandle obj_h, AstNodeList& parent) {
+	auto current_node = make_ast_node(AST::AST_CONCAT, obj_h);
+	auto assign_node = parent.find({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ});
+	auto proc_node = parent.find({AST::AST_ALWAYS, AST::AST_MODULE});
+	auto assign_type = assign_node->type;
+	auto lhs_node = assign_node->children[0];
+	vpiHandle itr = vpi_iterate(vpiOperand, obj_h);
+	std::vector<AST::AstNode*> assignments;
+	while (vpiHandle operand_h = vpi_scan(itr) ) {
+		UhdmAst uhdm_ast(shared, indent + "  ");
+		if (vpi_get(vpiType, operand_h) == vpiTaggedPattern) {
+			auto assign_node = make_ast_node(assign_type, obj_h);
+			assign_node->children.push_back(lhs_node->clone());
+			auto typespec_h = vpi_handle(vpiTypespec, operand_h);
+			if (vpi_get(vpiType, typespec_h) == vpiStringTypespec) {
+				std::string field_name = vpi_get_str(vpiName, typespec_h);
+				if (field_name != "default") { // TODO: better support of the default keyword
+					assign_node->children[0]->str += '.' + field_name;
+				}
+			} else if (vpi_get(vpiType, typespec_h) == vpiIntTypespec) {
+				s_vpi_value val;
+				vpi_get_value(obj_h, &val);
+				auto index = AST::AstNode::mkconst_int(val.value.integer, false);
+				assign_node->children[0]->children.push_back(index);
+			}
+			vpi_free_object(typespec_h);
+			auto pattern_h = vpi_handle(vpiPattern, operand_h);
+			auto *rhs_node = uhdm_ast.handle_object(pattern_h, parent);
+			assign_node->children.push_back(rhs_node);
+			vpi_free_object(pattern_h);
+			assignments.push_back(assign_node);
+		} else {
+			auto *node = uhdm_ast.handle_object(operand_h, parent);
+			current_node->children.push_back(node);
+		}
+		vpi_free_object(operand_h);
+	}
+	vpi_free_object(itr);
+	std::reverse(current_node->children.begin(), current_node->children.end());
+	if (!assignments.empty()) {
+		if (current_node->children.empty()) {
+			assign_node->children[0] = assignments[0]->children[0];
+			delete current_node;
+			current_node = assignments[0]->children[1];
+			assignments[0]->children.clear();
+			delete assignments[0];
+			proc_node->children.insert(proc_node->children.end(), assignments.begin() + 1, assignments.end());
+		} else {
+			proc_node->children.insert(proc_node->children.end(), assignments.begin(), assignments.end());
 		}
 	}
 	return current_node;
