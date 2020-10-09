@@ -122,10 +122,41 @@ AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, vpiHandle obj_h) {
 	return node;
 }
 
-void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::string& type, AstNodeList& parent) {
+static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
+	if (!child->str.empty()) {
+		auto it = std::find_if(parent->children.begin(),
+							   parent->children.end(),
+							   [child](AST::AstNode* existing_child) {
+								   return existing_child->str == child->str;
+							   });
+		if (it != parent->children.end()) {
+			if (!(*it)->children.empty() && child->children.empty()) {
+				// This is a bit ugly, but if the child we're replacing has children and
+				// our node doesn't, we copy its children to not lose any information
+				for (auto grandchild : (*it)->children) {
+					child->children.push_back(grandchild->clone());
+				}
+				// Special case for a wire with multirange
+				if (child->children.size() > 1 && child->type == AST::AST_WIRE &&
+					child->children[0]->type == AST::AST_RANGE && child->children[1]->type == AST::AST_RANGE) {
+					auto multirange_node = new AST::AstNode(AST::AST_MULTIRANGE);
+					multirange_node->is_packed = true;
+					multirange_node->children = child->children;
+					child->children.clear();
+					child->children.push_back(multirange_node);
+				}
+			}
+			*it = child;
+			return;
+		}
+	}
+	parent->children.push_back(child);
+}
+
+void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* cell_node, AST::AstNode* type_node, AstNodeList& parent) {
 	auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
-	typeNode->str = type;
-	current_node->children.push_back(typeNode);
+	typeNode->str = type_node->str;
+	cell_node->children.push_back(typeNode);
 	// Add port connections as arguments
 	vpiHandle port_itr = vpi_iterate(vpiPort, obj_h);
 	while (vpiHandle port_h = vpi_scan(port_itr) ) {
@@ -136,8 +167,8 @@ void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::
 		}
 		auto arg_node = new AST::AstNode(AST::AST_ARGUMENT);
 		arg_node->str = arg_name;
-		arg_node->filename = current_node->filename;
-		arg_node->location = current_node->location;
+		arg_node->filename = cell_node->filename;
+		arg_node->location = cell_node->location;
 		visit_one_to_one({vpiHighConn},
 						 port_h, parent,
 						 [&](AST::AstNode* node) {
@@ -145,7 +176,7 @@ void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* current_node, const std::
 						 		arg_node->children.push_back(node);
 						 	}
 						 });
-		current_node->children.push_back(arg_node);
+		cell_node->children.push_back(arg_node);
 		shared.report.mark_handled(port_h);
 		vpi_free_object(port_h);
 	}
@@ -181,37 +212,6 @@ void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
 		current_node->children.push_back(type_node);
 		current_node->children.push_back(typedef_node);
 	}
-}
-
-static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
-	if (!child->str.empty()) {
-		auto it = std::find_if(parent->children.begin(),
-							   parent->children.end(),
-							   [child](AST::AstNode* existing_child) {
-								   return existing_child->str == child->str;
-							   });
-		if (it != parent->children.end()) {
-			if (!(*it)->children.empty() && child->children.empty()) {
-				// This is a bit ugly, but if the child we're replacing has children and
-				// our node doesn't, we copy its children to not lose any information
-				for (auto grandchild : (*it)->children) {
-					child->children.push_back(grandchild->clone());
-				}
-				// Special case for a wire with multirange
-				if (child->children.size() > 1 && child->type == AST::AST_WIRE &&
-					child->children[0]->type == AST::AST_RANGE && child->children[1]->type == AST::AST_RANGE) {
-					auto multirange_node = new AST::AstNode(AST::AST_MULTIRANGE);
-					multirange_node->is_packed = true;
-					multirange_node->children = child->children;
-					child->children.clear();
-					child->children.push_back(multirange_node);
-				}
-			}
-			*it = child;
-			return;
-		}
-	}
-	parent->children.push_back(child);
 }
 
 AST::AstNode* UhdmAst::handle_design(vpiHandle obj_h, AstNodeList& parent) {
@@ -444,7 +444,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 							  }
 						  });
 		resolve_wiretypes(module_node);
-		make_cell(obj_h, current_node, type, parent);
+		make_cell(obj_h, current_node, module_node, parent);
 		return current_node;
 	}
 }
@@ -745,7 +745,7 @@ AST::AstNode* UhdmAst::handle_interface(vpiHandle obj_h, AstNodeList& parent) {
 	if (name != type) {
 		// Not a top module, create instance
 		auto current_node = make_ast_node(AST::AST_CELL, obj_h);
-		make_cell(obj_h, current_node, type, parent);
+		make_cell(obj_h, current_node, elaboratedInterface, parent);
 		return current_node;
 	} else {
 		return elaboratedInterface;
