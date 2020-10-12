@@ -13,4 +13,3 @@ select -assert-count 1 t:LUT4
 select -assert-count 4 t:inpad
 select -assert-count 10 t:outpad
 select -assert-count 23 t:*
-
