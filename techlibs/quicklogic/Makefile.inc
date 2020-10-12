@@ -1,4 +1,3 @@
-
 OBJS += techlibs/quicklogic/synth_quicklogic.o
 #OBJS += techlibs/quicklogic/ap3_opt.o
 OBJS += techlibs/quicklogic/quicklogic_eqn.o
@@ -52,4 +51,3 @@ techlibs/quicklogic/bram_init_32.vh: techlibs/quicklogic/brams_init.mk
 
 $(eval $(call add_gen_share_file,share/quicklogic,techlibs/quicklogic/bram_init_8_16.vh))
 $(eval $(call add_gen_share_file,share/quicklogic,techlibs/quicklogic/bram_init_32.vh))
-
