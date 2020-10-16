@@ -1031,15 +1031,24 @@ AST::AstNode* UhdmAst::handle_inside_op(vpiHandle obj_h, AstNodeList& parent) {
 AST::AstNode* UhdmAst::handle_assignment_pattern_op(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_CONCAT, obj_h);
 	auto assign_node = parent.find({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ});
-	auto proc_node = parent.find({AST::AST_ALWAYS, AST::AST_MODULE});
-	auto assign_type = assign_node->type;
-	auto lhs_node = assign_node->children[0];
+	auto proc_node = parent.find({AST::AST_ALWAYS, AST::AST_MODULE, AST::AST_PACKAGE});
+	auto assign_type = AST::AST_ASSIGN;
+	AST::AstNode* lhs_node = nullptr;
+	if (assign_node) {
+		assign_type = assign_node->type;
+		lhs_node = assign_node->children[0];
+	} else {
+		lhs_node = parent.find({AST::AST_WIRE, AST::AST_MEMORY, AST::AST_PARAMETER})->clone();
+		assign_node = new AST::AstNode(assign_type);
+		assign_node->children.push_back(lhs_node);
+		proc_node->children.push_back(assign_node);
+	}
 	vpiHandle itr = vpi_iterate(vpiOperand, obj_h);
 	std::vector<AST::AstNode*> assignments;
 	while (vpiHandle operand_h = vpi_scan(itr) ) {
 		UhdmAst uhdm_ast(shared, indent + "  ");
 		if (vpi_get(vpiType, operand_h) == vpiTaggedPattern) {
-			auto assign_node = make_ast_node(assign_type, obj_h);
+			auto assign_node = new AST::AstNode(assign_type);
 			assign_node->children.push_back(lhs_node->clone());
 			auto typespec_h = vpi_handle(vpiTypespec, operand_h);
 			if (vpi_get(vpiType, typespec_h) == vpiStringTypespec) {
