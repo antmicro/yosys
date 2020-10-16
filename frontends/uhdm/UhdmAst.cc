@@ -266,6 +266,11 @@ AST::AstNode* UhdmAst::handle_parameter(vpiHandle obj_h, AstNodeList& parent) {
 			current_node->children.push_back(constant_node);
 		}
 	}
+	visit_one_to_one({vpiOperation},
+					 obj_h, {&parent, current_node},
+					 [&](AST::AstNode* node) {
+						 current_node->children.push_back(node);
+					 });
 	return current_node;
 }
 
