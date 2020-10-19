@@ -881,7 +881,7 @@ AST::AstNode* UhdmAst::handle_operation(vpiHandle obj_h, AstNodeList& parent) {
 	auto operation = vpi_get(vpiOpType, obj_h);
 	switch (operation) {
 		case vpiEventOrOp:
-		case vpiListOp: return handle_event_list_op(obj_h, parent);
+		case vpiListOp: return handle_list_op(obj_h, parent);
 		case vpiCastOp: return handle_cast_op(obj_h, parent);
 		case vpiInsideOp: return handle_inside_op(obj_h, parent);
 		case vpiAssignmentPatternOp: return handle_assignment_pattern_op(obj_h, parent);
@@ -974,17 +974,17 @@ AST::AstNode* UhdmAst::handle_operation(vpiHandle obj_h, AstNodeList& parent) {
 	}
 }
 
-AST::AstNode* UhdmAst::handle_event_list_op(vpiHandle obj_h, AstNodeList& parent) {
+AST::AstNode* UhdmAst::handle_list_op(vpiHandle obj_h, AstNodeList& parent) {
 	// Add all operands as children of process node
-	if (auto process_node = parent.find({AST::AST_ALWAYS})) {
+	if (auto parent_node = parent.find({AST::AST_ALWAYS, AST::AST_COND})) {
 		visit_one_to_many({vpiOperand},
-							obj_h, parent,
-							[&](AST::AstNode* node) {
-								// add directly to process node
-								if (node) {
-									process_node->children.push_back(node);
-								}
-							});
+						  obj_h, parent,
+						  [&](AST::AstNode* node) {
+							  // add directly to process/cond node
+							  if (node) {
+								  parent_node->children.push_back(node);
+							  }
+						  });
 	}
 	// Do not return a node
 	// Parent should not use returned value
@@ -1308,7 +1308,9 @@ AST::AstNode* UhdmAst::handle_case_item(vpiHandle obj_h, AstNodeList& parent) {
 	visit_one_to_many({vpiExpr},
 					  obj_h, {&parent, current_node},
 					  [&](AST::AstNode* node) {
-						  current_node->children.push_back(node);
+						  if (node) {
+							  current_node->children.push_back(node);
+						  }
 					  });
 	if (current_node->children.empty()) {
 		current_node->children.push_back(new AST::AstNode(AST::AST_DEFAULT));
