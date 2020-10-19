@@ -1084,7 +1084,6 @@ AST::AstNode* UhdmAst::handle_assignment_pattern_op(vpiHandle obj_h, AstNodeList
 	if (!assignments.empty()) {
 		if (current_node->children.empty()) {
 			assign_node->children[0] = assignments[0]->children[0];
-			delete current_node;
 			current_node = assignments[0]->children[1];
 			assignments[0]->children.clear();
 			delete assignments[0];
