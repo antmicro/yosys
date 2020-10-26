@@ -1043,7 +1043,8 @@ AST::AstNode* UhdmAst::handle_assignment_pattern_op(vpiHandle obj_h, AstNodeList
 		assign_type = assign_node->type;
 		lhs_node = assign_node->children[0];
 	} else {
-		lhs_node = parent.find({AST::AST_WIRE, AST::AST_MEMORY, AST::AST_PARAMETER})->clone();
+		lhs_node = new AST::AstNode(AST::AST_IDENTIFIER);
+		lhs_node->str = parent.find({AST::AST_WIRE, AST::AST_MEMORY, AST::AST_PARAMETER})->str;
 		assign_node = new AST::AstNode(assign_type);
 		assign_node->children.push_back(lhs_node);
 		proc_node->children.push_back(assign_node);
