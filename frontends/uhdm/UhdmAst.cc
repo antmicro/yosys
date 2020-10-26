@@ -367,6 +367,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 							   vpiArrayNet,
 							   vpiPort,
 							   vpiGenScopeArray,
+							   vpiContAssign,
 							   vpiVariables},
 							  obj_h, {&parent, current_node},
 							  [&](AST::AstNode* node) {
