@@ -24,7 +24,7 @@
 #include "UhdmAst.h"
 
 namespace UHDM {
-	extern void visit_object (vpiHandle obj_h, int indent, const char *relation, std::set<const BaseClass*>* visited, std::ostream& out);
+	extern void visit_object (vpiHandle obj_h, int indent, const char *relation, std::set<const BaseClass*>* visited, std::ostream& out, bool shallowVisit = false);
 }
 
 
