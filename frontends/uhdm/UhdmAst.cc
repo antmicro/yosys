@@ -85,21 +85,25 @@ void UhdmAst::visit_range(vpiHandle obj_h, AstNodeList parent,
 }
 
 void UhdmAst::visit_default_expr(vpiHandle obj_h, AstNodeList parent)  {
-	visit_one_to_one({vpiExpr},
-					 obj_h, parent,
-					 [&](AST::AstNode* expr_node) {
-						 auto mod = parent.find({AST::AST_MODULE});
-						 auto initial_node = new AST::AstNode(AST::AST_INITIAL);
-						 auto block_node = new AST::AstNode(AST::AST_BLOCK);
-						 auto assign_node = new AST::AstNode(AST::AST_ASSIGN_EQ);
-						 auto id_node = new AST::AstNode(AST::AST_IDENTIFIER);
-						 id_node->str = parent.node->str;
-						 initial_node->children.push_back(block_node);
-						 block_node->children.push_back(assign_node);
-						 assign_node->children.push_back(id_node);
-						 assign_node->children.push_back(expr_node);
-						 mod->children.push_back(initial_node);
-					 });
+	if (vpi_handle(vpiExpr, obj_h)) {
+		auto mod = parent.find({AST::AST_MODULE});
+		auto initial_node = new AST::AstNode(AST::AST_INITIAL);
+		auto block_node = new AST::AstNode(AST::AST_BLOCK);
+		auto assign_node = new AST::AstNode(AST::AST_ASSIGN_EQ);
+		auto id_node = new AST::AstNode(AST::AST_IDENTIFIER);
+		id_node->str = parent.node->str;
+		initial_node->children.push_back(block_node);
+		block_node->children.push_back(assign_node);
+		assign_node->children.push_back(id_node);
+		mod->children.push_back(initial_node);
+		AstNodeList initial_parent = {&parent, initial_node};
+		AstNodeList block_parent = {&initial_parent, block_node};
+		visit_one_to_one({vpiExpr},
+						obj_h, {&block_parent, assign_node},
+						[&](AST::AstNode* expr_node) {
+							assign_node->children.push_back(expr_node);
+						});
+	}
 }
 
 AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, vpiHandle obj_h) {
@@ -1036,7 +1040,7 @@ AST::AstNode* UhdmAst::handle_inside_op(vpiHandle obj_h, AstNodeList& parent) {
 AST::AstNode* UhdmAst::handle_assignment_pattern_op(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_CONCAT, obj_h);
 	auto assign_node = parent.find({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ});
-	auto proc_node = parent.find({AST::AST_ALWAYS, AST::AST_MODULE, AST::AST_PACKAGE});
+	auto proc_node = parent.find({AST::AST_BLOCK, AST::AST_ALWAYS, AST::AST_INITIAL, AST::AST_MODULE, AST::AST_PACKAGE});
 	auto assign_type = AST::AST_ASSIGN;
 	AST::AstNode* lhs_node = nullptr;
 	if (assign_node) {
