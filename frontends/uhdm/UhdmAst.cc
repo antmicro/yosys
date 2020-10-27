@@ -632,7 +632,12 @@ AST::AstNode* UhdmAst::handle_cont_assign(vpiHandle obj_h, AstNodeList& parent) 
 					 obj_h, {&parent, current_node},
 					 [&](AST::AstNode* node) {
 						 if (node) {
-							 current_node->children.push_back(node);
+							 if (node->type == AST::AST_WIRE) {
+								 current_node->children.push_back(new AST::AstNode(AST::AST_IDENTIFIER));
+								 current_node->children.back()->str = node->str;
+							 } else {
+								 current_node->children.push_back(node);
+							 }
 						 }
 					 });
 	return current_node;
