@@ -1067,11 +1067,13 @@ AST::AstNode* UhdmAst::handle_assignment_pattern_op(vpiHandle obj_h, AstNodeList
 				if (field_name != "default") { // TODO: better support of the default keyword
 					assign_node->children[0]->str += '.' + field_name;
 				}
-			} else if (vpi_get(vpiType, typespec_h) == vpiIntTypespec) {
+			} else if (vpi_get(vpiType, typespec_h) == vpiIntegerTypespec) {
 				s_vpi_value val;
-				vpi_get_value(obj_h, &val);
+				vpi_get_value(typespec_h, &val);
+				auto range = new AST::AstNode(AST::AST_RANGE);
 				auto index = AST::AstNode::mkconst_int(val.value.integer, false);
-				assign_node->children[0]->children.push_back(index);
+				range->children.push_back(index);
+				assign_node->children[0]->children.push_back(range);
 			}
 			vpi_free_object(typespec_h);
 			auto pattern_h = vpi_handle(vpiPattern, operand_h);
