@@ -12,9 +12,10 @@ YOSYS_NAMESPACE_BEGIN
 
 static void sanitize_symbol_name(std::string &name) {
 	if (!name.empty()) {
+		auto pos = name.find_last_of("@");
+		name = name.substr(pos+1);
 		// symbol names must begin with '\'
 		name.insert(0, "\\");
-		std::replace(name.begin(), name.end(), '@','_');
 	}
 }
 
@@ -109,9 +110,13 @@ void UhdmAst::visit_default_expr(vpiHandle obj_h, AstNodeList parent)  {
 AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, vpiHandle obj_h) {
 	auto node = new AST::AstNode(type);
 	if (auto name = vpi_get_str(vpiName, obj_h)) {
-		node->str = name;
+		std::string s_name(name);
+		auto pos = s_name.find_last_of("@");
+		node->str = s_name.substr(pos+1);
 	} else if (auto name = vpi_get_str(vpiDefName, obj_h)) {
-		node->str = name;
+		std::string s_name(name);
+		auto pos = s_name.find_last_of("@");
+		node->str = s_name.substr(pos+1);
 	}
 	sanitize_symbol_name(node->str);
 	if (auto filename = vpi_get_str(vpiFile, obj_h)) {
@@ -261,7 +266,7 @@ AST::AstNode* UhdmAst::handle_parameter(vpiHandle obj_h, AstNodeList& parent) {
 				break;
 			}
 			default: {
-				report_error("Encountered unhandled typespec: %d\n", typespec_type);
+				report_error("Encountered unhandled typespec in handle parameter: %d, node str: %s\n", typespec_type, current_node->str.c_str());
 			}
 		}
 	} else {
@@ -508,7 +513,7 @@ AST::AstNode* UhdmAst::handle_typespec_member(vpiHandle obj_h, AstNodeList& pare
 			break;
 		}
 		default: {
-			report_error("Encountered unhandled typespec: %d\n", typespec_type);
+			report_error("Encountered unhandled typespec in handle typespec member: %d\n", typespec_type);
 			break;
 		}
 	}
@@ -542,7 +547,7 @@ AST::AstNode* UhdmAst::handle_enum_typespec(vpiHandle obj_h, AstNodeList& parent
 			break;
 		}
 		default: {
-			report_error("Encountered unhandled typespec: %d\n", typespec_type);
+			report_error("Encountered unhandled typespec enum typespec: %d\n", typespec_type);
 			break;
 		}
 	}
