@@ -1104,7 +1104,6 @@ AST::AstNode* UhdmAst::handle_assignment_pattern_op(vpiHandle obj_h, AstNodeList
 	std::reverse(current_node->children.begin(), current_node->children.end());
 	if (!assignments.empty()) {
 		if (current_node->children.empty()) {
-			delete assign_node->children[0];
 			assign_node->children[0] = assignments[0]->children[0];
 			current_node = assignments[0]->children[1];
 			assignments[0]->children.clear();
