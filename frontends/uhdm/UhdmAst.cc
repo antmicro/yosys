@@ -1045,6 +1045,14 @@ AST::AstNode* UhdmAst::handle_inside_op(vpiHandle obj_h, AstNodeList& parent) {
 
 AST::AstNode* UhdmAst::handle_assignment_pattern_op(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_CONCAT, obj_h);
+	if (parent.find({AST::AST_PARAMETER})) {
+		visit_one_to_many({vpiOperand},
+						  obj_h, {&parent, current_node},
+						  [&](AST::AstNode* node) {
+							  current_node->children.push_back(node);
+						  });
+		return current_node;
+	}
 	auto assign_node = parent.find({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ});
 	auto proc_node = parent.find({AST::AST_BLOCK, AST::AST_ALWAYS, AST::AST_INITIAL, AST::AST_MODULE, AST::AST_PACKAGE});
 	auto assign_type = AST::AST_ASSIGN;
@@ -1054,7 +1062,7 @@ AST::AstNode* UhdmAst::handle_assignment_pattern_op(vpiHandle obj_h, AstNodeList
 		lhs_node = assign_node->children[0];
 	} else {
 		lhs_node = new AST::AstNode(AST::AST_IDENTIFIER);
-		lhs_node->str = parent.find({AST::AST_WIRE, AST::AST_MEMORY, AST::AST_PARAMETER})->str;
+		lhs_node->str = parent.find({AST::AST_WIRE, AST::AST_MEMORY})->str;
 		assign_node = new AST::AstNode(assign_type);
 		assign_node->children.push_back(lhs_node);
 		proc_node->children.push_back(assign_node);
