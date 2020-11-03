@@ -373,6 +373,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 									  add_or_replace_child(current_node, node);
 								  }
 							  });
+			current_node->attributes.erase(ID::partial);
 			return current_node;
 		} else {
 			auto current_node = make_ast_node(AST::AST_MODULE, obj_h);
