@@ -28,17 +28,6 @@ static std::string strip_package_name(std::string name) {
 	return name;
 }
 
-static void resolve_wiretypes(AST::AstNode* module_node) {
-	for (auto node : module_node->children) {
-		if (node->type == AST::AST_WIRE && node->children.size() && node->children[0]->type == AST::AST_WIRETYPE) {
-			auto str = strip_package_name(node->children[0]->str);
-			if (module_node->find_child(str)) {
-				node->children[0]->str = str;
-			}
-		}
-	}
-}
-
 void UhdmAst::visit_one_to_many(const std::vector<int> childrenNodeTypes,
 								vpiHandle parentHandle, AstNodeList parent,
 								const std::function<void(AST::AstNode*)>& f) {
@@ -144,6 +133,8 @@ static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
 				// our node doesn't, we copy its children to not lose any information
 				for (auto grandchild : (*it)->children) {
 					child->children.push_back(grandchild->clone());
+					if (child->type == AST::AST_WIRE && grandchild->type == AST::AST_WIRETYPE)
+						child->is_custom_type = true;
 				}
 				// Special case for a wire with multirange
 				if (child->children.size() > 1 && child->type == AST::AST_WIRE &&
@@ -382,8 +373,6 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 									  add_or_replace_child(current_node, node);
 								  }
 							  });
-			resolve_wiretypes(current_node);
-			current_node->attributes.erase(ID::partial);
 			return current_node;
 		} else {
 			auto current_node = make_ast_node(AST::AST_MODULE, obj_h);
@@ -463,7 +452,6 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 								  add_or_replace_child(module_node, node);
 							  }
 						  });
-		resolve_wiretypes(module_node);
 		make_cell(obj_h, current_node, module_node, parent);
 		return current_node;
 	}
