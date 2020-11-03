@@ -814,26 +814,22 @@ AST::AstNode* UhdmAst::handle_io_decl(vpiHandle obj_h, AstNodeList& parent) {
 
 AST::AstNode* UhdmAst::handle_always(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_ALWAYS, obj_h);
+	visit_one_to_one({vpiStmt},
+		obj_h, {&parent, current_node},
+		[&](AST::AstNode* node) {
+			if (node) {
+				current_node->children.push_back(node);
+			}
+		});
 	switch (vpi_get(vpiAlwaysType, obj_h)) {
 		case vpiAlwaysComb:
-		case vpiAlwaysFF: {
-			visit_one_to_one({vpiStmt},
-							 obj_h, {&parent, current_node},
-							 [&](AST::AstNode* node) {
-								 current_node->children.push_back(node);
-							 });
+			current_node->attributes[ID::always_comb] = AST::AstNode::mkconst_int(1, false); break;
+		case vpiAlwaysFF:
+			current_node->attributes[ID::always_ff] = AST::AstNode::mkconst_int(1, false); break;
+		case vpiAlwaysLatch:
+			current_node->attributes[ID::always_latch] = AST::AstNode::mkconst_int(1, false); break;
+		default:
 			break;
-		}
-		default: {
-			visit_one_to_one({vpiStmt},
-							 obj_h, {&parent, current_node},
-							 [&](AST::AstNode* node) {
-								 if (node) {
-									 current_node->children.push_back(node);
-								 }
-							 });
-			break;
-		}
 	}
 	return current_node;
 }
