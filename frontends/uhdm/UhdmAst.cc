@@ -232,7 +232,9 @@ AST::AstNode* UhdmAst::handle_design(vpiHandle obj_h, AstNodeList& parent) {
 					  });
 	// Once we walked everything, unroll that as children of this node
 	for (auto pair : shared.top_nodes) {
-		current_node->children.push_back(pair.second);
+		if (!pair.second->get_bool_attribute(ID::partial)) {
+			current_node->children.push_back(pair.second);
+		}
 	}
 	return current_node;
 }
@@ -376,9 +378,11 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 								  }
 							  });
 			resolve_wiretypes(current_node);
+			current_node->attributes.erase(ID::partial);
 			return current_node;
 		} else {
 			auto current_node = make_ast_node(AST::AST_MODULE, obj_h);
+			current_node->attributes[ID::partial] = AST::AstNode::mkconst_int(1, false, 1);
 			current_node->str = type;
 			shared.top_nodes[current_node->str] = current_node;
 			visit_one_to_many({vpiTypedef},
@@ -443,6 +447,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 								  add_or_replace_child(module_node, node);
 							  }
 						  });
+		module_node->attributes.erase(ID::partial);
 		visit_one_to_many({vpiInterface,
 						   vpiModule,
 						   vpiPort,
