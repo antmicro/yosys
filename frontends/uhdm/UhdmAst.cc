@@ -229,7 +229,10 @@ AST::AstNode* UhdmAst::handle_design(vpiHandle obj_h, AstNodeList& parent) {
 	// Once we walked everything, unroll that as children of this node
 	for (auto pair : shared.top_nodes) {
 		if (!pair.second->get_bool_attribute(ID::partial)) {
-			current_node->children.push_back(pair.second);
+			if (pair.second->type == AST::AST_PACKAGE)
+				current_node->children.insert(current_node->children.begin(), pair.second);
+			else
+				current_node->children.push_back(pair.second);
 		}
 	}
 	return current_node;
