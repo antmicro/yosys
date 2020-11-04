@@ -276,6 +276,9 @@ AST::AstNode* UhdmAst::handle_parameter(vpiHandle obj_h, AstNodeList& parent) {
 					 [&](AST::AstNode* node) {
 						 current_node->children.push_back(node);
 					 });
+	// Make sure AST_PARAMETER have atleast 1 children
+	if (current_node->children.size() < 1)
+		return nullptr;
 	return current_node;
 }
 
@@ -403,7 +406,9 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 							   vpiTaskFunc},
 							  obj_h, {&parent, current_node},
 							  [&](AST::AstNode* node) {
-								  add_or_replace_child(current_node, node);
+								  if (node) {
+									  add_or_replace_child(current_node, node);
+								  }
 							  });
 			return current_node;
 		}
