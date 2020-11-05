@@ -1243,16 +1243,20 @@ AST::AstNode* UhdmAst::handle_if_else(vpiHandle obj_h, AstNodeList& parent) {
 
 AST::AstNode* UhdmAst::handle_for(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_FOR, obj_h);
-	AST::AstNode* loop_parent_node = parent.find({AST::AST_ALWAYS, AST::AST_FUNCTION, AST::AST_TASK});
+	auto loop_id = shared.next_loop_id();
+	current_node->str = "$loop" + std::to_string(loop_id);
+	auto loop_parent_node = parent.find({AST::AST_FUNCTION, AST::AST_TASK, AST::AST_MODULE});
+	AST::AstNode* counter = nullptr;
 	visit_one_to_many({vpiForInitStmt},
 					  obj_h, {&parent, current_node},
 					  [&](AST::AstNode* node) {
 						  current_node->children.push_back(node);
-						  auto wire_node = new AST::AstNode(AST::AST_WIRE);
-						  wire_node->range_left=31;
-						  wire_node->is_reg=true;
-						  wire_node->str = node->children[0]->str;
-						  loop_parent_node->children.push_back(wire_node);
+						  counter = new AST::AstNode(AST::AST_WIRE);
+						  counter->range_left = 31;
+						  counter->is_reg = true;
+						  counter->is_signed = true;
+						  counter->str = node->children[0]->str;
+						  loop_parent_node->children.push_back(counter);
 					  });
 	visit_one_to_one({vpiCondition},
 					 obj_h, {&parent, current_node},
@@ -1271,6 +1275,13 @@ AST::AstNode* UhdmAst::handle_for(vpiHandle obj_h, AstNodeList& parent) {
 						 statements->children.push_back(node);
 						 current_node->children.push_back(statements);
 					 });
+	auto local_counter_name = counter->str;
+	counter->str = "\\loop" + std::to_string(loop_id) + "::" + counter->str.substr(1);
+	current_node->visitEachDescendant([&](AST::AstNode* node) {
+		if (node->str == local_counter_name) {
+			node->str = counter->str;
+		}
+	});
 	return current_node;
 }
 
