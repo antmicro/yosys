@@ -99,13 +99,9 @@ void UhdmAst::visit_default_expr(vpiHandle obj_h, AstNodeList parent)  {
 AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, vpiHandle obj_h) {
 	auto node = new AST::AstNode(type);
 	if (auto name = vpi_get_str(vpiName, obj_h)) {
-		std::string s_name(name);
-		auto pos = s_name.find_last_of("@");
-		node->str = s_name.substr(pos+1);
+		node->str = name;
 	} else if (auto name = vpi_get_str(vpiDefName, obj_h)) {
-		std::string s_name(name);
-		auto pos = s_name.find_last_of("@");
-		node->str = s_name.substr(pos+1);
+		node->str = name;
 	}
 	sanitize_symbol_name(node->str);
 	if (auto filename = vpi_get_str(vpiFile, obj_h)) {
@@ -128,6 +124,12 @@ static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
 								   return existing_child->str == child->str;
 							   });
 		if (it != parent->children.end()) {
+			// If port direction is already set, copy it to replaced child node
+			if((*it)->is_input || (*it)->is_output) {
+				child->is_input = (*it)->is_input;
+				child->is_output = (*it)->is_output;
+				child->is_reg = (*it)->is_reg;
+			}
 			if (!(*it)->children.empty() && child->children.empty()) {
 				// This is a bit ugly, but if the child we're replacing has children and
 				// our node doesn't, we copy its children to not lose any information
@@ -155,7 +157,7 @@ static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
 
 void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* cell_node, AST::AstNode* type_node, AstNodeList& parent) {
 	auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
-	typeNode->str = type_node->str;
+	typeNode->str = strip_package_name(type_node->str);
 	cell_node->children.push_back(typeNode);
 	// Add port connections as arguments
 	vpiHandle port_itr = vpi_iterate(vpiPort, obj_h);
@@ -360,6 +362,8 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 	std::string name = vpi_get_str(vpiName, obj_h) ? vpi_get_str(vpiName, obj_h) : type;
 	sanitize_symbol_name(type);
 	sanitize_symbol_name(name);
+	type = strip_package_name(type);
+	name = strip_package_name(name);
 	if (name == type) {
 		if (shared.top_nodes.find(type) != shared.top_nodes.end()) {
 			auto current_node = shared.top_nodes[type];
@@ -384,7 +388,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 		} else {
 			auto current_node = make_ast_node(AST::AST_MODULE, obj_h);
 			current_node->attributes[ID::partial] = AST::AstNode::mkconst_int(1, false, 1);
-			current_node->str = type;
+			current_node->str = strip_package_name(type);
 			shared.top_nodes[current_node->str] = current_node;
 			visit_one_to_many({vpiTypedef},
 							  obj_h, {&parent, current_node},
@@ -421,7 +425,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 			module_node = shared.top_node_templates[type];
 			if (!module_node) {
 				module_node = new AST::AstNode(AST::AST_MODULE);
-				module_node->str = type;
+				module_node->str = strip_package_name(type);
 			}
 			shared.top_nodes[module_node->str] = module_node;
 		}
