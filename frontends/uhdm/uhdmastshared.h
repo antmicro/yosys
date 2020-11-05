@@ -15,12 +15,18 @@ class UhdmAstShared {
 		// Used for generating port IDS
 		unsigned port_count = 0;
 
+		// Used for generating loop names
+		unsigned loop_count = 0;
+
 	public:
 		// Generate the next enum ID (starting with 0)
 		unsigned next_enum_id() { return enum_count++; }
 
 		// Generate the next port ID (starting with 1)
 		unsigned next_port_id() { return ++port_count; }
+
+		// Generate the next loop ID (starting with 0)
+		unsigned next_loop_id() { return loop_count++; }
 
 		// Flag that determines whether debug info should be printed
 		bool debug_flag = false;
