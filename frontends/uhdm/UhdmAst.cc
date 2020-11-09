@@ -1262,6 +1262,11 @@ AST::AstNode* UhdmAst::handle_for(vpiHandle obj_h, AstNodeList& parent) {
 					 obj_h, {&parent, current_node},
 					 [&](AST::AstNode* node) {
 						 current_node->children.push_back(node);
+						 node->visitEachDescendant([](AST::AstNode* node) {
+							 if (node->type == AST::AST_CONSTANT) {
+								 node->is_signed = true;
+							 }
+						 });
 					 });
 	visit_one_to_many({vpiForIncStmt},
 					  obj_h, {&parent, current_node},
