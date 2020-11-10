@@ -235,6 +235,8 @@ AST::AstNode* UhdmAst::handle_design(vpiHandle obj_h, AstNodeList& parent) {
 				current_node->children.insert(current_node->children.begin(), pair.second);
 			else
 				current_node->children.push_back(pair.second);
+		} else {
+			log_warning("Removing module: %s from the design.\n", pair.second->str.c_str());
 		}
 	}
 	return current_node;
@@ -389,6 +391,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 			auto current_node = make_ast_node(AST::AST_MODULE, obj_h);
 			current_node->str = strip_package_name(type);
 			shared.top_nodes[current_node->str] = current_node;
+			current_node->attributes[ID::partial] = AST::AstNode::mkconst_int(1, false, 1);
 			visit_one_to_many({vpiTypedef},
 							  obj_h, {&parent, current_node},
 							  [&](AST::AstNode* node) {
@@ -425,9 +428,15 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 			if (!module_node) {
 				module_node = new AST::AstNode(AST::AST_MODULE);
 				module_node->str = strip_package_name(type);
-				module_node->attributes[ID::partial] = AST::AstNode::mkconst_int(1, false, 1);
+				module_node->attributes[ID::partial] = AST::AstNode::mkconst_int(2, false, 1);
 			}
 			shared.top_nodes[module_node->str] = module_node;
+		}
+		if (module_node->attributes.count(ID::partial)) {
+			AST::AstNode *attr = module_node->attributes.at(ID::partial);
+			if (attr->type == AST::AST_CONSTANT)
+				if (attr->integer == 1)
+					module_node->attributes.erase(ID::partial);
 		}
 		visit_one_to_many({vpiVariables,
 						   vpiNet,
@@ -448,8 +457,8 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 									  module_node = module_node->clone();
 									  type = parent.find({AST::AST_MODULE})->str + '$' + current_node->str.substr(1);
 									  module_node->str = type;
-									  shared.top_nodes[module_node->str] = module_node;
 									  module_node->attributes.erase(ID::partial);
+									  shared.top_nodes[module_node->str] = module_node;
 									  cloned = true;
 								  }
 								  add_or_replace_child(module_node, node);
