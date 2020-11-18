@@ -259,6 +259,7 @@ AST::AstNode* UhdmAst::handle_parameter(vpiHandle obj_h, AstNodeList& parent) {
 				break;
 			}
 			case vpiEnumTypespec:
+			case vpiRealTypespec:
 			case vpiIntTypespec: {
 				shared.report.mark_handled(typespec_h);
 				break;
@@ -333,6 +334,16 @@ AST::AstNode* UhdmAst::handle_port(vpiHandle obj_h, AstNodeList& parent) {
 								current_node->children.push_back(node);
 							});
 				shared.report.mark_handled(actual_h);
+				break;
+			}
+			case vpiEnumNet:
+			case vpiStructNet:
+			case vpiArrayNet: {
+				break;
+			}
+			default: {
+				report_error("Encountered unhandled typespec in handle param member: %d\n", actual_type);
+				break;
 			}
 		}
 		shared.report.mark_handled(lowConn_h);
@@ -390,6 +401,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 		} else {
 			auto current_node = make_ast_node(AST::AST_MODULE, obj_h);
 			current_node->str = strip_package_name(type);
+			current_node->attributes[ID::hdlname] = AST::AstNode::mkconst_str(current_node->str);
 			shared.top_nodes[current_node->str] = current_node;
 			current_node->attributes[ID::partial] = AST::AstNode::mkconst_int(1, false, 1);
 			visit_one_to_many({vpiTypedef},
@@ -428,6 +440,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 			if (!module_node) {
 				module_node = new AST::AstNode(AST::AST_MODULE);
 				module_node->str = strip_package_name(type);
+				module_node->attributes[ID::hdlname] = AST::AstNode::mkconst_str(module_node->str);
 				module_node->attributes[ID::partial] = AST::AstNode::mkconst_int(2, false, 1);
 			}
 			shared.top_nodes[module_node->str] = module_node;
@@ -455,7 +468,10 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 									  shared.top_node_templates[module_node->str] = module_node;
 									  shared.top_nodes.erase(module_node->str);
 									  module_node = module_node->clone();
-									  type = parent.find({AST::AST_MODULE})->str + '$' + current_node->str.substr(1);
+									  type = parent.find({AST::AST_MODULE})->str;
+									  if (type.find("$paramod") == std::string::npos)
+										type = "$paramod";
+									  type += '\\' + current_node->str.substr(1);
 									  module_node->str = type;
 									  module_node->attributes.erase(ID::partial);
 									  shared.top_nodes[module_node->str] = module_node;
@@ -916,7 +932,9 @@ AST::AstNode* UhdmAst::handle_operation(vpiHandle obj_h, AstNodeList& parent) {
 			visit_one_to_many({vpiOperand},
 							  obj_h, {&parent, current_node},
 							  [&](AST::AstNode* node) {
-								  current_node->children.push_back(node);
+								  if (node) {
+									current_node->children.push_back(node);
+								  }
 							  });
 			switch(operation) {
 				case vpiMinusOp: current_node->type = AST::AST_NEG; break;
