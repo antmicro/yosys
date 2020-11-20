@@ -230,6 +230,7 @@ AST::AstNode* UhdmAst::handle_design(vpiHandle obj_h, AstNodeList& parent) {
 					  });
 	// Once we walked everything, unroll that as children of this node
 	for (auto pair : shared.top_nodes) {
+		if (!pair.second) continue;
 		if (!pair.second->get_bool_attribute(ID::partial)) {
 			if (pair.second->type == AST::AST_PACKAGE)
 				current_node->children.insert(current_node->children.begin(), pair.second);
@@ -401,7 +402,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 			return current_node;
 		} else {
 			auto current_node = make_ast_node(AST::AST_MODULE, obj_h);
-			current_node->str = strip_package_name(type);
+			current_node->str = type;
 			current_node->attributes[ID::hdlname] = AST::AstNode::mkconst_str(current_node->str);
 			shared.top_nodes[current_node->str] = current_node;
 			current_node->attributes[ID::partial] = AST::AstNode::mkconst_int(1, false, 1);
@@ -440,7 +441,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 			module_node = shared.top_node_templates[type];
 			if (!module_node) {
 				module_node = new AST::AstNode(AST::AST_MODULE);
-				module_node->str = strip_package_name(type);
+				module_node->str = type;
 				module_node->attributes[ID::hdlname] = AST::AstNode::mkconst_str(module_node->str);
 				module_node->attributes[ID::partial] = AST::AstNode::mkconst_int(2, false, 1);
 			}
@@ -461,26 +462,6 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 								  add_or_replace_child(module_node, node);
 							  }
 						  });
-		visit_one_to_many({vpiParameter},
-						  obj_h, {&parent, module_node},
-						  [&](AST::AstNode* node) {
-							  if (node) {
-								  if (!cloned) {
-									  shared.top_node_templates[module_node->str] = module_node;
-									  shared.top_nodes.erase(module_node->str);
-									  module_node = module_node->clone();
-									  type = parent.find({AST::AST_MODULE})->str;
-									  if (type.find("$paramod") == std::string::npos)
-										type = "$paramod";
-									  type += '\\' + current_node->str.substr(1);
-									  module_node->str = type;
-									  module_node->attributes.erase(ID::partial);
-									  shared.top_nodes[module_node->str] = module_node;
-									  cloned = true;
-								  }
-								  add_or_replace_child(module_node, node);
-							  }
-						  });
 		visit_one_to_many({vpiInterface,
 						   vpiModule,
 						   vpiPort,
@@ -489,6 +470,28 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 						  [&](AST::AstNode* node) {
 							  if (node) {
 								  add_or_replace_child(module_node, node);
+							  }
+						  });
+
+		visit_one_to_many({vpiParameter},
+						  obj_h, {&parent, module_node},
+						  [&](AST::AstNode* node) {
+							  if (node) {
+								if (std::find_if(module_node->children.begin(), module_node->children.end(),
+											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER && child->str == node->str; }) 
+														!= module_node->children.end()) {
+
+									type = module_node->str;
+									auto clone = node->clone();
+									clone->type = AST::AST_PARASET;
+									current_node->children.push_back(clone);
+								}
+								shared.top_node_templates[module_node->str] = module_node;
+								shared.top_nodes.erase(module_node->str);
+								module_node->str = type;
+								module_node->attributes.erase(ID::partial);
+								shared.top_nodes[module_node->str] = module_node;
+								add_or_replace_child(module_node, node);
 							  }
 						  });
 		make_cell(obj_h, current_node, module_node, parent);
