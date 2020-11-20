@@ -17,8 +17,8 @@
  *
  */
 
-#include "kernel/yosys.h"
 #include "kernel/sigtools.h"
+#include "kernel/yosys.h"
 
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
@@ -50,8 +50,7 @@ void create_ap3_wrapcarry(ap3_wrapcarry_pm &pm)
 	if (pm.sigmap(CI) == pm.sigmap(I2)) {
 		cell->setParam(ID(I2_IS_CI), State::S1);
 		I2 = State::Sx;
-	}
-	else
+	} else
 		cell->setParam(ID(I2_IS_CI), State::S0);
 	cell->setPort(ID(I2), I2);
 	cell->setPort(ID(I3), st.lut->getPort(ID(I3)));
@@ -71,8 +70,8 @@ void create_ap3_wrapcarry(ap3_wrapcarry_pm &pm)
 }
 
 struct AP3WrapCarryPass : public Pass {
-	AP3WrapCarryPass() : Pass("ap3_wrapcarry", "AP3: wrap carries") { }
-	void help() YS_OVERRIDE
+	AP3WrapCarryPass() : Pass("ap3_wrapcarry", "AP3: wrap carries") {}
+	void help() override
 	{
 		//   |---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|
 		log("\n");
@@ -98,8 +97,7 @@ struct AP3WrapCarryPass : public Pass {
 		log_header(design, "Executing ap3_wrapcarry pass (wrap carries).\n");
 
 		size_t argidx;
-		for (argidx = 1; argidx < args.size(); argidx++)
-		{
+		for (argidx = 1; argidx < args.size(); argidx++) {
 			if (args[argidx] == "-unwrap") {
 				unwrap = true;
 				continue;
