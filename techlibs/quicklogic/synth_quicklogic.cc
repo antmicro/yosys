@@ -193,7 +193,7 @@ struct SynthQuickLogicPass : public ScriptPass {
 			if (family != "pp3") {
 				// run("ap3_opt");
 			} else {
-				run("opt_expr -clkinv");
+				run("opt_expr");
 				run("opt -fast");
 				run("opt_expr");
 				run("opt_merge");
@@ -205,7 +205,7 @@ struct SynthQuickLogicPass : public ScriptPass {
 
 		if (check_label("map_ffs")) {
 			if (family == "pp3") {
-				run("opt_expr -clkinv");
+				run("opt_expr");
 				run("dff2dffe");
 			} else {
 				run("dff2dffe -direct-match $_DFF_*");
