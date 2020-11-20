@@ -206,10 +206,8 @@ struct SynthQuickLogicPass : public ScriptPass {
 		if (check_label("map_ffs")) {
 			if (family == "pp3") {
 				run("opt_expr");
-				run("dff2dffe");
-			} else {
-				run("dff2dffe -direct-match $_DFF_*");
 			}
+			run("opt_dff");
 
 			std::string techMapArgs = " -map +/quicklogic/" + family + "_ffs_map.v";
 			run("techmap " + techMapArgs);
