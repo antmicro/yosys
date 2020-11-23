@@ -801,6 +801,14 @@ AstNode *AstNode::mkconst_int(uint32_t v, bool is_signed, int width)
 	return node;
 }
 
+// create an AST node for a real constant
+AstNode *AstNode::mkconst_real(double v)
+{
+	AstNode *node = new AstNode(AST_REALVALUE);
+	node->realvalue = v;
+	return node;
+}
+
 // create an AST node for a constant (using a bit vector as value)
 AstNode *AstNode::mkconst_bits(const std::vector<RTLIL::State> &v, bool is_signed, bool is_unsized)
 {
