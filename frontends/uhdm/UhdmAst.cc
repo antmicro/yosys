@@ -7,6 +7,7 @@
 #include "frontends/verilog/verilog_frontend.h"
 #include "UhdmAst.h"
 #include "vpi_user.h"
+#include "libs/sha1/sha1.h"
 
 YOSYS_NAMESPACE_BEGIN
 
@@ -435,7 +436,6 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 	} else {
 		// Not a top module, create instance
 		auto current_node = make_ast_node(AST::AST_CELL, obj_h);
-		bool cloned = false;
 		auto module_node = shared.top_nodes[type];
 		if (!module_node) {
 			module_node = shared.top_node_templates[type];
@@ -472,7 +472,7 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 								  add_or_replace_child(module_node, node);
 							  }
 						  });
-
+		std::string module_parameters;
 		visit_one_to_many({vpiParameter},
 						  obj_h, {&parent, module_node},
 						  [&](AST::AstNode* node) {
@@ -480,15 +480,37 @@ AST::AstNode* UhdmAst::handle_module(vpiHandle obj_h, AstNodeList& parent) {
 								if (std::find_if(module_node->children.begin(), module_node->children.end(),
 											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER && child->str == node->str; }) 
 														!= module_node->children.end()) {
-
-									type = module_node->str;
-									auto clone = node->clone();
-									clone->type = AST::AST_PARASET;
-									current_node->children.push_back(clone);
+									bool blackbox_module = true;
+									for (auto child : module_node->children) {
+										if (child->type == AST::AST_WIRE && (child->is_input || child->is_output))
+											continue;
+										if (child->type == AST::AST_PARAMETER || child->type == AST::AST_LOCALPARAM)
+											continue;
+										if (child->type == AST::AST_CELL && child->children.size() > 0 && child->children[0]->type == AST::AST_CELLTYPE &&
+												(child->children[0]->str == "$specify2" || child->children[0]->str == "$specify3" || child->children[0]->str == "$specrule"))
+											continue;
+										blackbox_module = false;
+										break;
+									}
+									if (blackbox_module) {
+										module_node->attributes[ID::blackbox] = AST::AstNode::mkconst_int(1, false, 1);
+										auto clone = node->clone();
+										clone->type = AST::AST_PARASET;
+										current_node->children.push_back(clone);
+									}
+									if (node->children[0]->str != "")
+										module_parameters += node->str + "=" + node->children[0]->str;
+									else
+										module_parameters += node->str + "=" + std::to_string(node->children[0]->integer);
+								}
+								shared.top_nodes.erase(module_node->str);
+								if (!module_node->get_bool_attribute(ID::blackbox)) {
+									if (module_parameters.size() > 60)
+										module_node->str = "$paramod$" + sha1(module_parameters) + type;
+									else
+										module_node->str = "$paramod" + type + module_parameters;
 								}
 								shared.top_node_templates[module_node->str] = module_node;
-								shared.top_nodes.erase(module_node->str);
-								module_node->str = type;
 								module_node->attributes.erase(ID::partial);
 								shared.top_nodes[module_node->str] = module_node;
 								add_or_replace_child(module_node, node);
