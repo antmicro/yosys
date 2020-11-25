@@ -3351,18 +3351,15 @@ basic_expr:
 		$$ = new AstNode(AST_CAST_SIZE, $1, $4);
 		SET_AST_NODE_LOC($$, @1, @4);
         } |
-	TOK_PKG_USER_TYPE '\'' '(' expr ')' {
+	TOK_PKG_USER_TYPE OP_CAST '(' expr ')' {
 		$$ = $4;
 	} |
-	TOK_USER_TYPE '\'' '(' expr ')' {
+	TOK_USER_TYPE OP_CAST '(' expr ')' {
 		$$ = $4;
 	} |
 	TOK_USER_TYPE {
 		$$ = new AstNode(AST_IDENTIFIER);
 		$$->str = *$1;
-	} |
-	basic_expr '\'' expr {
-		$$ = $3;
 	} |
 	TOK_PKG_USER_TYPE {
 		$$ = new AstNode(AST_IDENTIFIER);
