@@ -513,7 +513,7 @@ module:
 		exitTypeScope();
 	};
 
-package_import_opt: import_package | /* empty */ ;
+package_import_opt: import_package | %empty;
 
 module_para_opt:
 	'#' '(' { astbuf1 = nullptr; } module_para_list { if (astbuf1) delete astbuf1; } ')' | %empty;
@@ -1955,7 +1955,7 @@ non_opt_strength:
 	};
 
 strength:
-	non_opt_strength | /* empty */;
+	non_opt_strength | %empty;
 
 assign_stmt:
 	TOK_ASSIGN strength delay assign_expr_list ';';
@@ -3136,10 +3136,10 @@ basic_expr:
 	'{' concat_list '}' {
 		$$ = $2;
 	} |
-	'\'' '{' concat_list '}' {
+	OP_CAST '{' concat_list '}' {
 		$$ = $3;
 	} |
-	'\'' '{' assigment_pattern '}' {
+	OP_CAST '{' assigment_pattern '}' {
 		$$ = $3;
 	} |
 	'{' expr '{' concat_list '}' '}' {
