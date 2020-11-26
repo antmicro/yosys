@@ -931,109 +931,138 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 	bool reset_width_after_children = false;
 	
 	// resolve assignment patterns, only supports assignment patterns on right side
-	std::vector<AstNode *> result_vector;
+	// TODO: this probably should be simplified and refactored
+	AstNode *result = nullptr;
+	AstNode *assignment_pattern = nullptr;
+	AstNode *child = nullptr;
 	auto it = std::find_if(children.begin(), children.end(), [](AstNode *v){
-		return (v->type == AST_ASSIGNMENTPATTERN);
-	});
+			return (GetSize(v->children) >= 2 && v->children[1]->type == AST_ASSIGNMENTPATTERN);
+		});
 	if (it != children.end()) {
-		auto *assignment_pattern = *it;
-		auto *concat = new AstNode(AST_CONCAT);
-		for (auto *ass_item : assignment_pattern->children) {
-			auto *value = ass_item->children[0]->clone();
-			concat->children.push_back(value);
-		}
-		concat->dumpAst(NULL, "concat >");
-		result_vector.push_back(concat);
+		child = (*it);
+		assignment_pattern = child->children[1];
 	}
-	
-	if (it == children.end()) {
+	else {
 		it = std::find_if(children.begin(), children.end(), [](AstNode *v){
-				return (GetSize(v->children) >= 2 && v->children[1]->type == AST_ASSIGNMENTPATTERN);
-			});
+			return (v->type == AST_ASSIGNMENTPATTERN);
+		});
 		if (it != children.end()) {
-			auto *child = *it;
-			auto *identifier = child->children[0];
-			identifier->simplify(false, false, true, stage, -1, false, in_param);
+			child = this;
+			assignment_pattern = (*it);
+		}
+	}
+	if (it != children.end() && assignment_pattern != nullptr) {
+		AstNode *range = nullptr;
+		if (child->children[0]->type == AST_RANGE || child->children[0]->type == AST_MULTIRANGE) {
+			range = child->children[0];
+		}
+		else if (GetSize(child->children) >= 1 && child->children[0]->str != "" && current_scope[child->children[0]->str] && current_scope[child->children[0]->str]->children[0]->type == AST_RANGE) {
+			range = current_scope[child->children[0]->str]->children[0];
+		}
+		else if (GetSize(child->children) >= 1 && child->children[1]->type == AST_WIRETYPE) {
+			auto typedef_node = current_scope[child->children[1]->str];
+			if (typedef_node->type == AST_TYPEDEF) {
+				range = make_range(get_max_offset(typedef_node->children[0]), 0);
+			}
 
-			auto *assignment_pattern = child->children[1];
-			for(auto *assignment_item : assignment_pattern->children) {
-				if(assignment_item->type == AST_ASSIGNMENTITEM && GetSize(assignment_item->children) == 2) { // key: val
-					auto *key = assignment_item->children[0]->clone();
-					auto *value = assignment_item->children[1]->clone();
+		} else if (GetSize(child->children) >= 1 && (child->children[1]->type == AST_MULTIRANGE || child->children[1]->type == AST_RANGE)) {
+			range = child->children[1];
+		}
 
-					auto *identifier_range = identifier->clone();
-					if(key->type == AST_DEFAULT) {
-						assignment_item->children.clear();
-						assignment_item->type = child->type;
+		if (range == nullptr) {
+			child->dumpAst(NULL, "node >");
+			log_error("Could not find range of assignment pattern!\n");
+		}
 
-						assignment_item->children.push_back(identifier_range);
-						AstNode *node = new AstNode(AST_CONSTANT);
-						uint32_t v = value->integer;
-						node->integer = v;
-						node->is_signed = value->is_signed;
-						for (int i = 0; i < 32; i++) {
-							node->bits.push_back((v == 1) ? State::S1 : State::S0);
-						}
-						node->range_valid = true;
-						node->range_left = 32-1;
-						node->range_right = 0;
-						assignment_item->children.push_back(node);
-						result_vector.insert(result_vector.begin(), assignment_item->clone());
-					} else if (key->type == AST_CONSTANT) { // vector access
-						identifier_range->children.push_back(new AstNode(AST_RANGE, key));
+		range->simplify(false, false, true, stage, -1, false, in_param);
 
-						assignment_item->children.clear();
-						assignment_item->type = child->type;
+		if (range && range->type == AST_MULTIRANGE && range->children.size() == 2) {
+			int width = range->children[0]->range_left - range->children[0]->range_right + 1;
+			if (GetSize(range->children[1]->children) == 1)
+				width *= range->children[1]->range_left;
+			else
+				width *= range->children[1]->range_left - range->children[1]->range_right + 1;
+			result = mkconst_bits(std::vector<RTLIL::State>(width, State::S0), false);
+		} else if (range && range->type == AST_RANGE) {
+			int width = range->range_left - range->range_right + 1;
+			result = mkconst_bits(std::vector<RTLIL::State>(width, State::S0), false);
+		}
 
-						assignment_item->children.push_back(identifier_range);
-						assignment_item->children.push_back(value);
-						result_vector.push_back(assignment_item->clone());
-					} else if (key->type == AST_IDENTIFIER) { // struct 
-						assignment_item->children.clear();
-						assignment_item->type = child->type;
-						std::string str = identifier_range->str + "." + key->str.substr(1);
-						if (current_scope.count(str) > 0) {
-							auto item_node = current_scope[str];
-							if (item_node->type == AST_STRUCT_ITEM) {
-								auto range = make_range(item_node->range_left, item_node->range_right);
-								AstNode *struct_access = new AstNode(AST_IDENTIFIER, range);
-								struct_access->str = identifier_range->str;
-								struct_access->dumpAst(NULL, "* ");
-								struct_access->basic_prep = true;
-								assignment_item->children.push_back(struct_access);
-								assignment_item->children.push_back(value);
+		if(!result) {
+			child->dumpAst(NULL, "top node> ");
+			log_error("Could not find width of the assignment pattern!\n");
+
+		}
+
+		for(auto *assignment_item : assignment_pattern->children) {
+			if(assignment_item->type == AST_ASSIGNMENTITEM && GetSize(assignment_item->children) == 2) { // key: val
+				auto *key = assignment_item->children[0];
+				auto *value = assignment_item->children[1];
+				if(key->type == AST_DEFAULT) {
+					result = mkconst_bits(value->bits, false);
+				} else if (key->type == AST_CONSTANT) { // vector access
+					result->bits.at(key->integer) = value->integer == 0 ? State::S0 : State::S1;
+				} else if (key->type == AST_IDENTIFIER) { // struct 
+					if (child->children[0]->type == AST_IDENTIFIER) {
+						auto s = child->children[0]->str + "." + key->str.substr(1);
+						std::string sname;
+						if (name_has_dot(s, sname)) {
+							if (current_scope.count(s) > 0) {
+								auto item_node = current_scope[s];
+								if (item_node->type == AST_STRUCT_ITEM) {
+									auto range = make_struct_member_range(key, item_node);
+									int j = 0;
+									if (value->type == AST_IDENTIFIER && GetSize(value->children) > 0) { //struct - identifier assign
+										if (result->type != AST_BLOCK) {
+											delete result;
+											result = new AstNode(AST_BLOCK);
+										}
+										auto *assignment = new AstNode(child->type);
+										AstNode *identifier = new AstNode(AST_IDENTIFIER);
+										identifier->str = s;
+										assignment->children.push_back(identifier);
+										assignment->children.push_back(value);
+										result->children.push_back(assignment);
+									} else if (value->type == AST_CONSTANT) {
+										for (int i = range->range_right; i < range->range_left; i++) {
+											result->bits.at(i) = value->bits.at(j);
+											j++;
+										}
+									} else {
+										value->dumpAst(NULL, "value> ");
+										log_error("Case not supported!\n");
+									}
+								}
 							}
 						}
-						result_vector.push_back(assignment_item->clone());
 					}
-				} else if (assignment_item->type == AST_ASSIGNMENTITEM && GetSize(assignment_item->children) == 1) { // val, array assignment
-					auto *identifier_range = identifier->clone();
-					auto *concat = new AstNode(AST_CONCAT);
-					for (auto *ass_item : assignment_pattern->children) {
-						auto *value = ass_item->children[0]->clone();
-						concat->children.push_back(value);
-					}
-					assignment_item->type = child->type;
-					assignment_item->children.clear();
-					assignment_item->children.push_back(identifier_range);
-					assignment_item->children.push_back(concat);
-					result_vector.push_back(assignment_item->clone());
 				}
+			} else if (assignment_item->type == AST_ASSIGNMENTITEM && GetSize(assignment_item->children) == 1) { // val, array assignment
+				unsigned int result_size = 0;
+				result_size = GetSize(result->bits);
+				auto start_id = result_size;
+				for (auto *ass_item : assignment_pattern->children) {
+					auto *value = ass_item->children[0]->clone();
+					start_id -= GetSize(value->bits);
+					auto id = start_id;
+					for(auto bit : value->bits) {
+						result->bits.at(id) = bit;
+						id++;
+					}
+				}
+				break;
 			}
 		}
 	}
-	this->dumpAst(NULL, "this> ");
-	if (it != this->children.end()) {
-		auto insert_pos = this->children.erase(it);
-		for(int i = 0; i < GetSize(result_vector); i++) {
-			insert_pos = this->children.insert(insert_pos, result_vector[i]);
-			if (insert_pos != this->children.end()) {
-			    insert_pos++;
-			}
+	if (assignment_pattern != nullptr) {
+		assignment_pattern->filename = filename;
+		assignment_pattern->location = location;
+		if (result) {
+			if (result->type == AST_BLOCK)
+				result->cloneInto(this);
+			else
+				result->cloneInto(assignment_pattern);
 		}
-		result_vector.clear();
-		this->dumpAst(NULL, "this a4> ");
-
 		did_something = true;
 	}
 
