@@ -60,6 +60,9 @@ struct SynthQuickLogicPass : public ScriptPass {
 		log("    -adder\n");
 		log("        use adder cells in output netlist\n");
 		log("\n");
+		log("    -spde\n");
+		log("        generate an output netlist suitable for SpDE\n");
+		log("\n");
 		log("The following commands are executed by this synthesis command:\n");
 		help_script();
 		log("\n");
@@ -68,6 +71,7 @@ struct SynthQuickLogicPass : public ScriptPass {
 	string top_opt, edif_file, blif_file, family, currmodule;
 	bool inferAdder;
 	bool abcOpt;
+	bool spde;
 
 	void clear_flags() override
 	{
@@ -76,6 +80,7 @@ struct SynthQuickLogicPass : public ScriptPass {
 		blif_file = "";
 		currmodule = "";
 		family = "pp3";
+		spde = false;
 		inferAdder = false;
 		abcOpt = true;
 	}
@@ -110,6 +115,10 @@ struct SynthQuickLogicPass : public ScriptPass {
 			}
 			if (args[argidx] == "-no_abc_opt") {
 				abcOpt = false;
+				continue;
+			}
+			if (args[argidx] == "-spde") {
+				spde = true;
 				continue;
 			}
 			break;
@@ -282,7 +291,7 @@ struct SynthQuickLogicPass : public ScriptPass {
 				run("clkbufmap -buf $_BUF_ Y:A -inpad ckpad Q:P");
 				run("iopadmap -bits -outpad outpad A:P -inpad inpad Q:P -tinoutpad bipad EN:Q:A:P A:top");
 			} else {
-				run("clkbufmap -buf $_BUF_ Y:A -inpad ck_buff Q:A");
+				run("clkbufmap -buf $_BUF_ Y:A -inpad ck_buff Q:A", "(skip if '-noiopad')");
 				run("iopadmap -bits -outpad $__out_buff A:Q -inpad $__in_buff Q:A");
 				std::string techMapArgs = " -map +/quicklogic/" + family + "_io_map.v -autoproc";
 				run("techmap" + techMapArgs);
@@ -290,7 +299,8 @@ struct SynthQuickLogicPass : public ScriptPass {
 		}
 
 		if (check_label("finalize")) {
-			run("splitnets -ports -format ()");
+			if (spde)
+				run("splitnets -ports -format ()", "(if '-spde')");
 			run("setundef -zero -params -undriven");
 			run("hilomap -hicell logic_1 a -locell logic_0 a -singleton A:top");
 			run("opt_clean -purge");
