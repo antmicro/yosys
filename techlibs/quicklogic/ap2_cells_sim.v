@@ -27,8 +27,54 @@ module LUT5 (
 endmodule
 
 (* abc9_flop, lib_whitebox *)
-module ff(
-  output reg CQZ,
+module dff (
+  output reg Q,
+  input D,
+  (* clkbuf_sink *)
+  input CLK
+);
+  parameter [0:0] INIT = 1'b0;
+  initial Q = INIT;
+  always @(posedge CLK) Q <= D;
+endmodule
+
+(* abc9_box, lib_whitebox *)
+module dffc (
+  output reg Q,
+  input D,
+  (* clkbuf_sink *)
+  input CLK,
+  (* clkbuf_sink *)
+  input CLR
+);
+  parameter [0:0] INIT = 1'b0;
+  initial Q = INIT;
+
+  always @(posedge CLK or posedge CLR)
+    if (CLR) Q <= 1'b0;
+    else Q <= D;
+endmodule
+
+(* abc9_box, lib_whitebox *)
+module dffp (
+  output reg Q,
+  input D,
+  (* clkbuf_sink *)
+  input CLK,
+  (* clkbuf_sink *)
+  input PRE
+);
+  parameter [0:0] INIT = 1'b0;
+  initial Q = INIT;
+
+  always @(posedge CLK or posedge PRE)
+    if (PRE) Q <= 1'b1;
+    else Q <= D;
+endmodule
+
+(* abc9_box, lib_whitebox *)
+module dffpc (
+  output reg Q,
   input D,
   (* clkbuf_sink *)
   input QCK,
@@ -39,15 +85,82 @@ module ff(
   input QST
 );
   parameter [0:0] INIT = 1'b0;
-  initial CQZ = INIT;
+  initial Q = INIT;
 
-  always @(posedge QCK or posedge QRT or posedge QST)
-      if (QRT)
-          CQZ <= 1'b0;
-      else if (QST)
-          CQZ <= 1'b1;
-      else if (QEN)
-          CQZ <= D;
+  always @(posedge CLK or posedge CLR or posedge PRE)
+    if (CLR) Q <= 1'b0;
+    else if (PRE) Q <= 1'b1;
+    else Q <= D;
+endmodule
+
+(* abc9_flop, lib_whitebox *)
+module dffe (
+  output reg Q,
+  input D,
+  (* clkbuf_sink *)
+  input CLK,
+  input EN
+);
+  parameter [0:0] INIT = 1'b0;
+  initial Q = INIT;
+  always @(posedge CLK) if (EN) Q <= D;
+endmodule
+
+(* abc9_box, lib_whitebox *)
+module dffepc (
+  output reg Q,
+  input D,
+  (* clkbuf_sink *)
+  input CLK,
+  input EN,
+  (* clkbuf_sink *)
+  input CLR,
+  (* clkbuf_sink *)
+  input PRE
+);
+  parameter [0:0] INIT = 1'b0;
+  initial Q = INIT;
+
+  always @(posedge CLK or posedge CLR or posedge PRE)
+    if (CLR) Q <= 1'b0;
+    else if (PRE) Q <= 1'b1;
+    else if (EN) Q <= D;
+endmodule
+
+(* abc9_box, lib_whitebox *)
+module dffsec (
+  output reg Q,
+  input D,
+  (* clkbuf_sink *)
+  input CLK,
+  input EN,
+  (* clkbuf_sink *)
+  input CLR
+);
+  parameter [0:0] INIT = 1'b0;
+  initial Q = INIT;
+
+  always @(posedge CLK or posedge CLR)
+    if (CLR) Q <= 1'b0;
+    else if (EN) Q <= D;
+endmodule
+
+(* abc9_box, lib_whitebox *)
+module dffsep (
+  output reg Q,
+  input D,
+  (* clkbuf_sink *)
+  input CLK,
+  input EN,
+  (* clkbuf_sink *)
+  input P
+);
+  parameter [0:0] INIT = 1'b0;
+  initial Q = INIT;
+
+  always @(posedge CLK or posedge P)
+    if (P) Q <= 1'b1;
+    else if (EN) Q <= D;
 endmodule
 
 module full_adder (

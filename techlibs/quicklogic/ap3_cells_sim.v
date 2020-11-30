@@ -32,7 +32,7 @@ module ff(
   assign O = I0 ? s1[1] : s1[0];
 endmodule
 
-(* abc9_flop, lib_whitebox *)
+(* abc9_box, lib_whitebox *)
 module FF (
   output reg CQZ,
   input D,
