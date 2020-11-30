@@ -1268,7 +1268,8 @@ AST::AstNode* UhdmAst::handle_if_else(vpiHandle obj_h, AstNodeList& parent) {
 	visit_one_to_one({vpiCondition},
 					 obj_h, {&parent, current_node},
 					 [&](AST::AstNode* node) {
-						 case_node->children.push_back(node);
+						 auto reduce_node = new AST::AstNode(AST::AST_REDUCE_BOOL, node);
+						 case_node->children.push_back(reduce_node);
 					 });
 	// If true:
 	auto *condition = new AST::AstNode(AST::AST_COND);
