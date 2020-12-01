@@ -34,6 +34,7 @@ module LUT5 (
   assign O = I0 ? s1[1] : s1[0];
 endmodule
 
+(* abc9_flop, lib_whitebox *)
 module dff (
   output reg Q,
   input D,
@@ -45,6 +46,7 @@ module dff (
   always @(posedge CLK) Q <= D;
 endmodule
 
+(* abc9_box, lib_whitebox *)
 module dffc (
   output reg Q,
   input D,
@@ -61,6 +63,7 @@ module dffc (
     else Q <= D;
 endmodule
 
+(* abc9_box, lib_whitebox *)
 module dffp (
   output reg Q,
   input D,
@@ -77,7 +80,7 @@ module dffp (
     else Q <= D;
 endmodule
 
-(* abc9_flop, lib_whitebox *)
+(* abc9_box, lib_whitebox *)
 module dffpc (
   output reg Q,
   input D,
@@ -97,6 +100,7 @@ module dffpc (
     else Q <= D;
 endmodule
 
+(* abc9_flop, lib_whitebox *)
 module dffe (
   output reg Q,
   input D,
@@ -109,6 +113,7 @@ module dffe (
   always @(posedge CLK) if (EN) Q <= D;
 endmodule
 
+(* abc9_box, lib_whitebox *)
 module dffepc (
   output reg Q,
   input D,
@@ -129,6 +134,7 @@ module dffepc (
     else if (EN) Q <= D;
 endmodule
 
+(* abc9_box, lib_whitebox *)
 module dffsec (
   output reg Q,
   input D,
@@ -146,6 +152,7 @@ module dffsec (
     else if (EN) Q <= D;
 endmodule
 
+(* abc9_box, lib_whitebox *)
 module dffsep (
   output reg Q,
   input D,
