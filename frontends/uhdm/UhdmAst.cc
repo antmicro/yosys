@@ -1354,14 +1354,21 @@ AST::AstNode* UhdmAst::handle_gen_scope_array(vpiHandle obj_h, AstNodeList& pare
 	auto current_node = make_ast_node(AST::AST_GENBLOCK, obj_h);
 	visit_one_to_many({vpiGenScope},
 					  obj_h, {&parent, current_node},
-					  [&](AST::AstNode* node) {
-						  if (node->type == AST::AST_GENBLOCK) {
-							  current_node->children.insert(current_node->children.end(),
-															node->children.begin(),
-															node->children.end());
-						  } else {
-							  current_node->children.push_back(node);
+					  [&](AST::AstNode* genscope_node) {
+						  for (auto* child : genscope_node->children) {
+							  if (child->type == AST::AST_PARAMETER) {
+								  auto prev_name = child->str;
+								  child->str = current_node->str + "::" + child->str.substr(1);
+								  genscope_node->visitEachDescendant([&](AST::AstNode* node) {
+									  if (node->str == prev_name) {
+										  node->str = child->str;
+									  }
+								  });
+							  }
 						  }
+						  current_node->children.insert(current_node->children.end(),
+														genscope_node->children.begin(),
+														genscope_node->children.end());
 					  });
 	return current_node;
 }
