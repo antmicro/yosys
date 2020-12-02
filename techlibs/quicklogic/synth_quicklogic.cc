@@ -337,14 +337,11 @@ struct SynthQuickLogicPass : public ScriptPass {
                 if (check_label("map_ffs")) {
                         if (family == "pp3" || family == "ap") {
                                 run("opt_expr");
-                                }
                         }
                         run("opt_dff");
 
-                        run("dfflegalize -cell $_DFFSRE_PPPP_ 0 -cell $_DLATCH_?_ x -cell $_DLATCHSR_???_ x");
-                        std::string techMapArgs = " -map +/quicklogic/" + family;
-
-                        techMapArgs += "_ffs_map.v";
+                        run("dfflegalize -cell $_DFFSRE_PPPP_ 0 -cell $_DLATCH_?_ x");
+                        std::string techMapArgs = " -map +/quicklogic/" + family + "_ffs_map.v";
 
                         if (!openfpga) {
                                 run("techmap " + techMapArgs);
