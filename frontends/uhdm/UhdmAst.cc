@@ -340,9 +340,9 @@ AST::AstNode* UhdmAst::handle_port(vpiHandle obj_h, AstNodeList& parent) {
 			}
 			case vpiEnumNet:
 			case vpiStructNet:
-			case vpiArrayNet: {
+			case vpiArrayNet:
+			case vpiStructVar:
 				break;
-			}
 			default: {
 				report_error("Encountered unhandled typespec in handle param member: %d\n", actual_type);
 				break;
