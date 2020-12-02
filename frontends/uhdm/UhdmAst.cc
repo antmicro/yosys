@@ -721,6 +721,7 @@ AST::AstNode* UhdmAst::handle_assignment(vpiHandle obj_h, AstNodeList& parent) {
 AST::AstNode* UhdmAst::handle_net(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_WIRE, obj_h);
 	auto net_type = vpi_get(vpiNetType, obj_h);
+	//current_node->is_reg = true;
 	current_node->is_reg = net_type == vpiReg;
 	current_node->is_output = net_type == vpiOutput;
 	current_node->is_logic = true;
@@ -736,6 +737,10 @@ AST::AstNode* UhdmAst::handle_net(vpiHandle obj_h, AstNodeList& parent) {
 
 AST::AstNode* UhdmAst::handle_array_net(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_MEMORY, obj_h);
+	//if (current_node->str == "\\mem")
+	//	current_node->is_reg = true;
+	//current_node->is_input = true;
+	current_node->is_reg = true;
 	vpiHandle itr = vpi_iterate(vpiNet, obj_h);
 	while (vpiHandle net_h = vpi_scan(itr)) {
 		if (vpi_get(vpiType, net_h) == vpiLogicNet) {
@@ -937,6 +942,8 @@ AST::AstNode* UhdmAst::handle_begin(vpiHandle obj_h, AstNodeList& parent) {
 								  wire_node->type = AST::AST_WIRE;
 								  wire_node->str = node->children[0]->str;
 								  func_node->children.push_back(wire_node);
+							  } else if (node->type == AST::AST_BLOCK && node->children.size() == 1) {
+							  	  current_node->children.push_back(node->children[0]);
 							  } else {
 								  current_node->children.push_back(node);
 							  }
@@ -1230,8 +1237,13 @@ AST::AstNode* UhdmAst::handle_indexed_part_select(vpiHandle obj_h, AstNodeList& 
 						 auto right_range_node = new AST::AstNode(AST::AST_ADD);
 						 right_range_node->children.push_back(range_node->children[0]->clone());
 						 right_range_node->children.push_back(node);
-						 range_node->children.push_back(right_range_node);
+					 	 auto sub = new AST::AstNode(AST::AST_SUB);
+						 sub->children.push_back(right_range_node);
+						 sub->children.push_back(AST::AstNode::mkconst_int(1, false, 1));
+						 range_node->children.push_back(sub);
+						 //range_node->children.push_back(right_range_node);
 					 });
+	std::reverse(range_node->children.begin(), range_node->children.end());
 	current_node->children.push_back(range_node);
 	return current_node;
 }
@@ -1279,6 +1291,9 @@ AST::AstNode* UhdmAst::handle_if_else(vpiHandle obj_h, AstNodeList& parent) {
 					 obj_h, {&parent, current_node},
 					 [&](AST::AstNode* node) {
 						 auto *statements = new AST::AstNode(AST::AST_BLOCK);
+						 if (node->type == AST::AST_BLOCK && node->children.size() == 1 && node->children[0]->type == AST::AST_ASSIGN_EQ) {
+							 node->children[0]->type = AST::AST_ASSIGN_LE;
+						 }
 						 statements->children.push_back(node);
 						 condition->children.push_back(statements);
 					 });
@@ -1292,6 +1307,9 @@ AST::AstNode* UhdmAst::handle_if_else(vpiHandle obj_h, AstNodeList& parent) {
 						 obj_h, {&parent, current_node},
 						 [&](AST::AstNode* node) {
 							 auto *statements = new AST::AstNode(AST::AST_BLOCK);
+							 if (node->type == AST::AST_BLOCK && node->children.size() == 1 && node->children[0]->type == AST::AST_ASSIGN_EQ) {
+								 node->children[0]->type = AST::AST_ASSIGN_LE;
+							 }
 							 statements->children.push_back(node);
 							 condition->children.push_back(statements);
 						 });
@@ -1306,6 +1324,8 @@ AST::AstNode* UhdmAst::handle_for(vpiHandle obj_h, AstNodeList& parent) {
 	auto loop_id = shared.next_loop_id();
 	current_node->str = "$loop" + std::to_string(loop_id);
 	auto loop_parent_node = parent.find({AST::AST_FUNCTION, AST::AST_TASK, AST::AST_MODULE});
+	//if (!loop_parent_node)
+	//	report_error("Could not find loop parent node!\n");
 	AST::AstNode* counter = nullptr;
 	visit_one_to_many({vpiForInitStmt},
 					  obj_h, {&parent, current_node},
@@ -1504,6 +1524,7 @@ AST::AstNode* UhdmAst::handle_function(vpiHandle obj_h, AstNodeList& parent) {
 
 AST::AstNode* UhdmAst::handle_logic_var(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_WIRE, obj_h);
+	current_node->is_logic = true;
 	visit_range(obj_h, {&parent, current_node},
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
@@ -1520,6 +1541,9 @@ AST::AstNode* UhdmAst::handle_sys_func_call(vpiHandle obj_h, AstNodeList& parent
 	} else if (current_node->str == "\\$display" || current_node->str == "\\$time") {
 		current_node->type = AST::AST_TCALL;
 		current_node->str = current_node->str.substr(1);
+	} else if (current_node->str == "\\$readmemh") {
+		// do not remove '\' from the begining
+		current_node->type = AST::AST_TCALL;
 	}
 	visit_one_to_many({vpiArgument},
 					  obj_h, {&parent, current_node},
