@@ -1438,7 +1438,10 @@ AST::AstNode* UhdmAst::handle_constant(vpiHandle obj_h) {
 		switch (val.format) {
 			case vpiScalarVal: return AST::AstNode::mkconst_int(val.value.scalar, false);
 			case vpiBinStrVal:
-			case vpiHexStrVal: return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
+			case vpiHexStrVal: {
+				auto str = std::to_string(vpi_get(vpiSize, obj_h)) + "'h" + val.value.str;
+				return VERILOG_FRONTEND::const2ast(str, 0, false);
+			}
 			case vpiIntVal: return AST::AstNode::mkconst_int(val.value.integer, false);
 			case vpiRealVal: return AST::AstNode::mkconst_real(val.value.real);
 			case vpiStringVal: return AST::AstNode::mkconst_str(val.value.str);
