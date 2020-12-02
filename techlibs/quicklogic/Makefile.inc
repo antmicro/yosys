@@ -37,6 +37,7 @@ $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/ap3_io_map_dbu
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/ap_io_map.v))
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/ap_io_map_dbuff.v))
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/cells_sim.v))
+$(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/lut_sim.v))
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/pp3_cells_sim.v))
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/ap3_cells_sim.v))
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/ap2_cells_sim.v))
