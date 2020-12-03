@@ -1438,7 +1438,10 @@ AST::AstNode* UhdmAst::handle_constant(vpiHandle obj_h) {
 	if (val.format) { // Needed to handle parameter nodes without typespecs and constants
 		switch (val.format) {
 			case vpiScalarVal: return AST::AstNode::mkconst_int(val.value.scalar, false);
-			case vpiBinStrVal:
+			case vpiBinStrVal: {
+				auto str = std::to_string(vpi_get(vpiSize, obj_h)) + "'b" + val.value.str;
+				return VERILOG_FRONTEND::const2ast(str, 0, false);
+			}
 			case vpiHexStrVal: {
 				auto str = std::to_string(vpi_get(vpiSize, obj_h)) + "'h" + val.value.str;
 				return VERILOG_FRONTEND::const2ast(str, 0, false);
