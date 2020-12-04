@@ -1230,8 +1230,13 @@ AST::AstNode* UhdmAst::handle_indexed_part_select(vpiHandle obj_h, AstNodeList& 
 						 auto right_range_node = new AST::AstNode(AST::AST_ADD);
 						 right_range_node->children.push_back(range_node->children[0]->clone());
 						 right_range_node->children.push_back(node);
-						 range_node->children.push_back(right_range_node);
+						 auto sub = new AST::AstNode(AST::AST_SUB);
+						 sub->children.push_back(right_range_node);
+						 sub->children.push_back(AST::AstNode::mkconst_int(1, false, 1));
+						 range_node->children.push_back(sub);
+						 //range_node->children.push_back(right_range_node);
 					 });
+	std::reverse(range_node->children.begin(), range_node->children.end());
 	current_node->children.push_back(range_node);
 	return current_node;
 }
@@ -1526,7 +1531,10 @@ AST::AstNode* UhdmAst::handle_sys_func_call(vpiHandle obj_h, AstNodeList& parent
 	} else if (current_node->str == "\\$display" || current_node->str == "\\$time") {
 		current_node->type = AST::AST_TCALL;
 		current_node->str = current_node->str.substr(1);
+	} else if (current_node->str == "\\$readmemh") {
+		current_node->type = AST::AST_TCALL;
 	}
+
 	visit_one_to_many({vpiArgument},
 					  obj_h, {&parent, current_node},
 					  [&](AST::AstNode* node) {
