@@ -66,6 +66,7 @@ class UhdmAst {
 		AST::AstNode* handle_cont_assign(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_assignment(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_net(vpiHandle obj_h, AstNodeList& parent);
+		AST::AstNode* handle_packed_array_net(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_array_net(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_package(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_interface(vpiHandle obj_h, AstNodeList& parent);

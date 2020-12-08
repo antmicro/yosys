@@ -738,6 +738,21 @@ AST::AstNode* UhdmAst::handle_net(vpiHandle obj_h, AstNodeList& parent) {
 	return current_node;
 }
 
+AST::AstNode* UhdmAst::handle_packed_array_net(vpiHandle obj_h, AstNodeList& parent) {
+	auto current_node = make_ast_node(AST::AST_MEMORY, obj_h);
+	visit_one_to_many({vpiElement},
+					  obj_h, {&parent, current_node},
+					  [&](AST::AstNode* node) {
+						  if (node && GetSize(node->children) == 1)
+							  current_node->children.push_back(node->children[0]);
+					  });
+	visit_one_to_many({vpiRange},
+					  obj_h, {&parent, current_node},
+					  [&](AST::AstNode* node) {
+						  current_node->children.push_back(node);
+					  });
+	return current_node;
+}
 AST::AstNode* UhdmAst::handle_array_net(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_MEMORY, obj_h);
 	vpiHandle itr = vpi_iterate(vpiNet, obj_h);
@@ -1618,6 +1633,7 @@ AST::AstNode* UhdmAst::handle_object(vpiHandle obj_h, AstNodeList parent) {
 		case vpiRefObj: node = make_ast_node(AST::AST_IDENTIFIER, obj_h); break;
 		case vpiNet: node = handle_net(obj_h, parent); break;
 		case vpiArrayNet: node = handle_array_net(obj_h, parent); break;
+		case vpiPackedArrayNet: node = handle_packed_array_net(obj_h, parent); break;
 		case vpiPackage: node = handle_package(obj_h, parent); break;
 		case vpiInterface: node = handle_interface(obj_h, parent); break;
 		case vpiModport: node = handle_modport(obj_h, parent); break;
