@@ -332,8 +332,10 @@ AST::AstNode* UhdmAst::handle_port(vpiHandle obj_h, AstNodeList& parent) {
 				break;
 			}
 			case vpiLogicNet: {
+				current_node->is_logic = true;
 				visit_range(actual_h, parent,
 							[&](AST::AstNode* node) {
+								if (node->type == AST::AST_MULTIRANGE) node->is_packed = true;
 								current_node->children.push_back(node);
 							});
 				shared.report.mark_handled(actual_h);
