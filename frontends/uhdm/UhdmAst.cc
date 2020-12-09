@@ -625,9 +625,15 @@ AST::AstNode* UhdmAst::handle_custom_var(vpiHandle obj_h, AstNodeList& parent) {
 	visit_one_to_one({vpiTypespec},
 					 obj_h, {&parent, current_node},
 					 [&](AST::AstNode* node) {
-						 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
-						 wiretype_node->str = shared.type_names[node];
-						 current_node->children.push_back(wiretype_node);
+						 if (node->str.empty()) {
+							 // anonymous typespec, move the children to variable
+							 current_node->type = node->type;
+							 current_node->children = std::move(node->children);
+						 } else {
+							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+							 wiretype_node->str = shared.type_names[node];
+							 current_node->children.push_back(wiretype_node);
+						 }
 					 });
 	visit_default_expr(obj_h, {&parent, current_node});
 	current_node->is_custom_type = true;
