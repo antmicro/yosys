@@ -636,7 +636,10 @@ AST::AstNode* UhdmAst::handle_custom_var(vpiHandle obj_h, AstNodeList& parent) {
 							 current_node->children.push_back(wiretype_node);
 						 }
 					 });
-	visit_default_expr(obj_h, {&parent, current_node});
+	auto type = vpi_get(vpiType, obj_h);
+	if (type == vpiEnumVar || type == vpiStructVar) {
+		visit_default_expr(obj_h, {&parent, current_node});
+	}
 	current_node->is_custom_type = true;
 	return current_node;
 }
