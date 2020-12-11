@@ -68,6 +68,9 @@ struct SynthQuickLogicPass : public ScriptPass {
         log("    -infer_dbuff\n");
         log("        Infer d_buff for const driver IO signals (applicable for AP, AP2 & AP3 device)\n");
         log("\n");
+        log("    -abc9\n");
+        log("        (EXPERIMENTAL) use timing-aware LUT mapping\n");
+        log("\n");
         log("    -openfpga\n");
         log("        to generate blif file compliant with openfpga flow\n");
         log("        (this feature is experimental and incomplete)\n");
@@ -79,10 +82,10 @@ struct SynthQuickLogicPass : public ScriptPass {
     }
 
     string top_opt, edif_file, blif_file, family, currmodule, verilog_file;
-    bool inferAdder, openfpga, infer_dbuff;
+    bool inferAdder, openfpga, infer_dbuff, abc9;
     bool abcOpt;
 
-    void clear_flags() YS_OVERRIDE
+    void clear_flags() override
     {
         top_opt = "-auto-top";
         edif_file = "";
@@ -92,105 +95,10 @@ struct SynthQuickLogicPass : public ScriptPass {
         family = "pp3";
         inferAdder = false;
         abcOpt = true;
+        abc9 = false;
         openfpga=false;
         infer_dbuff = false;
     }
-
-    void execute(std::vector<std::string> args, RTLIL::Design *design) YS_OVERRIDE
-    {
-        string run_from, run_to;
-        clear_flags();
-
-		size_t argidx;
-		for (argidx = 1; argidx < args.size(); argidx++)
-		{
-			if (args[argidx] == "-top" && argidx+1 < args.size()) {
-				top_opt = "-top " + args[++argidx];
-				continue;
-			}
-			if (args[argidx] == "-edif" && argidx+1 < args.size()) {
-				edif_file = args[++argidx];
-				continue;
-			}
-            if (args[argidx] == "-family" && argidx+1 < args.size()) {
-                family = args[++argidx];
-                continue;
-            }
-            if (args[argidx] == "-blif" && argidx+1 < args.size()) {
-                blif_file = args[++argidx];
-                continue;
-            }
-            if (args[argidx] == "-verilog" && argidx+1 < args.size()) {
-                verilog_file = args[++argidx];
-                continue;
-            }
-            if (args[argidx] == "-adder") {
-                inferAdder = true;
-                continue;
-            }
-            if (args[argidx] == "-infer_dbuff") {
-                infer_dbuff = true;
-                continue;
-            }
-            if (args[argidx] == "-no_abc_opt") {
-                abcOpt = false;
-                continue;
-            }
-            if (args[argidx] == "-openfpga") {
-                openfpga = true;
-                // pick ap3 related cells in openfpga mode
-                family = "ap3";
-                continue;
-            }
-            break;
-        }
-        extra_args(args, argidx, design);
-
-        if (!design->full_selection())
-            log_cmd_error("This command only operates on fully selected designs!\n");
-
-        log_header(design, "Executing SYNTH_QUICKLOGIC pass.\n");
-        log_push();
-
-        run_script(design, run_from, run_to);
-
-        log_pop();
-    }
-
-    void script() override
-    {
-        if (check_label("begin")) {
-            std::string readVelArgs;
-            run(stringf("read_verilog -lib -specify +/quicklogic/cells_sim.v +/quicklogic/%s_cells_sim.v", family.c_str()));
-            run("read_verilog -lib -specify +/quicklogic/lut_sim.v");
-            run(stringf("hierarchy -check %s", help_mode ? "-top <top>" : top_opt.c_str()));
-        }
-
-        string top_opt, edif_file, blif_file, family, currmodule, verilog_file;
-        bool inferAdder, openfpga, infer_dbuff;
-        bool abcOpt;
-
-        if (check_label("coarse")) {
-            run("opt_expr");
-            run("opt_clean");
-            run("check");
-            run("opt");
-            run("wreduce -keepdc");
-            run("peepopt");
-            run("pmuxtree");
-            run("opt_clean");
-            run("share");
-            run("techmap -map +/cmp2lut.v -D LUT_WIDTH=4");
-            run("opt_expr");
-            run("opt_clean");
-
-            run("alumacc");
-            run("opt");
-            run("fsm");
-            run("opt -fast");
-            run("memory -nomap");
-            run("opt_clean");
-        }
 
         void execute(std::vector<std::string> args, RTLIL::Design *design) YS_OVERRIDE
         {
@@ -230,6 +138,10 @@ struct SynthQuickLogicPass : public ScriptPass {
                         }
                         if (args[argidx] == "-no_abc_opt") {
                                 abcOpt = false;
+                                continue;
+                        }
+                        if (args[argidx] == "-abc9") {
+                                abc9 = true;
                                 continue;
                         }
                         if (args[argidx] == "-openfpga") {
@@ -362,7 +274,9 @@ struct SynthQuickLogicPass : public ScriptPass {
                         if (!openfpga) {
                                 run("techmap " + techMapArgs);
 
-                                if (abcOpt) {
+                                if (abc9) {
+                                        run("abc9 -maxlut 4");
+                                } else if (abcOpt) {
                                         std::string lutDefs = "+/quicklogic/" + family + "_lutdefs.txt";
                                         rewrite_filename(lutDefs);
 
