@@ -63,6 +63,9 @@ struct SynthQuickLogicPass : public ScriptPass {
 		log("    -spde\n");
 		log("        generate an output netlist suitable for SpDE\n");
 		log("\n");
+		log("    -abc9\n");
+		log("        (EXPERIMENTAL) use timing-aware LUT mapping\n");
+		log("\n");
 		log("The following commands are executed by this synthesis command:\n");
 		help_script();
 		log("\n");
@@ -72,6 +75,7 @@ struct SynthQuickLogicPass : public ScriptPass {
 	bool inferAdder;
 	bool abcOpt;
 	bool spde;
+	bool abc9;
 
 	void clear_flags() override
 	{
@@ -83,6 +87,7 @@ struct SynthQuickLogicPass : public ScriptPass {
 		spde = false;
 		inferAdder = false;
 		abcOpt = true;
+		abc9 = false;
 	}
 
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
@@ -119,6 +124,10 @@ struct SynthQuickLogicPass : public ScriptPass {
 			}
 			if (args[argidx] == "-spde") {
 				spde = true;
+				continue;
+			}
+			if (args[argidx] == "-abc9") {
+				abc9 = true;
 				continue;
 			}
 			break;
@@ -238,7 +247,9 @@ struct SynthQuickLogicPass : public ScriptPass {
 			std::string techMapArgs = " -map +/quicklogic/" + family + "_latches_map.v";
 			run("techmap " + techMapArgs);
 
-			if (abcOpt) {
+			if (abc9) {
+				run("abc9 -maxlut 4");
+			} else if (abcOpt) {
 				std::string lutDefs = "+/quicklogic/" + family + "_lutdefs.txt";
 				rewrite_filename(lutDefs);
 
