@@ -8,7 +8,7 @@ module LUT1 (
 
   // These timings are for PolarPro 3E; other families will need updating.
   specify
-    (I0 => O) = (231 + 217, 202 + 198); // FS -> FZ
+    (I0 => O) = 698; // FS -> FZ
   endspecify
 
   assign O = I0 ? INIT[1] : INIT[0];
@@ -25,8 +25,8 @@ module LUT2 (
 
   // These timings are for PolarPro 3E; other families will need updating.
   specify
-    (I0 => O) = (329 + 332, 349 + 403); // TAB -> TZ
-    (I1 => O) = (329 + 380, 350 + 460); // TSL -> TZ
+    (I0 => O) = 1251; // TAB -> TZ
+    (I1 => O) = 1406; // TSL -> TZ
   endspecify
 
   wire [1:0] s1 = I1 ? INIT[3:2] : INIT[1:0];
@@ -43,9 +43,9 @@ module LUT3 (
 
   // These timings are for PolarPro 3E; other families will need updating.
   specify
-    (I0 => O) = (278 + 442, 295 + 473); // TA1 -> TZ (positive unate)
-    (I1 => O) = (329 + 380, 350 + 460); // TSL -> TZ
-    (I2 => O) = (329 + 332, 349 + 403); // TAB -> TZ
+    (I0 => O) = 1251; // TAB -> TZ
+    (I1 => O) = 1406; // TSL -> TZ
+    (I2 => O) = 1699; // ('TA1', 'TA2', 'TB1', 'TB2') -> TZ
   endspecify
 
   wire [3:0] s2 = I2 ? INIT[7:4] : INIT[3:0];
@@ -63,10 +63,10 @@ module LUT4 (
 
   // These timings are for PolarPro 3E; other families will need updating.
   specify
-    (I0 => O) = (416 + 580, 434 + 657); // TB1 -> CZ (positive unate)
-    (I1 => O) = (415 + 440, 430 + 536); // TSL -> CZ
-    (I2 => O) = (415 + 392, 429 + 479); // TAB -> CZ
-    (I3 => O) = (549 + 465, 548 + 480); // TBS -> CZ (negative unate)
+    (I0 => O) = 995;  // TBS -> CZ
+    (I1 => O) = 1437; // ('TAB', 'BAB') -> CZ
+    (I2 => O) = 1593; // ('TSL', 'BSL') -> CZ
+    (I3 => O) = 1887; // ('TA1', 'TA2', 'TB1', 'TB2', 'BA1', 'BA2', 'BB1', 'BB2') -> CZ
   endspecify
 
   wire [7:0] s3 = I3 ? INIT[15:8] : INIT[7:0];
@@ -85,11 +85,11 @@ module LUT5 (
 
   // These timings are for PolarPro 3E; other families will need updating.
   specify
-    (I0 => O) = (416 + 580, 434 + 657); // TB1 -> CZ (positive unate)
-    (I1 => O) = (415 + 440, 430 + 536); // TSL -> CZ
-    (I2 => O) = (415 + 392, 429 + 479); // TAB -> CZ
-    (I3 => O) = (549 + 465, 548 + 480); // TBS -> CZ (negative unate)
-    (I4 => O) = (549 + 465, 548 + 480); // TBS -> CZ (negative unate)
+    (I0 => O) = 995;  // TBS -> CZ
+    (I1 => O) = 1437; // ('TAB', 'BAB') -> CZ
+    (I2 => O) = 1593; // ('TSL', 'BSL') -> CZ
+    (I3 => O) = 1887; // ('TA1', 'TA2', 'TB1', 'TB2', 'BA1', 'BA2', 'BB1', 'BB2') -> CZ
+    (I4 => O) = 1887; // ('TA1', 'TA2', 'TB1', 'TB2', 'BA1', 'BA2', 'BB1', 'BB2') -> CZ
   endspecify
 
   wire [15:0] s4 = I4 ? INIT[31:16] : INIT[15:0];
