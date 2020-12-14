@@ -276,8 +276,8 @@ struct SynthQuickLogicPass : public ScriptPass {
 
                                 if (abc9) {
                                         run("read_verilog -lib -specify -icells +/quicklogic/abc9_model.v");
-                                        run(stringf("techmap -map +/quicklogic/%s_cells_map.v t:$_MUX4_", family.c_str()));
-                                        run("abc9 -maxlut 4 -nocleanup -dff");
+                                        run(stringf("techmap -map +/quicklogic/%s_cells_map.v t:$_MUX4_ t:$_MUX8_", family.c_str());
+                                        run("abc9 -maxlut 4 -dff");
                                         run("techmap -map +/quicklogic/abc9_unmap.v");
                                 } else if (abcOpt) {
                                         std::string lutDefs = "+/quicklogic/" + family + "_lutdefs.txt";
