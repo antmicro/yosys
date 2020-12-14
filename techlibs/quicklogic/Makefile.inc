@@ -31,6 +31,8 @@ $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/ap2_cells_sim.
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/MULT_16BIT_X2.v))
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/MULT_32BIT.v))
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/abc9_model.v))
+$(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/abc9_map.v))
+$(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/abc9_unmap.v))
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/pp3_brams.txt))
 $(eval $(call add_share_file,share/quicklogic,techlibs/quicklogic/pp3_brams_map.v))
 

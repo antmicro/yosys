@@ -124,6 +124,7 @@ module dffec (
     else if (EN) Q <= D;
 endmodule
 
+(* abc9_box, lib_whitebox *)
 module dffepc (
   output reg Q,
   input D,
@@ -136,8 +137,18 @@ module dffepc (
   input PRE
 );
   parameter [0:0] INIT = 1'b0;
-  initial Q = INIT;
 
+  specify
+    if (EN) (posedge CLK => (Q : D)) = 0;
+
+    if (CLR) (CLR => Q) = 0;
+    if (PRE) (PRE => Q) = 0;
+
+    $setup(D, posedge CLK, 0);
+    $setup(EN, posedge CLK, 0);
+  endspecify
+
+  initial Q = INIT;
   always @(posedge CLK or posedge CLR or posedge PRE)
     if (CLR) Q <= 1'b0;
     else if (PRE) Q <= 1'b1;
@@ -153,26 +164,50 @@ module AND2I0 (
 endmodule
 
 //                  FZ       FS F1 F2
+(* abc9_box, lib_whitebox *)
 module mux2x0 (
   output Q,
   input S, A, B
 );
+  specify
+    (S => Q) = 0;
+    (A => Q) = 0;
+    (B => Q) = 0;
+  endspecify
+
   assign Q = S ? B : A;
 endmodule
 
 //                  FZ       FS F1 F2
+(* abc9_box, lib_whitebox *)
 module mux2x1 (
   output Q,
   input S, A, B
 );
+  specify
+    (S => Q) = 0;
+    (A => Q) = 0;
+    (B => Q) = 0;
+  endspecify
+
   assign Q = S ? B : A;
 endmodule
 
 //                  TZ       TSL TABTA1TA2TB1TB2
+(* abc9_box, lib_whitebox *)
 module mux4x0 (
   output Q,
   input S0, S1, A, B, C, D
 );
+  specify
+    (S0 => Q) = 0;
+    (S1 => Q) = 0;
+    (A  => Q) = 0;
+    (B  => Q) = 0;
+    (C  => Q) = 0;
+    (D  => Q) = 0;
+  endspecify
+
   assign Q = S1 ? (S0 ? D : C) : (S0 ? B : A);
 endmodule
 
