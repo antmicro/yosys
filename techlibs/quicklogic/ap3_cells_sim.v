@@ -1,4 +1,4 @@
-(* abc9_flop, lib_whitebox *)
+//(* abc9_flop, lib_whitebox *)
 module ff(
     output reg CQZ,
     input D,

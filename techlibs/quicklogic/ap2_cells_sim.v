@@ -1,4 +1,4 @@
-(* abc9_flop, lib_whitebox *)
+//(* abc9_flop, lib_whitebox *)
 module dff (
   output reg Q,
   input D,
@@ -10,7 +10,7 @@ module dff (
   always @(posedge CLK) Q <= D;
 endmodule
 
-(* abc9_box, lib_whitebox *)
+//(* abc9_box, lib_whitebox *)
 module dffc (
   output reg Q,
   input D,
@@ -27,7 +27,7 @@ module dffc (
     else Q <= D;
 endmodule
 
-(* abc9_box, lib_whitebox *)
+//(* abc9_box, lib_whitebox *)
 module dffp (
   output reg Q,
   input D,
@@ -44,7 +44,7 @@ module dffp (
     else Q <= D;
 endmodule
 
-(* abc9_box, lib_whitebox *)
+//(* abc9_box, lib_whitebox *)
 module dffpc (
   output reg Q,
   input D,
@@ -65,7 +65,7 @@ module dffpc (
     else Q <= D;
 endmodule
 
-(* abc9_flop, lib_whitebox *)
+//(* abc9_flop, lib_whitebox *)
 module dffe (
   output reg Q,
   input D,
@@ -91,15 +91,25 @@ module dffepc (
   input PRE
 );
   parameter [0:0] INIT = 1'b0;
-  initial Q = INIT;
 
+  specify
+    if (EN) (posedge CLK => (Q : D)) = 0;
+
+    if (CLR) (CLR => Q) = 0;
+    if (PRE) (PRE => Q) = 0;
+
+    $setup(D, posedge CLK, 0);
+    $setup(EN, posedge CLK, 0);
+  endspecify
+
+  initial Q = INIT;
   always @(posedge CLK or posedge CLR or posedge PRE)
     if (CLR) Q <= 1'b0;
     else if (PRE) Q <= 1'b1;
     else if (EN) Q <= D;
 endmodule
 
-(* abc9_box, lib_whitebox *)
+//(* abc9_box, lib_whitebox *)
 module dffsec (
   output reg Q,
   input D,
@@ -117,7 +127,7 @@ module dffsec (
     else if (EN) Q <= D;
 endmodule
 
-(* abc9_box, lib_whitebox *)
+//(* abc9_box, lib_whitebox *)
 module dffsep (
   output reg Q,
   input D,
