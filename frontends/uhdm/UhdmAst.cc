@@ -948,6 +948,11 @@ AST::AstNode* UhdmAst::handle_initial(vpiHandle obj_h, AstNodeList& parent) {
 					 obj_h, {&parent, current_node},
 					 [&](AST::AstNode* node) {
 						 if (node) {
+							 if (node->type != AST::AST_BLOCK) {
+								 auto block_node = make_ast_node(AST::AST_BLOCK, obj_h);
+								 block_node->children.push_back(node);
+								 node = block_node;
+							 }
 							 current_node->children.push_back(node);
 						 }
 					 });
