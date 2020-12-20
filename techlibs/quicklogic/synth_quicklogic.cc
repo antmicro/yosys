@@ -26,79 +26,80 @@ PRIVATE_NAMESPACE_BEGIN
 
 struct SynthQuickLogicPass : public ScriptPass {
 
-    SynthQuickLogicPass() : ScriptPass("synth_quicklogic", "Synthesis for QuickLogic FPGAs") {}
+        SynthQuickLogicPass() : ScriptPass("synth_quicklogic", "Synthesis for QuickLogic FPGAs") {}
 
-    void help() override
-    {
-        log("\n");
-        log("   synth_quicklogic [options]\n");
-        log("This command runs synthesis for QuickLogic FPGAs\n");
-        log("\n");
-        log("    -top <module>\n");
-        log("         use the specified module as top module\n");
-        log("\n");
-        log("    -family <family>\n");
-        log("        run synthesis for the specified QuickLogic architecture\n");
-        log("        generate the synthesis netlist for the specified family.\n");
-        log("        supported values:\n");
-        log("        - pp3: PolarPro 3 \n");
-        log("        - ap: ArcticPro \n");
-        log("        - ap2: ArcticPro 2 \n");
-        log("        - ap3: ArcticPro 3 \n");
-        log("\n");
-        log("    -no_abc_opt\n");
-        log("        By default most of ABC logic optimization features is\n");
-        log("        enabled. Specifying this switch turns them off.\n");
-        log("\n");
-        log("    -edif <file>\n");
-        log("        write the design to the specified edif file. writing of an output file\n");
-        log("        is omitted if this parameter is not specified.\n");
-        log("\n");
-        log("    -blif <file>\n");
-        log("        write the design to the specified BLIF file. writing of an output file\n");
-        log("        is omitted if this parameter is not specified.\n");
-        log("\n");
-        log("    -verilog <file>\n");
-        log("        write the design to the specified cerilog file. writing of an output file\n");
-        log("        is omitted if this parameter is not specified.\n");
-        log("\n");
-        log("    -adder\n");
-        log("        use adder cells in output netlist\n");
-        log("\n");
-        log("    -infer_dbuff\n");
-        log("        Infer d_buff for const driver IO signals (applicable for AP, AP2 & AP3 device)\n");
-        log("\n");
-        log("    -abc9\n");
-        log("        (EXPERIMENTAL) use timing-aware LUT mapping\n");
-        log("\n");
-        log("    -openfpga\n");
-        log("        to generate blif file compliant with openfpga flow\n");
-        log("        (this feature is experimental and incomplete)\n");
-        log("\n");
-        log("\n");
-        log("The following commands are executed by this synthesis command:\n");
-        help_script();
-        log("\n");
-    }
+        void help() override
+        {
+                log("\n");
+                log("   synth_quicklogic [options]\n");
+                log("This command runs synthesis for QuickLogic FPGAs\n");
+                log("\n");
+                log("    -top <module>\n");
+                log("         use the specified module as top module\n");
+                log("\n");
+                log("    -family <family>\n");
+                log("        run synthesis for the specified QuickLogic architecture\n");
+                log("        generate the synthesis netlist for the specified family.\n");
+                log("        supported values:\n");
+                log("        - pp3: PolarPro 3 \n");
+                log("        - ap: ArcticPro \n");
+                log("        - ap2: ArcticPro 2 \n");
+                log("        - ap3: ArcticPro 3 \n");
+                log("\n");
+                log("    -no_abc_opt\n");
+                log("        By default most of ABC logic optimization features is\n");
+                log("        enabled. Specifying this switch turns them off.\n");
+                log("\n");
+                log("    -edif <file>\n");
+                log("        write the design to the specified edif file. writing of an output file\n");
+                log("        is omitted if this parameter is not specified.\n");
+                log("\n");
+                log("    -blif <file>\n");
+                log("        write the design to the specified BLIF file. writing of an output file\n");
+                log("        is omitted if this parameter is not specified.\n");
+                log("\n");
+                log("    -verilog <file>\n");
+                log("        write the design to the specified cerilog file. writing of an output file\n");
+                log("        is omitted if this parameter is not specified.\n");
+                log("\n");
+                log("    -adder\n");
+                log("        use adder cells in output netlist\n");
+                log("\n");
+                log("    -infer_dbuff\n");
+                log("        Infer d_buff for const driver IO signals (applicable for AP, AP2 & AP3 device)\n");
+                log("\n");
+                log("    -abc9\n");
+                log("        (EXPERIMENTAL) use timing-aware LUT mapping\n");
+                log("\n");
+                log("    -openfpga\n");
+                log("        to generate blif file compliant with openfpga flow\n");
+                log("        (this feature is experimental and incomplete)\n");
+                log("\n");
+                log("\n");
+                log("The following commands are executed by this synthesis command:\n");
+                help_script();
+                log("\n");
+        }
 
-    string top_opt, edif_file, blif_file, family, currmodule, verilog_file;
-    bool inferAdder, openfpga, infer_dbuff, abc9;
-    bool abcOpt;
+        string top_opt, edif_file, blif_file, family, currmodule, verilog_file;
+        bool inferAdder, openfpga, infer_dbuff, abc9, inferMult;
+        bool abcOpt;
 
-    void clear_flags() override
-    {
-        top_opt = "-auto-top";
-        edif_file = "";
-        blif_file = "";
-        verilog_file = "";
-        currmodule = "";
-        family = "pp3";
-        inferAdder = false;
-        abcOpt = true;
-        abc9 = false;
-        openfpga=false;
-        infer_dbuff = false;
-    }
+        void clear_flags() YS_OVERRIDE
+        {
+                top_opt = "-auto-top";
+                edif_file = "";
+                blif_file = "";
+                verilog_file = "";
+                currmodule = "";
+                family = "pp3";
+                inferAdder = false;
+                abcOpt = true;
+                abc9 = false;
+                inferMult = false;
+                openfpga = false;
+                infer_dbuff = false;
+        }
 
         void execute(std::vector<std::string> args, RTLIL::Design *design) YS_OVERRIDE
         {
@@ -144,6 +145,11 @@ struct SynthQuickLogicPass : public ScriptPass {
                                 abc9 = true;
                                 continue;
                         }
+                        if (args[argidx] == "-mult") {
+                                inferMult = true;
+                                continue;
+                        }
+
                         if (args[argidx] == "-openfpga") {
                                 openfpga = true;
                                 // pick ap3 related cells in openfpga mode
@@ -195,6 +201,12 @@ struct SynthQuickLogicPass : public ScriptPass {
                         run("peepopt");
                         run("pmuxtree");
                         run("opt_clean");
+
+                        if (family == "pp3" && inferMult) {
+                                run("techmap -map +/mul2dsp.v -D DSP_A_MAXWIDTH=16 -D DSP_B_MAXWIDTH=16  -D DSP_A_MINWIDTH=4 -D DSP_B_MINWIDTH=4 -D DSP_NAME=__MUL16X16 -D DSP_SIGNEDONLY");
+                                run("chtype -set $mul t:$__soft_mul");
+                                run("techmap -map +/quicklogic/pp3_mul_map.v");
+                        }
 
                         run("alumacc");
                         run("opt");
