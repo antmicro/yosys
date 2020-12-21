@@ -1676,6 +1676,7 @@ AST::AstNode* UhdmAst::handle_object(vpiHandle obj_h, AstNodeList parent) {
 		case vpiReturn: node = handle_return(obj_h, parent); break;
 		case vpiFunction:
 		case vpiTask: node = handle_function(obj_h, parent); break;
+		case vpiBitVar:
 		case vpiLogicVar: node = handle_logic_var(obj_h, parent); break;
 		case vpiSysFuncCall: node = handle_sys_func_call(obj_h, parent); break;
 		case vpiFuncCall: node = handle_func_call(obj_h, parent); break;
