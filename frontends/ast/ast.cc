@@ -1548,7 +1548,6 @@ void AstModule::reprocess_module(RTLIL::Design *design, const dict<RTLIL::IdStri
 							RTLIL::Module *intfmodule = design->module(interface_type); // All interfaces should at this point in time (assuming
 							                                                              // reprocess_module is called from the hierarchy pass) be
 							                                                              // present in design->modules_
-							AstModule *ast_module_of_interface = (AstModule*)intfmodule;
 							std::string interface_modport_compare_str = "\\" + interface_modport;
 							AstNode *modport = ast->find_child(AST::AST_MODPORT, interface_modport_compare_str); // modport == NULL if no modport
 							// Iterate over all wires in the interface and add them to the module:
