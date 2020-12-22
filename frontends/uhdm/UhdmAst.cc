@@ -263,7 +263,8 @@ AST::AstNode* UhdmAst::handle_parameter(vpiHandle obj_h, AstNodeList& parent) {
 			}
 			case vpiEnumTypespec:
 			case vpiRealTypespec:
-			case vpiIntTypespec: {
+			case vpiIntTypespec:
+			case vpiStructTypespec: {
 				shared.report.mark_handled(typespec_h);
 				break;
 			}
