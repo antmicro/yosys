@@ -1,3 +1,4 @@
+#include <cstring>
 #include <vector>
 #include <functional>
 #include <algorithm>
@@ -1481,16 +1482,24 @@ AST::AstNode* UhdmAst::handle_constant(vpiHandle obj_h) {
 		switch (val.format) {
 			case vpiScalarVal: return AST::AstNode::mkconst_int(val.value.scalar, false, 1);
 			case vpiBinStrVal: {
-				auto size = vpi_get(vpiSize, obj_h);
-				if (size == 0) size = 32;
-				auto str = std::to_string(size) + "'b" + val.value.str;
-				return VERILOG_FRONTEND::const2ast(str, 0, false);
+				if (std::strchr(val.value.str, '\'')) {
+					return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
+				} else {
+					auto size = vpi_get(vpiSize, obj_h);
+					if (size == 0) size = 32;
+					auto str = std::to_string(size) + "'b" + val.value.str;
+					return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
+				}
 			}
 			case vpiHexStrVal: {
-				auto size = vpi_get(vpiSize, obj_h);
-				if (size == 0) size = 32;
-				auto str = std::to_string(size) + "'h" + val.value.str;
-				return VERILOG_FRONTEND::const2ast(str, 0, false);
+				if (std::strchr(val.value.str, '\'')) {
+					return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
+				} else {
+					auto size = vpi_get(vpiSize, obj_h);
+					if (size == 0) size = 32;
+					auto str = std::to_string(size) + "'h" + val.value.str;
+					return VERILOG_FRONTEND::const2ast(str, 0, false);
+				}
 			}
 			case vpiIntVal: {
 				auto size = vpi_get(vpiSize, obj_h);
