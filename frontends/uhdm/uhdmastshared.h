@@ -31,6 +31,9 @@ class UhdmAstShared {
 		// Flag that determines whether debug info should be printed
 		bool debug_flag = false;
 
+		// Flag that determines whether we should ignore assert() statements
+		bool no_assert = false;
+
 		// Flag that determines whether errors should be fatal
 		bool stop_on_error = true;
 
