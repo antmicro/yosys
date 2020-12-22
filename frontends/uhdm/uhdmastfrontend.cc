@@ -53,6 +53,9 @@ struct UhdmAstFrontend : public Frontend {
 		log("\n");
 		log("Load design from a UHDM file into the current design\n");
 		log("\n");
+		log("    -noassert\n");
+		log("        ignore assert() statements");
+		log("\n");
 		log("    -debug\n");
 		log("        print debug info to stdout");
 		log("\n");
@@ -74,6 +77,8 @@ struct UhdmAstFrontend : public Frontend {
 			} else if (args[i] == "-report" && ++i < args.size()) {
 				report_directory = args[i];
 				shared.stop_on_error = false;
+			} else if (args[i] == "-noassert") {
+				shared.no_assert = true;
 			}
 		}
 		extra_args(f, filename, args, args.size() - 1);
