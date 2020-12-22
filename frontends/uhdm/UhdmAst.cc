@@ -264,9 +264,16 @@ AST::AstNode* UhdmAst::handle_parameter(vpiHandle obj_h, AstNodeList& parent) {
 			}
 			case vpiEnumTypespec:
 			case vpiRealTypespec:
-			case vpiIntTypespec:
-			case vpiStructTypespec: {
+			case vpiIntTypespec: {
 				shared.report.mark_handled(typespec_h);
+				break;
+			}
+			case vpiStructTypespec: {
+				visit_one_to_one({vpiTypespec},
+					 obj_h, {&parent, current_node},
+					 [&](AST::AstNode* node) {
+						 shared.param_types[current_node] = node;
+					 });
 				break;
 			}
 			default: {
@@ -689,6 +696,7 @@ AST::AstNode* UhdmAst::handle_param_assign(vpiHandle obj_h, AstNodeList& parent)
 						 if (node) {
 							 if (node->type == AST::AST_PARAMETER || node->type == AST::AST_LOCALPARAM) {
 								 current_node->str = node->str;
+								 shared.param_types[current_node] = shared.param_types[node];
 							 } else {
 								 current_node->children.push_back(node);
 							 }
@@ -1137,16 +1145,27 @@ AST::AstNode* UhdmAst::handle_inside_op(vpiHandle obj_h, AstNodeList& parent) {
 
 AST::AstNode* UhdmAst::handle_assignment_pattern_op(vpiHandle obj_h, AstNodeList& parent) {
 	auto current_node = make_ast_node(AST::AST_CONCAT, obj_h);
-	if (parent.find({AST::AST_PARAMETER})) {
+	if (auto param_node = parent.find({AST::AST_PARAMETER})) {
+		std::map<size_t, AST::AstNode*> ordered_children;
 		visit_one_to_many({vpiOperand},
 						  obj_h, {&parent, current_node},
 						  [&](AST::AstNode* node) {
 							  if (node->type == AST::AST_ASSIGN || node->type == AST::AST_ASSIGN_EQ || node->type == AST::AST_ASSIGN_LE) {
-								  current_node->children.push_back(node->children[1]->clone());
+								  // Find at what position in the concat should we place this node
+								  auto key = node->children[0]->str;
+								  key = key.substr(key.find('.') + 1);
+								  auto param_type = shared.param_types[param_node];
+								  size_t pos = std::find_if(param_type->children.begin(), param_type->children.end(),
+															[key](AST::AstNode* child) { return child->str == key; })
+									  - param_type->children.begin();
+								  ordered_children.insert(std::make_pair(pos, node->children[1]->clone()));
 							  } else {
 								  current_node->children.push_back(node);
 							  }
 						  });
+		for (auto p : ordered_children) {
+			current_node->children.push_back(p.second);
+		}
 		return current_node;
 	}
 	auto assign_node = parent.find({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ, AST::AST_ASSIGN_LE});
