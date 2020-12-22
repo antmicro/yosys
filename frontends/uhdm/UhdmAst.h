@@ -81,6 +81,7 @@ class UhdmAst {
 		AST::AstNode* handle_cast_op(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_inside_op(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_assignment_pattern_op(vpiHandle obj_h, AstNodeList& parent);
+		AST::AstNode* handle_tagged_pattern(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_bit_select(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_part_select(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_indexed_part_select(vpiHandle obj_h, AstNodeList& parent);

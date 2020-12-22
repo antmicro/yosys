@@ -1141,58 +1141,26 @@ AST::AstNode* UhdmAst::handle_assignment_pattern_op(vpiHandle obj_h, AstNodeList
 		visit_one_to_many({vpiOperand},
 						  obj_h, {&parent, current_node},
 						  [&](AST::AstNode* node) {
-							  current_node->children.push_back(node);
+							  if (node->type == AST::AST_ASSIGN || node->type == AST::AST_ASSIGN_EQ || node->type == AST::AST_ASSIGN_LE) {
+								  current_node->children.push_back(node->children[1]->clone());
+							  } else {
+								  current_node->children.push_back(node);
+							  }
 						  });
 		return current_node;
 	}
 	auto assign_node = parent.find({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ, AST::AST_ASSIGN_LE});
 	auto proc_node = parent.find({AST::AST_BLOCK, AST::AST_ALWAYS, AST::AST_INITIAL, AST::AST_MODULE, AST::AST_PACKAGE});
-	auto assign_type = AST::AST_ASSIGN;
-	AST::AstNode* lhs_node = nullptr;
-	if (assign_node) {
-		assign_type = assign_node->type;
-		lhs_node = assign_node->children[0];
-	} else {
-		lhs_node = new AST::AstNode(AST::AST_IDENTIFIER);
-		lhs_node->str = parent.find({AST::AST_WIRE, AST::AST_MEMORY})->str;
-		assign_node = new AST::AstNode(assign_type);
-		assign_node->children.push_back(lhs_node);
-		proc_node->children.push_back(assign_node);
-	}
-	vpiHandle itr = vpi_iterate(vpiOperand, obj_h);
 	std::vector<AST::AstNode*> assignments;
-	while (vpiHandle operand_h = vpi_scan(itr) ) {
-		UhdmAst uhdm_ast(shared, indent + "  ");
-		if (vpi_get(vpiType, operand_h) == vpiTaggedPattern) {
-			auto assign_node = new AST::AstNode(assign_type);
-			assign_node->children.push_back(lhs_node->clone());
-			auto typespec_h = vpi_handle(vpiTypespec, operand_h);
-			if (vpi_get(vpiType, typespec_h) == vpiStringTypespec) {
-				std::string field_name = vpi_get_str(vpiName, typespec_h);
-				if (field_name != "default") { // TODO: better support of the default keyword
-					assign_node->children[0]->str += '.' + field_name;
-				}
-			} else if (vpi_get(vpiType, typespec_h) == vpiIntegerTypespec) {
-				s_vpi_value val;
-				vpi_get_value(typespec_h, &val);
-				auto range = new AST::AstNode(AST::AST_RANGE);
-				auto index = AST::AstNode::mkconst_int(val.value.integer, false);
-				range->children.push_back(index);
-				assign_node->children[0]->children.push_back(range);
-			}
-			vpi_free_object(typespec_h);
-			auto pattern_h = vpi_handle(vpiPattern, operand_h);
-			auto *rhs_node = uhdm_ast.handle_object(pattern_h, parent);
-			assign_node->children.push_back(rhs_node);
-			vpi_free_object(pattern_h);
-			assignments.push_back(assign_node);
-		} else {
-			auto *node = uhdm_ast.handle_object(operand_h, parent);
-			current_node->children.push_back(node);
-		}
-		vpi_free_object(operand_h);
-	}
-	vpi_free_object(itr);
+	visit_one_to_many({vpiOperand},
+						  obj_h, {&parent, current_node},
+						  [&](AST::AstNode* node) {
+							  if (node->type == AST::AST_ASSIGN || node->type == AST::AST_ASSIGN_EQ || node->type == AST::AST_ASSIGN_LE) {
+								  assignments.push_back(node);
+							  } else {
+								  current_node->children.push_back(node);
+							  }
+						  });
 	std::reverse(current_node->children.begin(), current_node->children.end());
 	if (!assignments.empty()) {
 		if (current_node->children.empty()) {
@@ -1205,6 +1173,42 @@ AST::AstNode* UhdmAst::handle_assignment_pattern_op(vpiHandle obj_h, AstNodeList
 			proc_node->children.insert(proc_node->children.end(), assignments.begin(), assignments.end());
 		}
 	}
+	return current_node;
+}
+
+AST::AstNode* UhdmAst::handle_tagged_pattern(vpiHandle obj_h, AstNodeList& parent) {
+	auto assign_node = parent.find({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ, AST::AST_ASSIGN_LE});
+	auto assign_type = AST::AST_ASSIGN;
+	AST::AstNode* lhs_node = nullptr;
+	if (assign_node) {
+		assign_type = assign_node->type;
+		lhs_node = assign_node->children[0];
+	} else {
+		lhs_node = new AST::AstNode(AST::AST_IDENTIFIER);
+		lhs_node->str = parent.find({AST::AST_WIRE, AST::AST_MEMORY, AST::AST_PARAMETER})->str;
+	}
+	auto current_node = new AST::AstNode(assign_type);
+	current_node->children.push_back(lhs_node->clone());
+	auto typespec_h = vpi_handle(vpiTypespec, obj_h);
+	if (vpi_get(vpiType, typespec_h) == vpiStringTypespec) {
+		std::string field_name = vpi_get_str(vpiName, typespec_h);
+		if (field_name != "default") { // TODO: better support of the default keyword
+			current_node->children[0]->str += '.' + field_name;
+		}
+	} else if (vpi_get(vpiType, typespec_h) == vpiIntegerTypespec) {
+		s_vpi_value val;
+		vpi_get_value(typespec_h, &val);
+		auto range = new AST::AstNode(AST::AST_RANGE);
+		auto index = AST::AstNode::mkconst_int(val.value.integer, false);
+		range->children.push_back(index);
+		current_node->children[0]->children.push_back(range);
+	}
+	vpi_free_object(typespec_h);
+	visit_one_to_one({vpiPattern},
+					 obj_h, {&parent, current_node},
+					 [&](AST::AstNode* node) {
+						 current_node->children.push_back(node);
+					 });
 	return current_node;
 }
 
@@ -1661,6 +1665,7 @@ AST::AstNode* UhdmAst::handle_object(vpiHandle obj_h, AstNodeList parent) {
 		case vpiBegin: node = handle_begin(obj_h, parent); break;
 		case vpiCondition:
 		case vpiOperation: node = handle_operation(obj_h, parent); break;
+		case vpiTaggedPattern: node = handle_tagged_pattern(obj_h, parent); break;
 		case vpiBitSelect: node = handle_bit_select(obj_h, parent); break;
 		case vpiPartSelect: node = handle_part_select(obj_h, parent); break;
 		case vpiIndexedPartSelect: node = handle_indexed_part_select(obj_h, parent); break;
