@@ -2,6 +2,7 @@
 OBJS += frontends/uhdm/UhdmAst.o
 OBJS += frontends/uhdm/uhdmastreport.o
 OBJS += frontends/uhdm/uhdmastfrontend.o
+OBJS += frontends/uhdm/vpivisitor.o
 
 #*** UHDM ***
 CPPFLAGS += -std=c++14 -I./../image/include/uhdm \
