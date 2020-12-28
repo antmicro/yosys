@@ -1652,6 +1652,23 @@ AST::AstNode* UhdmAst::handle_immediate_assert(vpiHandle obj_h, AstNodeList& par
 	return current_node;
 }
 
+AST::AstNode* UhdmAst::handle_hier_path(vpiHandle obj_h, AstNodeList& parent) {
+	auto current_node = make_ast_node(AST::AST_IDENTIFIER, obj_h);
+	current_node->str = "\\";
+	visit_one_to_many({vpiActual},
+					  obj_h, {&parent, current_node},
+					  [&](AST::AstNode* node) {
+						  if (current_node->str != "\\") {
+							  current_node->str += ".";
+						  }
+						  current_node->str += node->str.substr(1);
+						  for (auto child : node->children) {
+							  current_node->children.push_back(child->clone());
+						  }
+					  });
+	return current_node;
+}
+
 AST::AstNode* UhdmAst::handle_object(vpiHandle obj_h, AstNodeList parent) {
 
 	const unsigned object_type = vpi_get(vpiType, obj_h);
@@ -1728,7 +1745,7 @@ AST::AstNode* UhdmAst::handle_object(vpiHandle obj_h, AstNodeList parent) {
 				  if (!shared.no_assert)
 					  node = handle_immediate_assert(obj_h, parent);
 				  break;
-		case vpiHierPath: node = make_ast_node(AST::AST_IDENTIFIER, obj_h); break;
+		case vpiHierPath: node = handle_hier_path(obj_h, parent); break;
 		case UHDM::uhdmimport: break;
 		case vpiProgram:
 		default: report_error("Encountered unhandled object type: %d\n", object_type); break;
