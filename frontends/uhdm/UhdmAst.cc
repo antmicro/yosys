@@ -1510,6 +1510,16 @@ AST::AstNode* UhdmAst::handle_constant(vpiHandle obj_h) {
 					return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
 				}
 			}
+			case vpiDecStrVal: {
+				if (std::strchr(val.value.str, '\'')) {
+					return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
+				} else {
+					auto size = vpi_get(vpiSize, obj_h);
+					if (size == 0) size = 32;
+					auto str = std::to_string(size) + "'d" + val.value.str;
+					return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
+				}
+			}
 			case vpiHexStrVal: {
 				if (std::strchr(val.value.str, '\'')) {
 					return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
