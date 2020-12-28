@@ -100,6 +100,7 @@ class UhdmAst {
 		AST::AstNode* handle_sys_func_call(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_func_call(vpiHandle obj_h, AstNodeList& parent);
 		AST::AstNode* handle_immediate_assert(vpiHandle obj_h, AstNodeList& parent);
+		AST::AstNode* handle_hier_path(vpiHandle obj_h, AstNodeList& parent);
 
 		// Indentation used for debug printing
 		std::string indent;
