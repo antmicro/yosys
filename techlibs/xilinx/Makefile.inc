@@ -63,3 +63,4 @@ $(eval $(call add_gen_share_file,share/xilinx,techlibs/xilinx/brams_init_16.vh))
 $(eval $(call add_gen_share_file,share/xilinx,techlibs/xilinx/brams_init_9.vh))
 $(eval $(call add_gen_share_file,share/xilinx,techlibs/xilinx/brams_init_8.vh))
 
+$(eval $(call add_share_file,share/xilinx,techlibs/xilinx/cells_xtra_surelog.v))
