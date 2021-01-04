@@ -139,6 +139,7 @@ struct SynthQuickLogicPass : public ScriptPass {
             }
             if (args[argidx] == "-openfpga") {
                 openfpga = true;
+                family = "ap3";
                 continue;
             }
             break;
@@ -211,6 +212,7 @@ struct SynthQuickLogicPass : public ScriptPass {
         if (check_label("map_gates")) {
             if (inferAdder && family != "pp3" && family != "ap") {
                 //run("quicklogic_fixcarry");
+                run("ap3_wrapcarry");
                 run("techmap -map +/techmap.v -map +/quicklogic/" + family + "_arith_map.v");
             } else {
                 run("techmap");
@@ -292,9 +294,9 @@ struct SynthQuickLogicPass : public ScriptPass {
                 }
             }
 
-            //if(family != "pp3") {
-            //run("ap3_wrapcarry -unwrap");
-            //}
+            if(family != "pp3" && family != "ap") {
+                run("ap3_wrapcarry -unwrap");
+            }
 
             techMapArgs = " -map +/quicklogic/" + family + "_ffs_map.v";
             if(!openfpga) {
@@ -317,7 +319,9 @@ struct SynthQuickLogicPass : public ScriptPass {
             }
             run("techmap" + techMapArgs);
             run("clean");
-            run("quicklogic_eqn");
+            if (check_label("edif")) {
+                run("quicklogic_eqn");
+            }
         }
 
         if (check_label("check")) {
