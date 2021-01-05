@@ -1737,6 +1737,7 @@ AST::AstNode* UhdmAst::process_object(vpiHandle obj_handle) {
 				  break;
 		case vpiHierPath: process_hier_path(); break;
 		case UHDM::uhdmimport: break;
+		case vpiLogicTypespec: break; // Probably a typedef; ignore
 		case vpiProgram:
 		default: report_error("Encountered unhandled object '%s' of type '%s' at %s:%d\n", object->VpiName().c_str(),
 							  UHDM::VpiTypeName(obj_h).c_str(), object->VpiFile().c_str(), object->VpiLineNo()); break;
