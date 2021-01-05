@@ -27,120 +27,120 @@ PRIVATE_NAMESPACE_BEGIN
 
 void create_ap3_wrapcarry(ap3_wrapcarry_pm &pm)
 {
-	auto &st = pm.st_ap3_wrapcarry;
+    auto &st = pm.st_ap3_wrapcarry;
 
 #if 0
-	log("\n");
-	log("carry: %s\n", log_id(st.carry, "--"));
-	log("lut:   %s\n", log_id(st.lut, "--"));
+    log("\n");
+    log("carry: %s\n", log_id(st.carry, "--"));
+    log("lut:   %s\n", log_id(st.lut, "--"));
 #endif
 
-	log("  replacing LUT4 + QL_CARRY with $__AP3_CARRY_WRAPPER cell.\n");
+    log("  replacing LUT4 + QL_CARRY with $__AP3_CARRY_WRAPPER cell.\n");
 
-	Cell *cell = pm.module->addCell(NEW_ID, ID($__AP3_CARRY_WRAPPER));
-	pm.module->swap_names(cell, st.carry);
+    Cell *cell = pm.module->addCell(NEW_ID, ID($__AP3_CARRY_WRAPPER));
+    pm.module->swap_names(cell, st.carry);
 
-	cell->setPort(ID::A, st.carry->getPort(ID(I0)));
-	cell->setPort(ID::B, st.carry->getPort(ID(I1)));
-	auto CI = st.carry->getPort(ID::CI);
-	cell->setPort(ID::CI, CI);
-	cell->setPort(ID::CO, st.carry->getPort(ID::CO));
+    cell->setPort(ID::A, st.carry->getPort(ID(I0)));
+    cell->setPort(ID::B, st.carry->getPort(ID(I1)));
+    auto CI = st.carry->getPort(ID::CI);
+    cell->setPort(ID::CI, CI);
+    cell->setPort(ID::CO, st.carry->getPort(ID::CO));
 
-	auto I2 = st.lut->getPort(ID(I2));
-	if (pm.sigmap(CI) == pm.sigmap(I2)) {
-		cell->setParam(ID(I2_IS_CI), State::S1);
-		I2 = State::Sx;
-	}
-	else
-		cell->setParam(ID(I2_IS_CI), State::S0);
-	cell->setPort(ID(I2), I2);
-	cell->setPort(ID(I3), st.lut->getPort(ID(I3)));
-	cell->setPort(ID::O, st.lut->getPort(ID::O));
+    auto I2 = st.lut->getPort(ID(I2));
+    if (pm.sigmap(CI) == pm.sigmap(I2)) {
+        cell->setParam(ID(I2_IS_CI), State::S1);
+        I2 = State::Sx;
+    }
+    else
+        cell->setParam(ID(I2_IS_CI), State::S0);
+    cell->setPort(ID(I2), I2);
+    cell->setPort(ID(I3), st.lut->getPort(ID(I3)));
+    cell->setPort(ID::O, st.lut->getPort(ID::O));
 
     if (!st.lut->hasParam(ID(INIT))) {
         log_error("Cell '%s' of type '%s' has no 'INIT' parameter!\n",
             st.lut->name.c_str(), st.lut->type.c_str());
     }
-	cell->setParam(ID::LUT, st.lut->getParam(ID(INIT)));
+    cell->setParam(ID::LUT, st.lut->getParam(ID(INIT)));
 
-	for (const auto &a : st.carry->attributes)
-		cell->attributes[stringf("\\QL_CARRY.%s", a.first.c_str())] = a.second;
-	for (const auto &a : st.lut->attributes)
-		cell->attributes[stringf("\\LUT4.%s", a.first.c_str())] = a.second;
-	cell->attributes[ID(LUT4.name)] = Const(st.lut->name.str());
-	if (st.carry->get_bool_attribute(ID::keep) || st.lut->get_bool_attribute(ID::keep))
-		cell->attributes[ID::keep] = true;
+    for (const auto &a : st.carry->attributes)
+        cell->attributes[stringf("\\QL_CARRY.%s", a.first.c_str())] = a.second;
+    for (const auto &a : st.lut->attributes)
+        cell->attributes[stringf("\\LUT4.%s", a.first.c_str())] = a.second;
+    cell->attributes[ID(LUT4.name)] = Const(st.lut->name.str());
+    if (st.carry->get_bool_attribute(ID::keep) || st.lut->get_bool_attribute(ID::keep))
+        cell->attributes[ID::keep] = true;
 
-	pm.autoremove(st.carry);
-	pm.autoremove(st.lut);
+    pm.autoremove(st.carry);
+    pm.autoremove(st.lut);
 }
 
 struct AP3WrapCarryPass : public Pass {
-	AP3WrapCarryPass() : Pass("ap3_wrapcarry", "AP3: wrap carries") { }
-	void help() YS_OVERRIDE
-	{
-		//   |---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|
-		log("\n");
-		log("    ap3_wrapcarry [selection]\n");
-		log("\n");
-		log("Wrap manually instantiated QL_CARRY cells, along with their associated LUT4s,\n");
-		log("into an internal $__AP3_CARRY_WRAPPER cell for preservation across technology\n");
-		log("mapping.\n");
-		log("\n");
-		log("Attributes on both cells will have their names prefixed with 'QL_CARRY.' or\n");
-		log("'LUT4.' and attached to the wrapping cell.\n");
-		log("A (* keep *) attribute on either cell will be logically OR-ed together.\n");
-		log("\n");
-		log("    -unwrap\n");
-		log("        unwrap $__AP3_CARRY_WRAPPER cells back into QL_CARRYs and LUT4s,\n");
-		log("        including restoring their attributes.\n");
-		log("\n");
-	}
-	void execute(std::vector<std::string> args, RTLIL::Design *design) YS_OVERRIDE
-	{
-		bool unwrap = false;
+    AP3WrapCarryPass() : Pass("ap3_wrapcarry", "AP3: wrap carries") { }
+    void help() YS_OVERRIDE
+    {
+        //   |---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|
+        log("\n");
+        log("    ap3_wrapcarry [selection]\n");
+        log("\n");
+        log("Wrap manually instantiated QL_CARRY cells, along with their associated LUT4s,\n");
+        log("into an internal $__AP3_CARRY_WRAPPER cell for preservation across technology\n");
+        log("mapping.\n");
+        log("\n");
+        log("Attributes on both cells will have their names prefixed with 'QL_CARRY.' or\n");
+        log("'LUT4.' and attached to the wrapping cell.\n");
+        log("A (* keep *) attribute on either cell will be logically OR-ed together.\n");
+        log("\n");
+        log("    -unwrap\n");
+        log("        unwrap $__AP3_CARRY_WRAPPER cells back into QL_CARRYs and LUT4s,\n");
+        log("        including restoring their attributes.\n");
+        log("\n");
+    }
+    void execute(std::vector<std::string> args, RTLIL::Design *design) YS_OVERRIDE
+    {
+        bool unwrap = false;
 
-		log_header(design, "Executing ap3_wrapcarry pass (wrap carries).\n");
+        log_header(design, "Executing ap3_wrapcarry pass (wrap carries).\n");
 
-		size_t argidx;
-		for (argidx = 1; argidx < args.size(); argidx++)
-		{
-			if (args[argidx] == "-unwrap") {
-				unwrap = true;
-				continue;
-			}
-			break;
-		}
-		extra_args(args, argidx, design);
+        size_t argidx;
+        for (argidx = 1; argidx < args.size(); argidx++)
+        {
+            if (args[argidx] == "-unwrap") {
+                unwrap = true;
+                continue;
+            }
+            break;
+        }
+        extra_args(args, argidx, design);
 
-		for (auto module : design->selected_modules()) {
-			if (!unwrap) {
-				ap3_wrapcarry_pm(module, module->selected_cells()).run_ap3_wrapcarry(create_ap3_wrapcarry);
-			} else {
-				for (auto cell : module->selected_cells()) {
-					if (cell->type != ID($__AP3_CARRY_WRAPPER))
-						continue;
+        for (auto module : design->selected_modules()) {
+            if (!unwrap) {
+                ap3_wrapcarry_pm(module, module->selected_cells()).run_ap3_wrapcarry(create_ap3_wrapcarry);
+            } else {
+                for (auto cell : module->selected_cells()) {
+                    if (cell->type != ID($__AP3_CARRY_WRAPPER))
+                        continue;
 
-					auto carry = module->addCell(NEW_ID, ID(QL_CARRY));
-					carry->setPort(ID(I0), cell->getPort(ID::A));
-					carry->setPort(ID(I1), cell->getPort(ID::B));
-					carry->setPort(ID::CI, cell->getPort(ID::CI));
-					carry->setPort(ID::CO, cell->getPort(ID::CO));
-					module->swap_names(carry, cell);
-					auto lut_name = cell->attributes.at(ID(LUT4.name), Const(NEW_ID.str())).decode_string();
-					auto lut = module->addCell(lut_name, ID($lut));
+                    auto carry = module->addCell(NEW_ID, ID(QL_CARRY));
+                    carry->setPort(ID(I0), cell->getPort(ID::A));
+                    carry->setPort(ID(I1), cell->getPort(ID::B));
+                    carry->setPort(ID::CI, cell->getPort(ID::CI));
+                    carry->setPort(ID::CO, cell->getPort(ID::CO));
+                    module->swap_names(carry, cell);
+                    auto lut_name = cell->attributes.at(ID(LUT4.name), Const(NEW_ID.str())).decode_string();
+                    auto lut = module->addCell(lut_name, ID($lut));
 
-					lut->setParam(ID::WIDTH, 4);
+                    lut->setParam(ID::WIDTH, 4);
 
                     if (!cell->hasParam(ID::LUT))
                         log_error("Cell '%s' of type '%s' has no 'LUT' parameter!\n",
                             cell->name.c_str(), cell->type.c_str());
-					lut->setParam(ID::LUT, cell->getParam(ID::LUT));
+                    lut->setParam(ID::LUT, cell->getParam(ID::LUT));
 
                     if (!cell->hasParam(ID(I2_IS_CI)))
                         log_error("Cell '%s' of type '%s' has no 'I2_IS_CI' parameter!\n",
                             cell->name.c_str(), cell->type.c_str());
-					auto I2 = cell->getPort(cell->getParam(ID(I2_IS_CI)).as_bool() ? ID::CI : ID(I2));
+                    auto I2 = cell->getPort(cell->getParam(ID(I2_IS_CI)).as_bool() ? ID::CI : ID(I2));
 
                     // Build new connection to the $lut.A port
                     std::vector<RTLIL::SigSpec> parts = {
@@ -165,31 +165,31 @@ struct AP3WrapCarryPass : public Pass {
                     }
 
                     lut->setPort(ID::A, signal);
-					lut->setPort(ID::Y, cell->getPort(ID::O));
+                    lut->setPort(ID::Y, cell->getPort(ID::O));
 
-					Const src;
-					for (const auto &a : cell->attributes)
-						if (a.first.begins_with("\\QL_CARRY.\\"))
-							carry->attributes[a.first.c_str() + strlen("\\QL_CARRY.")] = a.second;
-						else if (a.first.begins_with("\\LUT4.\\"))
-							lut->attributes[a.first.c_str() + strlen("\\LUT4.")] = a.second;
-						else if (a.first == ID::src)
-							src = a.second;
-						else if (a.first.in(ID(LUT4.name), ID::keep, ID::module_not_derived))
-							continue;
-						else
-							log_abort();
+                    Const src;
+                    for (const auto &a : cell->attributes)
+                        if (a.first.begins_with("\\QL_CARRY.\\"))
+                            carry->attributes[a.first.c_str() + strlen("\\QL_CARRY.")] = a.second;
+                        else if (a.first.begins_with("\\LUT4.\\"))
+                            lut->attributes[a.first.c_str() + strlen("\\LUT4.")] = a.second;
+                        else if (a.first == ID::src)
+                            src = a.second;
+                        else if (a.first.in(ID(LUT4.name), ID::keep, ID::module_not_derived))
+                            continue;
+                        else
+                            log_abort();
 
-					if (!src.empty()) {
-						carry->attributes.insert(std::make_pair(ID::src, src));
-						lut->attributes.insert(std::make_pair(ID::src, src));
-					}
+                    if (!src.empty()) {
+                        carry->attributes.insert(std::make_pair(ID::src, src));
+                        lut->attributes.insert(std::make_pair(ID::src, src));
+                    }
 
-					module->remove(cell);
-				}
-			}
-		}
-	}
+                    module->remove(cell);
+                }
+            }
+        }
+    }
 } AP3WrapCarryPass;
 
 PRIVATE_NAMESPACE_END
