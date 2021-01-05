@@ -162,6 +162,7 @@ struct SynthQuickLogicPass : public ScriptPass {
         if (check_label("begin")) {
             std::string readVelArgs = " +/quicklogic/" + family + "_cells_sim.v";
             run("read_verilog -lib -specify +/quicklogic/cells_sim.v" + readVelArgs);
+	        run("read_verilog -lib -specify +/quicklogic/abc9_model.v");
             run(stringf("hierarchy -check %s", help_mode ? "-top <top>" : top_opt.c_str()));
         }
 
