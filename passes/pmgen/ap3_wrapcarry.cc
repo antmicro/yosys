@@ -142,7 +142,29 @@ struct AP3WrapCarryPass : public Pass {
                             cell->name.c_str(), cell->type.c_str());
 					auto I2 = cell->getPort(cell->getParam(ID(I2_IS_CI)).as_bool() ? ID::CI : ID(I2));
 
-					lut->setPort(ID::A, {cell->getPort(ID(I3)), I2, cell->getPort(ID::B), cell->getPort(ID::A)});
+                    // Build new connection to the $lut.A port
+                    std::vector<RTLIL::SigSpec> parts = {
+                        cell->getPort(ID::A),
+                        cell->getPort(ID::B),
+                        I2,
+                        cell->getPort(ID(I3))
+                    };
+
+                    RTLIL::SigSpec signal(RTLIL::State::Sz, 4);
+                    for (size_t i=0; i<4; ++i) {
+                        if (!parts[i].empty()) {
+
+                            // Sanity check
+                            if (parts[i].size() != 1) {
+                                log_error("Port I%zu connected to a vector %s",
+                                    i, log_signal(parts[i]));
+                            }
+
+                            signal.replace(i, parts[i]);
+                        }
+                    }
+
+                    lut->setPort(ID::A, signal);
 					lut->setPort(ID::Y, cell->getPort(ID::O));
 
 					Const src;
