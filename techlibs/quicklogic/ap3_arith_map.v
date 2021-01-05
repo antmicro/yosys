@@ -37,25 +37,25 @@ module _80_quicklogic_alu (A, B, CI, BI, X, Y, CO);
     wire ci;
     wire co;
 
-     genvar i;
-    generate for (i = 0; i < Y_WIDTH; i = i + 1) begin: slice
-        \$__AP3_CARRY_WRAPPER #(
-            .LUT(16'b 1110_1000_1001_0110),
-            .I2_IS_CI(1'b1)
-        ) carry (
-			.A(AA[i]),
-			.B(BB[i]),
-			.CI(C[i]),
-			.I2(1'bx),
-			.I3(1'b0),
-			.CO(CO[i]),
-			.O(Y[i])
-		);
+//     genvar i;
+//    generate for (i = 0; i < Y_WIDTH; i = i + 1) begin: slice
+//        \$__AP3_CARRY_WRAPPER #(
+//            .LUT(16'b 1110_1000_1001_0110),
+//            .I2_IS_CI(1'b1)
+//        ) carry (
+//			.A(AA[i]),
+//			.B(BB[i]),
+//			.CI(C[i]),
+//			.I2(1'bx),
+//			.I3(1'b0),
+//			.CO(CO[i]),
+//			.O(Y[i])
+//		);
+//
+//    end: slice
+//    endgenerate
 
-    end: slice	  
-    endgenerate
-
-    /*genvar i;
+    genvar i;
     generate for (i = 0; i < Y_WIDTH; i = i + 1) begin: slice
         // First in chain
         generate if (i == 0) begin
@@ -72,7 +72,7 @@ module _80_quicklogic_alu (A, B, CI, BI, X, Y, CO);
 
                 // LUT4 configured as 1-bit adder with CI=const
                 \$__AP3_CARRY_WRAPPER #(
-                    .INIT(INIT),
+                    .LUT(INIT),
                     .I2_IS_CI(1'b1)
                 ) lut_ci_adder (
                     .A(AA[i]),
@@ -89,7 +89,7 @@ module _80_quicklogic_alu (A, B, CI, BI, X, Y, CO);
 
                 // LUT4 configured as passthrough to drive CI of the next stage
                 \$__AP3_CARRY_WRAPPER #(
-                    .INIT(16'b11000000_00001100),
+                    .LUT(16'b11000000_00001100),
                     .I2_IS_CI(1'b1)
                 ) lut_ci (
                     .A(),
@@ -118,7 +118,7 @@ module _80_quicklogic_alu (A, B, CI, BI, X, Y, CO);
             
             // LUT4 configured as full 1-bit adder
             \$__AP3_CARRY_WRAPPER #(
-                    .INIT(16'b10000110_10010110),
+                    .LUT(16'b10000110_10010110),
                     .I2_IS_CI(1'b0)
                 ) lut_adder (
                     .A(AA[i]),
@@ -142,7 +142,7 @@ module _80_quicklogic_alu (A, B, CI, BI, X, Y, CO);
             // LUT4 configured for passing its CI input to output. This should
             // get pruned if the actual CO port is not connected anywhere.
             \$__AP3_CARRY_WRAPPER #(
-                    .INIT(16'b11110000_11110000),
+                    .LUT(16'b11110000_11110000),
                     .I2_IS_CI(1'b0)
                 ) lut_co (
                     .A(),
@@ -161,8 +161,6 @@ module _80_quicklogic_alu (A, B, CI, BI, X, Y, CO);
 
     end: slice	  
     endgenerate
-    */
-    
 
     /* End implementation */
     assign X = AA ^ BB;
