@@ -56,6 +56,11 @@ void create_ap3_wrapcarry(ap3_wrapcarry_pm &pm)
 	cell->setPort(ID(I2), I2);
 	cell->setPort(ID(I3), st.lut->getPort(ID(I3)));
 	cell->setPort(ID::O, st.lut->getPort(ID::O));
+
+    if (!st.lut->hasParam(ID(INIT))) {
+        log_error("Cell '%s' of type '%s' has no 'INIT' parameter!\n",
+            st.lut->name.c_str(), st.lut->type.c_str());
+    }
 	cell->setParam(ID::LUT, st.lut->getParam(ID(INIT)));
 
 	for (const auto &a : st.carry->attributes)
@@ -124,9 +129,19 @@ struct AP3WrapCarryPass : public Pass {
 					module->swap_names(carry, cell);
 					auto lut_name = cell->attributes.at(ID(LUT4.name), Const(NEW_ID.str())).decode_string();
 					auto lut = module->addCell(lut_name, ID($lut));
+
 					lut->setParam(ID::WIDTH, 4);
+
+                    if (!cell->hasParam(ID::LUT))
+                        log_error("Cell '%s' of type '%s' has no 'LUT' parameter!\n",
+                            cell->name.c_str(), cell->type.c_str());
 					lut->setParam(ID::LUT, cell->getParam(ID::LUT));
+
+                    if (!cell->hasParam(ID(I2_IS_CI)))
+                        log_error("Cell '%s' of type '%s' has no 'I2_IS_CI' parameter!\n",
+                            cell->name.c_str(), cell->type.c_str());
 					auto I2 = cell->getPort(cell->getParam(ID(I2_IS_CI)).as_bool() ? ID::CI : ID(I2));
+
 					lut->setPort(ID::A, {cell->getPort(ID(I3)), I2, cell->getPort(ID::B), cell->getPort(ID::A)});
 					lut->setPort(ID::Y, cell->getPort(ID::O));
 
