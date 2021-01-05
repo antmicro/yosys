@@ -124,7 +124,8 @@ struct AP3WrapCarryPass : public Pass {
                     auto carry = module->addCell(NEW_ID, ID(QL_CARRY));
                     carry->setPort(ID(I0), cell->getPort(ID::A));
                     carry->setPort(ID(I1), cell->getPort(ID::B));
-                    carry->setPort(ID::CI, cell->getPort(ID::CI));
+                    auto CI = cell->getPort(ID::CI);
+                    carry->setPort(ID::CI, (CI.empty()) ? RTLIL::Const(RTLIL::State::Sx) : CI);
                     carry->setPort(ID::CO, cell->getPort(ID::CO));
                     module->swap_names(carry, cell);
                     auto lut_name = cell->attributes.at(ID(LUT4.name), Const(NEW_ID.str())).decode_string();
@@ -150,7 +151,7 @@ struct AP3WrapCarryPass : public Pass {
                         cell->getPort(ID(I3))
                     };
 
-                    RTLIL::SigSpec signal(RTLIL::State::Sz, 4);
+                    RTLIL::SigSpec signal(RTLIL::State::Sx, 4);
                     for (size_t i=0; i<4; ++i) {
                         if (!parts[i].empty()) {
 
