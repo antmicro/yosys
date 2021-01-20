@@ -4,7 +4,7 @@ OBJS += frontends/uhdm/uhdmastreport.o
 OBJS += frontends/uhdm/uhdmastfrontend.o
 OBJS += frontends/uhdm/vpivisitor.o
 
-UHDM_INSTALL_DIR ?= ./../../image
+UHDM_INSTALL_DIR ?= $(PREFIX)
 
 #*** UHDM ***
 CPPFLAGS += -std=c++14 -I${UHDM_INSTALL_DIR}/include/uhdm \
