@@ -175,6 +175,7 @@ AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, vpiHandle obj_h) {
 }
 
 static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
+
 	if (!child->str.empty()) {
 		auto it = std::find_if(parent->children.begin(),
 							   parent->children.end(),
@@ -316,6 +317,7 @@ void UhdmAst::process_design() {
 void UhdmAst::process_parameter() {
 	auto type = vpi_get(vpiLocalParam, obj_h) == 1 ? AST::AST_LOCALPARAM : AST::AST_PARAMETER;
 	current_node = make_ast_node(type, obj_h);
+	//if (vpi_get_str(vpiImported, obj_h) != "") { } //currently unused
 	vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
 	if (typespec_h) {
 		int typespec_type = vpi_get(vpiType, typespec_h);
@@ -361,9 +363,6 @@ void UhdmAst::process_parameter() {
 			current_node->children.push_back(constant_node);
 		}
 	}
-	// Make sure AST_PARAMETER/AST_LOCALPARAM have atleast 1 children
-	if (current_node->children.size() < 1)
-		current_node = nullptr;
 }
 
 void UhdmAst::process_port() {
@@ -552,13 +551,12 @@ void UhdmAst::process_module() {
 								  add_or_replace_child(module_node, node);
 							  }
 						  });
-		std::string module_parameters;
-		visit_one_to_many({vpiParameter},
+		visit_one_to_many({vpiParamAssign},
 						  obj_h,
 						  [&](AST::AstNode* node) {
 							  if (node) {
 								if (std::find_if(module_node->children.begin(), module_node->children.end(),
-											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER && child->str == node->str; }) 
+											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER && child->str == node->str; })
 														!= module_node->children.end()) {
 									bool blackbox_module = true;
 									for (auto child : module_node->children) {
@@ -574,26 +572,12 @@ void UhdmAst::process_module() {
 									}
 									if (blackbox_module) {
 										module_node->attributes[ID::blackbox] = AST::AstNode::mkconst_int(1, false, 1);
-										auto clone = node->clone();
-										clone->type = AST::AST_PARASET;
-										current_node->children.push_back(clone);
 									}
-									if (node->children[0]->str != "")
-										module_parameters += node->str + "=" + node->children[0]->str;
-									else
-										module_parameters += node->str + "=" + std::to_string(node->children[0]->integer);
+									auto clone = node->clone();
+									clone->type = AST::AST_PARASET;
+									current_node->children.push_back(clone);
 								}
-								shared.top_nodes.erase(module_node->str);
-								if (!module_node->get_bool_attribute(ID::blackbox)) {
-									if (module_parameters.size() > 60)
-										module_node->str = "$paramod$" + sha1(module_parameters) + type;
-									else
-										module_node->str = "$paramod" + type + module_parameters;
-								}
-								shared.top_node_templates[module_node->str] = module_node;
 								module_node->attributes.erase(ID::partial);
-								shared.top_nodes[module_node->str] = module_node;
-								add_or_replace_child(module_node, node);
 							  }
 						  });
 		make_cell(obj_h, current_node, module_node);
@@ -778,7 +762,7 @@ void UhdmAst::process_param_assign() {
 					 obj_h,
 					 [&](AST::AstNode* node) {
 						 if (node) {
-							 current_node->children.push_back(node);
+							 current_node->children.insert(current_node->children.begin(), node);
 						 }
 					 });
 }
@@ -1206,7 +1190,7 @@ void UhdmAst::process_inside_op() {
 
 void UhdmAst::process_assignment_pattern_op() {
 	current_node = make_ast_node(AST::AST_CONCAT, obj_h);
-	if (auto param_node = find_ancestor({AST::AST_PARAMETER})) {
+	if (auto param_node = find_ancestor({AST::AST_PARAMETER, AST::AST_LOCALPARAM})) {
 		std::map<size_t, AST::AstNode*> ordered_children;
 		visit_one_to_many({vpiOperand},
 						  obj_h,
@@ -1264,7 +1248,7 @@ void UhdmAst::process_tagged_pattern() {
 		lhs_node = assign_node->children[0];
 	} else {
 		lhs_node = new AST::AstNode(AST::AST_IDENTIFIER);
-		lhs_node->str = find_ancestor({AST::AST_WIRE, AST::AST_MEMORY, AST::AST_PARAMETER})->str;
+		lhs_node->str = find_ancestor({AST::AST_WIRE, AST::AST_MEMORY, AST::AST_PARAMETER, AST::AST_LOCALPARAM})->str;
 	}
 	current_node = new AST::AstNode(assign_type);
 	current_node->children.push_back(lhs_node->clone());
