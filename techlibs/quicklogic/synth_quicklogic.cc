@@ -165,7 +165,7 @@ struct SynthQuickLogicPass : public ScriptPass {
             run(stringf("hierarchy -check %s", help_mode ? "-top <top>" : top_opt.c_str()));
         }
 
-        if (check_label("prepare")) {
+        if (check_label("prepare") && !openfpga) {
             run("proc");
             run("flatten");
             if(family == "pp3" || family == "ap") {
@@ -177,7 +177,7 @@ struct SynthQuickLogicPass : public ScriptPass {
             run("opt");
         }
 
-        if (check_label("coarse")) {
+        if (check_label("coarse") && !openfpga) {
             run("opt_expr");
             run("opt_clean");
             run("check");
@@ -193,6 +193,13 @@ struct SynthQuickLogicPass : public ScriptPass {
             run("opt -fast");
             run("memory -nomap");
             run("opt_clean");
+        }
+
+        if(openfpga) {
+            run("proc");
+            run("techmap  -D NO_LUT -map +/adff2dff.v");
+            run("synth " + top_opt + " -flatten");
+            run("clean");
         }
 
         if (check_label("map_bram", "(skip if -nobram)") && family == "pp3") {
