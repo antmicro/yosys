@@ -97,7 +97,7 @@ jobs:
       - run: sudo add-apt-repository ppa:ubuntu-toolchain-r/test
       - uses: myci-actions/add-deb-repo@4
         with:
-          repo: deb http://apt.llvm.org/precise llvm-toolchain-precise-3.8 main
+          repo: deb [trusted=yes] http://apt.llvm.org/precise llvm-toolchain-precise-3.8 main
           repo-name: llvm-precise-3_8
       - run: |
           sudo apt install          \
