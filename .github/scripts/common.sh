@@ -7,7 +7,7 @@ eval "${MATRIX_EVAL}"
 export PATH="$HOME/.local-bin/bin:$PATH"
 
 # OS X specific common setup
-if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+if [[ "$OS_NAME" == "osx" ]]; then
 	export PATH="/usr/local/opt/ccache/libexec:$PATH"
 fi
 

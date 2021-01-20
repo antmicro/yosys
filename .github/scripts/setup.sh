@@ -2,7 +2,7 @@
 
 set -e
 
-source .travis/common.sh
+source .github/scripts/common.sh
 
 ##########################################################################
 
@@ -16,23 +16,23 @@ source .travis/common.sh
 	git log --format=oneline -n 20 --graph
 )
 echo
-echo -en 'travis_fold:end:before_install.git\\r'
+echo -en '::endgroup::'
 echo
 
 ##########################################################################
 
 # Mac OS X specific setup.
-if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+if [[ "$OS_NAME" == "osx" ]]; then
 	(
 		echo
-		echo 'Setting up brew...' && echo -en 'travis_fold:start:before_install.brew\\r'
+		echo 'Setting up brew...' && echo -en '::group::start:before_install.brew\\r'
 		echo
 		brew update
 		brew tap Homebrew/bundle
 		brew bundle
 		brew install ccache
 		echo
-		echo -en 'travis_fold:end:before_install.brew\\r'
+		echo -en '::endgroup::'
 		echo
 	)
 fi
@@ -43,7 +43,7 @@ fi
 (
 	if [ ! -e ~/.local-bin/bin/iverilog ]; then
 		echo
-		echo 'Building iverilog...' && echo -en 'travis_fold:start:before_install.iverilog\\r'
+		echo 'Building iverilog...' && echo -en '::group::start:before_install.iverilog\\r'
 		echo
 		mkdir -p ~/.local-src
 		mkdir -p ~/.local-bin
@@ -55,7 +55,7 @@ fi
 		make
 		make install
 		echo
-		echo -en 'travis_fold:end:before_install.iverilog\\r'
+		echo -en '::endgroup::'
 		echo
 	fi
 )

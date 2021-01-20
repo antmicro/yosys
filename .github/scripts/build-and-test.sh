@@ -2,12 +2,12 @@
 
 set -e
 
-source .travis/common.sh
+source .github/scripts/common.sh
 
 ##########################################################################
 
 echo
-echo 'Configuring...' && echo -en 'travis_fold:start:script.configure\\r'
+echo 'Configuring...' && echo -en '::group::start:script.configure\\r'
 echo
 
 if [ "$CONFIG" = "gcc" ]; then
@@ -19,19 +19,19 @@ elif [ "$CONFIG" = "clang" ]; then
 fi
 
 echo
-echo -en 'travis_fold:end:script.configure\\r'
+echo -en '::endgroup::'
 echo
 
 ##########################################################################
 
 echo
-echo 'Building...' && echo -en 'travis_fold:start:script.build\\r'
+echo 'Building...' && echo -en '::group::start:script.build\\r'
 echo
 
 make CC=$CC CXX=$CC LD=$CC
 
 echo
-echo -en 'travis_fold:end:script.build\\r'
+echo -en '::endgroup::'
 echo
 
 ##########################################################################
@@ -39,13 +39,13 @@ echo
 ./yosys tests/simple/fiedler-cooley.v
 
 echo
-echo 'Testing...' && echo -en 'travis_fold:start:script.test\\r'
+echo 'Testing...' && echo -en '::group::start:script.test\\r'
 echo
 
 make test
 
 echo
-echo -en 'travis_fold:end:script.test\\r'
+echo -en '::endgroup::'
 echo
 
 ##########################################################################
