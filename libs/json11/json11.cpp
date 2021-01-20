@@ -231,7 +231,7 @@ struct Statics {
     const std::shared_ptr<JsonValue> f = make_shared<JsonBoolean>(false);
     const string empty_string;
     const vector<Json> empty_vector;
-    const map<string, Json> empty_map;
+    const map<string, Json> empty_map = {};
     Statics() {}
 };
 
