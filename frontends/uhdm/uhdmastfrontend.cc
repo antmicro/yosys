@@ -45,7 +45,7 @@ get_line_num(void)
 
 struct UhdmAstFrontend : public Frontend {
 	UhdmAstFrontend() : Frontend("uhdm", "read UHDM file") { }
-	void help() YS_OVERRIDE
+	void help()
 	{
 		//   |---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|
 		log("\n");
@@ -63,7 +63,7 @@ struct UhdmAstFrontend : public Frontend {
 		log("        write a coverage report for the UHDM file\n");
 		log("\n");
 	}
-	void execute(std::istream *&f, std::string filename, std::vector<std::string> args, RTLIL::Design *design) YS_OVERRIDE
+	void execute(std::istream *&f, std::string filename, std::vector<std::string> args, RTLIL::Design *design)
 	{
 		log_header(design, "Executing UHDM frontend.\n");
 
