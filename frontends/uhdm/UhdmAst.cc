@@ -573,8 +573,12 @@ void UhdmAst::process_module() {
 										module_node->attributes[ID::blackbox] = AST::AstNode::mkconst_int(1, false, 1);
 									}
 									auto clone = node->clone();
-									clone->type = AST::AST_PARASET;
-									current_node->children.push_back(clone);
+									//skip setting real parameters as they are not currently working
+									//https://github.com/alainmarcel/Surelog/issues/1035
+									if(clone->children[0]->realvalue == 0.0) {
+										clone->type = AST::AST_PARASET;
+										current_node->children.push_back(clone);
+									}
 								}
 								module_node->attributes.erase(ID::partial);
 							  }
