@@ -169,6 +169,10 @@ struct SynthQuickLogicPass : public ScriptPass {
                 log_header(design, "Executing SYNTH_QUICKLOGIC pass.\n");
                 log_push();
 
+                log_warning("delay target has not been set via SDC or scratchpad; assuming 12 MHz clock.\n");
+                design->scratchpad_set_int("abc9.D", 41667); // 12MHz = 83.33.. ns; divided by two to allow for interconnect delay.
+                }
+
                 run_script(design, run_from, run_to);
 
                 log_pop();
