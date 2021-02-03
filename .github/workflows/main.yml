@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - uhdm-yosys-rebase
   pull_request:
 
 jobs:
