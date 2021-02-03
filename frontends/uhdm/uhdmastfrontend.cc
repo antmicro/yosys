@@ -62,6 +62,11 @@ struct UhdmAstFrontend : public Frontend {
 		log("    -report [directory]\n");
 		log("        write a coverage report for the UHDM file\n");
 		log("\n");
+		log("    -defer\n");
+		log("        only read the abstract syntax tree and defer actual compilation\n");
+		log("        to a later 'hierarchy' command. Useful in cases where the default\n");
+		log("        parameters of modules yield invalid or not synthesizable code.\n");
+		log("\n");
 	}
 	void execute(std::istream *&f, std::string filename, std::vector<std::string> args, RTLIL::Design *design)
 	{
@@ -69,6 +74,7 @@ struct UhdmAstFrontend : public Frontend {
 
 		UhdmAstShared shared;
 		UhdmAst uhdm_ast(shared);
+		bool defer = false;
 
 		std::string report_directory;
 		for (size_t i = 1; i < args.size(); i++) {
@@ -79,6 +85,8 @@ struct UhdmAstFrontend : public Frontend {
 				shared.stop_on_error = false;
 			} else if (args[i] == "-noassert") {
 				shared.no_assert = true;
+			} else if (args[i] == "-defer") {
+				defer = true;
 			}
 		}
 		extra_args(f, filename, args, args.size() - 1);
@@ -106,7 +114,7 @@ struct UhdmAstFrontend : public Frontend {
 		bool default_nettype_wire = true;
 		AST::process(design, current_ast,
 			dump_ast1, dump_ast2, false, false, false, false, false, false, false, false,
-			false, false, false, false, false, false, dont_redefine, false, false, default_nettype_wire
+			false, false, false, false, false, false, dont_redefine, false, defer, default_nettype_wire
 		);
 		delete current_ast;
 	}
