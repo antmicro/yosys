@@ -715,6 +715,16 @@ logic_type:
 		astbuf3->range_left = 31;
 		astbuf3->range_right = 0;
 		astbuf3->is_signed = true;
+	} |
+	TOK_INT {
+		astbuf3->is_reg = true;
+		astbuf3->is_signed = true;
+		addRange(astbuf3);
+	} |
+	TOK_SHORTINT {
+		astbuf3->is_reg = true;
+		astbuf3->is_signed = true;
+		addRange(astbuf3, 15, 0);
 	};
 
 non_opt_range:
