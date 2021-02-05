@@ -299,7 +299,7 @@ jobs:
     - name: Build & Test
       run: |
         pip install virtualenv
-        make TEST=tests/ibex env
+        make -C uhdm-integration TEST=tests/ibex env
         ./uhdm-integration/.github/ci.sh
       env:
         TARGET: uhdm/yosys/synth-ibex-symbiflow
