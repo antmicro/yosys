@@ -70,6 +70,9 @@ struct SynthQuickLogicPass : public ScriptPass {
                 log("\n");
                 log("    -abc9\n");
                 log("        (EXPERIMENTAL) use timing-aware LUT mapping\n");
+		log("\n");
+		log("    -mult\n");
+		log("        use multiplier cells in output netlist\n");
                 log("\n");
                 log("    -openfpga\n");
                 log("        to generate blif file compliant with openfpga flow\n");
