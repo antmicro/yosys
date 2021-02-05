@@ -525,6 +525,10 @@ void UhdmAst::process_module() {
 			}
 			shared.top_nodes[module_node->str] = module_node;
 		}
+		auto cell_instance = vpi_get(vpiCellInstance, obj_h);
+		if (cell_instance) {
+			module_node->attributes[ID::whitebox] = AST::AstNode::mkconst_int(1, false, 1);
+		}
 		if (module_node->attributes.count(ID::partial)) {
 			AST::AstNode *attr = module_node->attributes.at(ID::partial);
 			if (attr->type == AST::AST_CONSTANT)
@@ -555,32 +559,12 @@ void UhdmAst::process_module() {
 						  [&](AST::AstNode* node) {
 							  if (node) {
 								if (std::find_if(module_node->children.begin(), module_node->children.end(),
-											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER && child->str == node->str; })
+											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER && child->str == node->str && child->children[0]->type != AST::AST_REALVALUE && (child->children[0]->integer != node->children[0]->integer || child->children[0]->str != node->children[0]->str); })
 														!= module_node->children.end()) {
-									bool blackbox_module = true;
-									for (auto child : module_node->children) {
-										if (child->type == AST::AST_WIRE && (child->is_input || child->is_output))
-											continue;
-										if (child->type == AST::AST_PARAMETER || child->type == AST::AST_LOCALPARAM)
-											continue;
-										if (child->type == AST::AST_CELL && child->children.size() > 0 && child->children[0]->type == AST::AST_CELLTYPE &&
-												(child->children[0]->str == "$specify2" || child->children[0]->str == "$specify3" || child->children[0]->str == "$specrule"))
-											continue;
-										blackbox_module = false;
-										break;
-									}
-									if (blackbox_module) {
-										module_node->attributes[ID::blackbox] = AST::AstNode::mkconst_int(1, false, 1);
-									}
 									auto clone = node->clone();
-									//skip setting real parameters as they are not currently working
-									//https://github.com/alainmarcel/Surelog/issues/1035
-									if(clone->children[0]->realvalue == 0.0) {
-										clone->type = AST::AST_PARASET;
-										current_node->children.push_back(clone);
-									}
+									clone->type = AST::AST_PARASET;
+									current_node->children.push_back(clone);
 								}
-								module_node->attributes.erase(ID::partial);
 							  }
 						  });
 		make_cell(obj_h, current_node, module_node);
