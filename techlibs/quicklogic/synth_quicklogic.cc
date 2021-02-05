@@ -60,6 +60,9 @@ struct SynthQuickLogicPass : public ScriptPass {
 		log("    -adder\n");
 		log("        use adder cells in output netlist\n");
 		log("\n");
+		log("    -mult\n");
+		log("        use multiplier cells in output netlist\n");
+		log("\n");
 		log("    -spde\n");
 		log("        generate an output netlist suitable for SpDE\n");
 		log("\n");
