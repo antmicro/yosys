@@ -1,6 +1,6 @@
 #!/bin/bash
 set -ex
-INSTALL_PATH=$PWD/install
+INSTALL_PATH=$PWD/image
 #Surelog
 cd Surelog && make PREFIX=$INSTALL_PATH release install -j $(nproc) && cd ..
 #Yosys
