@@ -4,9 +4,6 @@
 [submodule "uhdm-integration"]
 	path = uhdm-integration
 	url = https://github.com/alainmarcel/uhdm-integration.git
-[submodule "vcddiff"]
-	path = vcddiff
-	url = https://github.com/veripool/vcddiff.git
 [submodule "sv2v"]
 	path = sv2v
 	url = https://github.com/zachjs/sv2v.git
