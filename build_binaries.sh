@@ -1,9 +1,10 @@
 #!/bin/bash
-cd Surelog && make PREFIX=$PWD/../image/ release install -j $(nproc) && cd ..
-make PREFIX=$PWD/image install
-make -C vcddiff PREFIX=./image
-cp -p vcddiff/vcddiff image/bin/vcddiff
-cd verilator/Surelog && make PREFIX=$PWD/../image/ release install -j $(nproc) && cd ..
-autoconf && ./configure --prefix=$PWD/../image && make install && cd ..
-wget -qO- https://get.haskellstack.org/ | sh -s - -d $PWD/image/bin
-export PATH=$PWD/image/bin:${PATH} && make -C $PWD/sv2v && cp $PWD/sv2v/bin/sv2v $PWD/image/bin
+set -ex
+INSTALL_PATH=$PWD/image
+#Surelog
+cd Surelog && make PREFIX=$INSTALL_PATH release install -j $(nproc) && cd ..
+#Yosys
+make PREFIX=$INSTALL_PATH install -j $(nproc)
+#sv2v
+wget -qO- https://get.haskellstack.org/ | sh -s - -d $INSTALL_PATH/bin
+export PATH=$INSTALL_PATH/bin:${PATH} && make -C $PWD/sv2v && cp $PWD/sv2v/bin/sv2v $INSTALL_PATH/bin

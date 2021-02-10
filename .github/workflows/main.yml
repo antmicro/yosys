@@ -36,7 +36,7 @@ jobs:
         # By default actions/upload-artifact@v2 do not preserve file permissions
         # tar directory to workaround this issue
         # See https://github.com/actions/upload-artifact/issues/38
-        tar -cvf binaries.tar image verilator/include
+        tar -cvf binaries.tar image
 
     - name: Upload binaries
       uses: actions/upload-artifact@v2
@@ -170,11 +170,21 @@ jobs:
     - name: Extract
       run: tar -xf binaries.tar
 
-    - name: Build & Test (vcddiff)
-      run: ./uhdm-integration/.github/ci.sh
+    - name: Generate SV file (Yosys)
+      run: |
+        ./uhdm-integration/.github/ci.sh
+        test_name="${TEST_CASE:6}"
+        echo $test_name
+        echo "test_name=$test_name" >> $GITHUB_ENV
+
       env:
         TEST_CASE: ${{ matrix.TEST_CASE_VCDDIFF }}
-        TARGET: uhdm/vcddiff
+        TARGET: uhdm/yosys/test-ast
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: ${{ env.test_name }}.sv
+        path: uhdm-integration/build/yosys.sv
 
   ibex_synth:
     runs-on: ubuntu-latest
