@@ -13,3 +13,6 @@
 [submodule "sv2v"]
 	path = sv2v
 	url = https://github.com/zachjs/sv2v.git
+[submodule "yosys-symbiflow-plugins"]
+	path = yosys-symbiflow-plugins
+	url = https://github.com/SymbiFlow/yosys-symbiflow-plugins.git
