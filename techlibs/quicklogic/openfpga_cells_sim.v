@@ -1,15 +1,6 @@
 (* abc9_box, lib_whitebox *)
-module carry_follower(
-    input a,
-    input b,
-    input cin,
-    output cout
-);
-    assign cout = (cin) ? b : a;
-endmodule
-
-module soft_adder(
-   output sumout,
+module adder_lut4(
+   output lut4_out,
    (* abc9_carry *)
    output cout,
    input [0:3] in,
@@ -31,7 +22,7 @@ module soft_adder(
 
     wire [0:1] s3 = li[2] ? {s2[1], s2[3]} : {s2[0], s2[2]};
 
-    assign sumout = li[3] ? s3[1] : s3[0];
+    assign lut4_out = li[3] ? s3[1] : s3[0];
     
     // Carry out function
     assign cout = (s2[2]) ? cin : s2[3];
