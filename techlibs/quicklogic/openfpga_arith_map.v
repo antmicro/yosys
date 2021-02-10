@@ -53,13 +53,13 @@ module _80_quicklogic_alu (A, B, CI, BI, X, Y, CO);
                     16'b1001_0000_0000_0111;
 
                 // LUT4 configured as 1-bit adder with CI=const
-                soft_adder #(
+                adder_lut4 #(
                     .LUT(INIT),
                     .IN2_IS_CIN(1'b0)
                 ) lut_ci_adder (
                     .in({AA[i], BB[i], 1'b0, 1'b0}), 
                     .cin(), 
-                    .sumout(Y[i]), 
+                    .lut4_out(Y[i]), 
                     .cout(ci)
                 );
 
@@ -67,13 +67,13 @@ module _80_quicklogic_alu (A, B, CI, BI, X, Y, CO);
             end else begin
 
                 // LUT4 configured as passthrough to drive CI of the next stage
-                soft_adder #(
+                adder_lut4 #(
                     .LUT(16'b1100_0000_0000_0011),
                     .IN2_IS_CIN(1'b0)
                 ) lut_ci (
                     .in({1'b0,CI,1'b0,1'b0}), 
                     .cin(), 
-                    .sumout(), 
+                    .lut4_out(), 
                     .cout(ci)
                 );
             end
@@ -91,13 +91,13 @@ module _80_quicklogic_alu (A, B, CI, BI, X, Y, CO);
         generate if ((i == 0 && _TECHMAP_CONSTMSK_CI_ == 0) || (i > 0)) begin
             
             // LUT4 configured as full 1-bit adder
-            soft_adder #(
+            adder_lut4 #(
                     .LUT(16'b0110_1001_0110_0001),
                     .IN2_IS_CIN(1'b1)
                 ) lut_adder (
                     .in({AA[i], BB[i],ci,1'b0}), 
                     .cin(ci), 
-                    .sumout(Y[i]), 
+                    .lut4_out(Y[i]), 
                     .cout(co)
                 );
         end else begin
@@ -112,13 +112,13 @@ module _80_quicklogic_alu (A, B, CI, BI, X, Y, CO);
 
             // LUT4 configured for passing its CI input to output. This should
             // get pruned if the actual CO port is not connected anywhere.
-            soft_adder #(
+            adder_lut4 #(
                     .LUT(16'b0000_1111_0000_1111),
                     .IN2_IS_CIN(1'b1)
                 ) lut_co (
                     .in({1'b0, co, 1'b0, 1'b0}),
                     .cin(co),
-                    .sumout(C[i]),
+                    .lut4_out(C[i]),
                     .cout()
                 );
         // Not last in chain
