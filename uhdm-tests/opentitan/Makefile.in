@@ -80,8 +80,6 @@ prim_ram_1p_adv.sv \
 prim_ram_2p_async_adv.sv \
 prim_rom_adv.sv \
 ibex_cs_registers.sv \
-ibex_counter.sv \
-ibex_decoder.sv \
 ibex_ex_block.sv \
 ibex_fetch_fifo.sv \
 ibex_id_stage.sv \
@@ -243,6 +241,8 @@ prim_alert_sender.sv \
 prim_lfsr.sv \
 ibex_alu.sv \
 ibex_controller.sv \
+ibex_counter.sv \
+ibex_decoder.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
