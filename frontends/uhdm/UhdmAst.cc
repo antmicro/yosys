@@ -154,7 +154,7 @@ AST::AstNode* UhdmAst::process_value(vpiHandle obj_h) {
 	return nullptr;
 }
 
-AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, vpiHandle obj_h) {
+AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, std::vector<AST::AstNode*> children) {
 	auto node = new AST::AstNode(type);
 	if (auto name = vpi_get_str(vpiName, obj_h)) {
 		node->str = name;
@@ -171,11 +171,11 @@ AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, vpiHandle obj_h) {
 	const uhdm_handle* const handle = (const uhdm_handle*) obj_h;
 	const UHDM::BaseClass* const object = (const UHDM::BaseClass*) handle->object;
 	shared.visited[object] = node;
+	node->children = children;
 	return node;
 }
 
 static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
-
 	if (!child->str.empty()) {
 		auto it = std::find_if(parent->children.begin(),
 							   parent->children.end(),
@@ -289,7 +289,7 @@ AST::AstNode* UhdmAst::find_ancestor(const std::unordered_set<AST::AstNodeType>&
 }
 
 void UhdmAst::process_design() {
-	current_node = make_ast_node(AST::AST_DESIGN, obj_h);
+	current_node = make_ast_node(AST::AST_DESIGN);
 	visit_one_to_many({UHDM::uhdmallInterfaces,
 					   UHDM::uhdmallModules,
 					   UHDM::uhdmallPackages,
@@ -316,7 +316,7 @@ void UhdmAst::process_design() {
 
 void UhdmAst::process_parameter() {
 	auto type = vpi_get(vpiLocalParam, obj_h) == 1 ? AST::AST_LOCALPARAM : AST::AST_PARAMETER;
-	current_node = make_ast_node(type, obj_h);
+	current_node = make_ast_node(type);
 	//if (vpi_get_str(vpiImported, obj_h) != "") { } //currently unused
 	vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
 	if (typespec_h) {
@@ -366,7 +366,7 @@ void UhdmAst::process_parameter() {
 }
 
 void UhdmAst::process_port() {
-	current_node = make_ast_node(AST::AST_WIRE, obj_h);
+	current_node = make_ast_node(AST::AST_WIRE);
 	current_node->port_id = shared.next_port_id();
 	vpiHandle lowConn_h = vpi_handle(vpiLowConn, obj_h);
 	if (lowConn_h) {
@@ -481,7 +481,7 @@ void UhdmAst::process_module() {
 							  });
 			current_node->attributes.erase(ID::partial);
 		} else {
-			current_node = make_ast_node(AST::AST_MODULE, obj_h);
+			current_node = make_ast_node(AST::AST_MODULE);
 			current_node->str = type;
 			current_node->attributes[ID::hdlname] = AST::AstNode::mkconst_str(current_node->str);
 			shared.top_nodes[current_node->str] = current_node;
@@ -507,13 +507,14 @@ void UhdmAst::process_module() {
 							  obj_h,
 							  [&](AST::AstNode* node) {
 								  if (node) {
+									  if (node->type == AST::AST_ASSIGN && node->children.size() < 2) return;
 									  add_or_replace_child(current_node, node);
 								  }
 							  });
 		}
 	} else {
 		// Not a top module, create instance
-		current_node = make_ast_node(AST::AST_CELL, obj_h);
+		current_node = make_ast_node(AST::AST_CELL);
 		auto module_node = shared.top_nodes[type];
 		if (!module_node) {
 			module_node = shared.top_node_templates[type];
@@ -572,7 +573,7 @@ void UhdmAst::process_module() {
 }
 
 void UhdmAst::process_struct_typespec() {
-	current_node = make_ast_node(AST::AST_STRUCT, obj_h);
+	current_node = make_ast_node(AST::AST_STRUCT);
 	visit_one_to_many({vpiTypespecMember},
 					  obj_h,
 					  [&](AST::AstNode* node) {
@@ -581,7 +582,7 @@ void UhdmAst::process_struct_typespec() {
 }
 
 void UhdmAst::process_typespec_member() {
-	current_node = make_ast_node(AST::AST_STRUCT_ITEM, obj_h);
+	current_node = make_ast_node(AST::AST_STRUCT_ITEM);
 	current_node->str = current_node->str.substr(1);
 	vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
 	int typespec_type = vpi_get(vpiType, typespec_h);
@@ -628,7 +629,7 @@ void UhdmAst::process_typespec_member() {
 }
 
 void UhdmAst::process_enum_typespec() {
-	current_node = make_ast_node(AST::AST_ENUM, obj_h);
+	current_node = make_ast_node(AST::AST_ENUM);
 	visit_one_to_many({vpiEnumConst},
 					  obj_h,
 					  [&](AST::AstNode* node) {
@@ -665,7 +666,7 @@ void UhdmAst::process_enum_typespec() {
 }
 
 void UhdmAst::process_enum_const() {
-	current_node = make_ast_node(AST::AST_ENUM_ITEM, obj_h);
+	current_node = make_ast_node(AST::AST_ENUM_ITEM);
 	AST::AstNode* constant_node = process_value(obj_h);
 	if (constant_node) {
 		constant_node->filename = current_node->filename;
@@ -675,7 +676,7 @@ void UhdmAst::process_enum_const() {
 }
 
 void UhdmAst::process_custom_var() {
-	current_node = make_ast_node(AST::AST_WIRE, obj_h);
+	current_node = make_ast_node(AST::AST_WIRE);
 	visit_one_to_one({vpiTypespec},
 					 obj_h,
 					 [&](AST::AstNode* node) {
@@ -698,7 +699,7 @@ void UhdmAst::process_custom_var() {
 
 void UhdmAst::process_int_var() {
 	auto type = (parent->current_node && parent->current_node->type == AST::AST_MODULE) ? AST::AST_WIRE : AST::AST_IDENTIFIER;
-	current_node = make_ast_node(type, obj_h);
+	current_node = make_ast_node(type);
 	if (current_node->type == AST::AST_WIRE) {
 		auto left_const = AST::AstNode::mkconst_int(31, true);
 		auto right_const = AST::AstNode::mkconst_int(0, true);
@@ -709,7 +710,7 @@ void UhdmAst::process_int_var() {
 }
 
 void UhdmAst::process_array_var() {
-	current_node = make_ast_node(AST::AST_MEMORY, obj_h);
+	current_node = make_ast_node(AST::AST_MEMORY);
 	vpiHandle itr = vpi_iterate(vpi_get(vpiType, obj_h) == vpiArrayVar ?
 								vpiReg : vpiElement, obj_h);
 	while (vpiHandle reg_h = vpi_scan(itr)) {
@@ -736,7 +737,7 @@ void UhdmAst::process_array_var() {
 
 void UhdmAst::process_param_assign() {
 	auto type = vpi_get(vpiLocalParam, obj_h) == 1 ? AST::AST_LOCALPARAM : AST::AST_PARAMETER;
-	current_node = make_ast_node(type, obj_h);
+	current_node = make_ast_node(type);
 	visit_one_to_one({vpiLhs},
 					 obj_h,
 					 [&](AST::AstNode* node) {
@@ -755,7 +756,7 @@ void UhdmAst::process_param_assign() {
 }
 
 void UhdmAst::process_cont_assign() {
-	current_node = make_ast_node(AST::AST_ASSIGN, obj_h);
+	current_node = make_ast_node(AST::AST_ASSIGN);
 	visit_one_to_one({vpiLhs,
 					  vpiRhs},
 					 obj_h,
@@ -773,7 +774,7 @@ void UhdmAst::process_cont_assign() {
 
 void UhdmAst::process_assignment() {
 	auto type = vpi_get(vpiBlocking, obj_h) == 1 ? AST::AST_ASSIGN_EQ : AST::AST_ASSIGN_LE;
-	current_node = make_ast_node(type, obj_h);
+	current_node = make_ast_node(type);
 	visit_one_to_one({vpiLhs,
 					  vpiRhs},
 					 obj_h,
@@ -785,7 +786,7 @@ void UhdmAst::process_assignment() {
 }
 
 void UhdmAst::process_net() {
-	current_node = make_ast_node(AST::AST_WIRE, obj_h);
+	current_node = make_ast_node(AST::AST_WIRE);
 	auto net_type = vpi_get(vpiNetType, obj_h);
 	current_node->is_reg = net_type == vpiReg;
 	current_node->is_output = net_type == vpiOutput;
@@ -800,7 +801,7 @@ void UhdmAst::process_net() {
 }
 
 void UhdmAst::process_packed_array_net() {
-	current_node = make_ast_node(AST::AST_MEMORY, obj_h);
+	current_node = make_ast_node(AST::AST_MEMORY);
 	visit_one_to_many({vpiElement},
 					  obj_h,
 					  [&](AST::AstNode* node) {
@@ -814,7 +815,7 @@ void UhdmAst::process_packed_array_net() {
 					  });
 }
 void UhdmAst::process_array_net() {
-	current_node = make_ast_node(AST::AST_MEMORY, obj_h);
+	current_node = make_ast_node(AST::AST_MEMORY);
 	vpiHandle itr = vpi_iterate(vpiNet, obj_h);
 	while (vpiHandle net_h = vpi_scan(itr)) {
 		if (vpi_get(vpiType, net_h) == vpiLogicNet) {
@@ -840,7 +841,7 @@ void UhdmAst::process_array_net() {
 }
 
 void UhdmAst::process_package() {
-	current_node = make_ast_node(AST::AST_PACKAGE, obj_h);
+	current_node = make_ast_node(AST::AST_PACKAGE);
 	visit_one_to_many({vpiParameter,
 					   vpiParamAssign},
 					  obj_h,
@@ -899,7 +900,7 @@ void UhdmAst::process_interface() {
 	shared.top_nodes[elaboratedInterface->str] = elaboratedInterface;
 	if (name != type) {
 		// Not a top module, create instance
-		current_node = make_ast_node(AST::AST_CELL, obj_h);
+		current_node = make_ast_node(AST::AST_CELL);
 		make_cell(obj_h, current_node, elaboratedInterface);
 	} else {
 		current_node = elaboratedInterface;
@@ -907,7 +908,7 @@ void UhdmAst::process_interface() {
 }
 
 void UhdmAst::process_modport() {
-	current_node = make_ast_node(AST::AST_MODPORT, obj_h);
+	current_node = make_ast_node(AST::AST_MODPORT);
 	visit_one_to_many({vpiIODecl},
 					  obj_h,
 					  [&](AST::AstNode* node) {
@@ -925,7 +926,7 @@ void UhdmAst::process_io_decl() {
 						 current_node = node;
 					 });
 	if (current_node) return;
-	current_node = make_ast_node(AST::AST_MODPORTMEMBER, obj_h);
+	current_node = make_ast_node(AST::AST_MODPORTMEMBER);
 	if (const int n = vpi_get(vpiDirection, obj_h)) {
 		if (n == vpiInput) {
 			current_node->is_input = true;
@@ -943,7 +944,7 @@ void UhdmAst::process_io_decl() {
 }
 
 void UhdmAst::process_always() {
-	current_node = make_ast_node(AST::AST_ALWAYS, obj_h);
+	current_node = make_ast_node(AST::AST_ALWAYS);
 	visit_one_to_one({vpiStmt},
 		obj_h,
 		[&](AST::AstNode* node) {
@@ -964,7 +965,7 @@ void UhdmAst::process_always() {
 }
 
 void UhdmAst::process_event_control() {
-	current_node = make_ast_node(AST::AST_BLOCK, obj_h);
+	current_node = make_ast_node(AST::AST_BLOCK);
 	visit_one_to_one({vpiCondition},
 					 obj_h,
 					 [&](AST::AstNode* node) {
@@ -984,13 +985,13 @@ void UhdmAst::process_event_control() {
 }
 
 void UhdmAst::process_initial() {
-	current_node = make_ast_node(AST::AST_INITIAL, obj_h);
+	current_node = make_ast_node(AST::AST_INITIAL);
 	visit_one_to_one({vpiStmt},
 					 obj_h,
 					 [&](AST::AstNode* node) {
 						 if (node) {
 							 if (node->type != AST::AST_BLOCK) {
-								 auto block_node = make_ast_node(AST::AST_BLOCK, obj_h);
+								 auto block_node = make_ast_node(AST::AST_BLOCK);
 								 block_node->children.push_back(node);
 								 node = block_node;
 							 }
@@ -1000,7 +1001,7 @@ void UhdmAst::process_initial() {
 }
 
 void UhdmAst::process_begin() {
-	current_node = make_ast_node(AST::AST_BLOCK, obj_h);
+	current_node = make_ast_node(AST::AST_BLOCK);
 	visit_one_to_many({vpiStmt},
 					  obj_h,
 					  [&](AST::AstNode* node) {
@@ -1022,13 +1023,14 @@ void UhdmAst::process_begin() {
 void UhdmAst::process_operation() {
 	auto operation = vpi_get(vpiOpType, obj_h);
 	switch (operation) {
+		case vpiStreamRLOp: process_stream_op(); break;
 		case vpiEventOrOp:
 		case vpiListOp: process_list_op(); break;
 		case vpiCastOp: process_cast_op(); break;
 		case vpiInsideOp: process_inside_op(); break;
 		case vpiAssignmentPatternOp: process_assignment_pattern_op(); break;
 		default: {
-			current_node = make_ast_node(AST::AST_NONE, obj_h);
+			current_node = make_ast_node(AST::AST_NONE);
 			visit_one_to_many({vpiOperand},
 							  obj_h,
 							  [&](AST::AstNode* node) {
@@ -1109,6 +1111,7 @@ void UhdmAst::process_operation() {
 				}
 				case vpiMultiConcatOp: current_node->type = AST::AST_REPLICATE; break;
 				case vpiAssignmentOp: current_node->type = AST::AST_ASSIGN_EQ; break;
+				case vpiStreamLROp: current_node->type = AST::AST_CONCAT; break;
 				default: {
 					const uhdm_handle* const handle = (const uhdm_handle*) obj_h;
 					const UHDM::BaseClass* const object = (const UHDM::BaseClass*) handle->object;
@@ -1118,6 +1121,124 @@ void UhdmAst::process_operation() {
 			}
 		}
 	}
+}
+
+void UhdmAst::process_stream_op()  {
+	// Create a for loop that does what a streaming operator would do
+	auto block_node = find_ancestor({AST::AST_BLOCK, AST::AST_ALWAYS, AST::AST_INITIAL});
+	auto process_node = find_ancestor({AST::AST_ALWAYS, AST::AST_INITIAL});
+	auto module_node = find_ancestor({AST::AST_MODULE});
+	if (!process_node) {
+		// Create a @* always block
+		process_node = make_ast_node(AST::AST_ALWAYS);
+		module_node->children.push_back(process_node);
+		block_node = make_ast_node(AST::AST_BLOCK);
+		process_node->children.push_back(block_node);
+	}
+
+	auto loop_id = shared.next_loop_id();
+	auto loop_counter = make_ast_node(AST::AST_WIRE,
+									  {make_ast_node(AST::AST_RANGE,
+													 {AST::AstNode::mkconst_int(31, false),
+													  AST::AstNode::mkconst_int(0, false)})});
+	loop_counter->is_reg = true;
+	loop_counter->is_signed = true;
+	loop_counter->str = "\\loop" + std::to_string(loop_id) + "::i";
+	module_node->children.push_back(loop_counter);
+	auto loop_counter_ident = make_ast_node(AST::AST_IDENTIFIER);
+	loop_counter_ident->str = loop_counter->str;
+
+	auto lhs_node = find_ancestor({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ})->children[0];
+
+	// Width of LHS
+	auto bits_call = make_ast_node(AST::AST_FCALL,
+								   {lhs_node->clone()});
+	bits_call->str = "\\$bits";
+
+	// Temp var to allow concatenation
+	auto temp_var = make_ast_node(AST::AST_WIRE,
+								  {make_ast_node(AST::AST_RANGE,
+												 {bits_call, AST::AstNode::mkconst_int(0, false)})});
+	temp_var->str = "\\loop" + std::to_string(loop_id) + "::temp";
+	module_node->children.push_back(temp_var);
+	auto temp_var_ident = make_ast_node(AST::AST_IDENTIFIER);
+	temp_var_ident->str = temp_var->str;
+	auto concat_node = make_ast_node(AST::AST_CONCAT);
+	auto temp_assign = make_ast_node(AST::AST_ASSIGN_EQ, {temp_var_ident, concat_node});
+	block_node->children.push_back(temp_assign);
+
+	// Assignment in the loop's block
+	auto assign_node = make_ast_node(AST::AST_ASSIGN_EQ, {lhs_node->clone(), temp_var_ident->clone()});
+	AST::AstNode* slice_size = nullptr; // First argument in streaming op
+	visit_one_to_many({vpiOperand},
+					  obj_h,
+					  [&](AST::AstNode* node) {
+						  if (!slice_size && node->type == AST::AST_CONSTANT) {
+							  slice_size = node;
+						  } else {
+							  concat_node->children.push_back(node);
+						  }
+						});
+	if (!slice_size) {
+		slice_size = AST::AstNode::mkconst_int(1, true);
+	}
+
+	// Initialization of the loop counter to 0
+	auto init_stmt = make_ast_node(AST::AST_ASSIGN_EQ,
+								   {loop_counter_ident, AST::AstNode::mkconst_int(0, true)});
+
+	// Loop condition (loop counter < $bits(RHS))
+	auto cond_stmt = make_ast_node(AST::AST_LE,
+								   {loop_counter_ident->clone(),
+									make_ast_node(AST::AST_SUB,
+												  {bits_call->clone(), slice_size->clone()})});
+
+	// Increment loop counter
+	auto inc_stmt = make_ast_node(AST::AST_ASSIGN_EQ,
+								  {loop_counter_ident->clone(),
+								   make_ast_node(AST::AST_ADD,
+												 {loop_counter_ident->clone(), slice_size})});
+
+	// Range on the LHS of the assignment
+	auto lhs_range = make_ast_node(AST::AST_RANGE);
+	auto lhs_selfsz = make_ast_node(AST::AST_SELFSZ,
+									{make_ast_node(AST::AST_SUB,
+												   {make_ast_node(AST::AST_SUB,
+																  {bits_call->clone(), AST::AstNode::mkconst_int(1, true)}),
+													loop_counter_ident->clone()})});
+	lhs_range->children.push_back(make_ast_node(AST::AST_ADD,
+												{lhs_selfsz, AST::AstNode::mkconst_int(0, true)}));
+	lhs_range->children.push_back(make_ast_node(AST::AST_SUB,
+												{make_ast_node(AST::AST_ADD,
+															   {lhs_selfsz->clone(), AST::AstNode::mkconst_int(1, true)}),
+												 slice_size->clone()}));
+
+	// Range on the RHS of the assignment
+	auto rhs_range = make_ast_node(AST::AST_RANGE);
+	auto rhs_selfsz = make_ast_node(AST::AST_SELFSZ,
+									{loop_counter_ident->clone()});
+	rhs_range->children.push_back(make_ast_node(AST::AST_SUB,
+												{make_ast_node(AST::AST_ADD,
+															   {rhs_selfsz, slice_size->clone()}),
+												 AST::AstNode::mkconst_int(1, true)}));
+	rhs_range->children.push_back(make_ast_node(AST::AST_ADD,
+												{rhs_selfsz->clone(), AST::AstNode::mkconst_int(0, true)}));
+
+	// Put ranges on the sides of the assignment
+	assign_node->children[0]->children.push_back(lhs_range);
+	assign_node->children[1]->children.push_back(rhs_range);
+
+	// Putting the loop together
+	auto loop_node = make_ast_node(AST::AST_FOR);
+	loop_node->str = "$loop" + std::to_string(loop_id);
+	loop_node->children.push_back(init_stmt);
+	loop_node->children.push_back(cond_stmt);
+	loop_node->children.push_back(inc_stmt);
+	loop_node->children.push_back(new AST::AstNode(AST::AST_BLOCK, assign_node));
+
+	block_node->children.push_back(new AST::AstNode(AST::AST_BLOCK, loop_node));
+	// Do not create a node
+	shared.report.mark_handled(obj_h);
 }
 
 void UhdmAst::process_list_op() {
@@ -1137,7 +1258,7 @@ void UhdmAst::process_list_op() {
 }
 
 void UhdmAst::process_cast_op() {
-	current_node = make_ast_node(AST::AST_NONE, obj_h);
+	current_node = make_ast_node(AST::AST_NONE);
 	visit_one_to_many({vpiOperand},
 					  obj_h,
 					  [&](AST::AstNode* node) {
@@ -1149,7 +1270,7 @@ void UhdmAst::process_cast_op() {
 }
 
 void UhdmAst::process_inside_op() {
-	current_node = make_ast_node(AST::AST_EQ, obj_h);
+	current_node = make_ast_node(AST::AST_EQ);
 	AST::AstNode* lhs = nullptr;
 	visit_one_to_many({vpiOperand},
 						obj_h,
@@ -1176,7 +1297,7 @@ void UhdmAst::process_inside_op() {
 }
 
 void UhdmAst::process_assignment_pattern_op() {
-	current_node = make_ast_node(AST::AST_CONCAT, obj_h);
+	current_node = make_ast_node(AST::AST_CONCAT);
 	if (auto param_node = find_ancestor({AST::AST_PARAMETER, AST::AST_LOCALPARAM})) {
 		std::map<size_t, AST::AstNode*> ordered_children;
 		visit_one_to_many({vpiOperand},
@@ -1262,7 +1383,7 @@ void UhdmAst::process_tagged_pattern() {
 }
 
 void UhdmAst::process_bit_select() {
-	current_node = make_ast_node(AST::AST_IDENTIFIER, obj_h);
+	current_node = make_ast_node(AST::AST_IDENTIFIER);
 	visit_one_to_one({vpiIndex},
 					 obj_h,
 					 [&](AST::AstNode* node) {
@@ -1274,7 +1395,7 @@ void UhdmAst::process_bit_select() {
 }
 
 void UhdmAst::process_part_select() {
-	current_node = make_ast_node(AST::AST_IDENTIFIER, obj_h);
+	current_node = make_ast_node(AST::AST_IDENTIFIER);
 	visit_one_to_one({vpiParent},
 					 obj_h,
 					 [&](AST::AstNode* node) {
@@ -1293,7 +1414,7 @@ void UhdmAst::process_part_select() {
 }
 
 void UhdmAst::process_indexed_part_select() {
-	current_node = make_ast_node(AST::AST_IDENTIFIER, obj_h);
+	current_node = make_ast_node(AST::AST_IDENTIFIER);
 	visit_one_to_one({vpiParent},
 					 obj_h,
 					 [&](AST::AstNode* node) {
@@ -1324,7 +1445,7 @@ void UhdmAst::process_indexed_part_select() {
 }
 
 void UhdmAst::process_var_select() {
-	current_node = make_ast_node(AST::AST_IDENTIFIER, obj_h);
+	current_node = make_ast_node(AST::AST_IDENTIFIER);
 	visit_one_to_many({vpiIndex},
 					  obj_h,
 					  [&](AST::AstNode* node) {
@@ -1349,7 +1470,7 @@ void UhdmAst::process_var_select() {
 }
 
 void UhdmAst::process_if_else() {
-	current_node = make_ast_node(AST::AST_BLOCK, obj_h);
+	current_node = make_ast_node(AST::AST_BLOCK);
 	auto case_node = new AST::AstNode(AST::AST_CASE);
 	visit_one_to_one({vpiCondition},
 					 obj_h,
@@ -1387,7 +1508,7 @@ void UhdmAst::process_if_else() {
 }
 
 void UhdmAst::process_for() {
-	current_node = make_ast_node(AST::AST_FOR, obj_h);
+	current_node = make_ast_node(AST::AST_FOR);
 	auto loop_id = shared.next_loop_id();
 	current_node->str = "$loop" + std::to_string(loop_id);
 	auto loop_parent_node = find_ancestor({AST::AST_FUNCTION, AST::AST_TASK, AST::AST_MODULE});
@@ -1437,7 +1558,7 @@ void UhdmAst::process_for() {
 }
 
 void UhdmAst::process_gen_scope_array() {
-	current_node = make_ast_node(AST::AST_GENBLOCK, obj_h);
+	current_node = make_ast_node(AST::AST_GENBLOCK);
 	visit_one_to_many({vpiGenScope},
 					  obj_h,
 					  [&](AST::AstNode* genscope_node) {
@@ -1459,7 +1580,7 @@ void UhdmAst::process_gen_scope_array() {
 }
 
 void UhdmAst::process_gen_scope() {
-	current_node = make_ast_node(AST::AST_GENBLOCK, obj_h);
+	current_node = make_ast_node(AST::AST_GENBLOCK);
 	visit_one_to_many({vpiParameter,
 					   vpiNet,
 					   vpiArrayNet,
@@ -1477,7 +1598,7 @@ void UhdmAst::process_gen_scope() {
 }
 
 void UhdmAst::process_case() {
-	current_node = make_ast_node(AST::AST_CASE, obj_h);
+	current_node = make_ast_node(AST::AST_CASE);
 	visit_one_to_one({vpiCondition},
 					 obj_h,
 					 [&](AST::AstNode* node) {
@@ -1491,7 +1612,7 @@ void UhdmAst::process_case() {
 }
 
 void UhdmAst::process_case_item() {
-	current_node = make_ast_node(AST::AST_COND, obj_h);
+	current_node = make_ast_node(AST::AST_COND);
 	visit_one_to_many({vpiExpr},
 					  obj_h,
 					  [&](AST::AstNode* node) {
@@ -1515,7 +1636,7 @@ void UhdmAst::process_case_item() {
 }
 
 void UhdmAst::process_range() {
-	current_node = make_ast_node(AST::AST_RANGE, obj_h);
+	current_node = make_ast_node(AST::AST_RANGE);
 	visit_one_to_one({vpiLeftRange,
 					  vpiRightRange},
 					 obj_h,
@@ -1525,7 +1646,7 @@ void UhdmAst::process_range() {
 }
 
 void UhdmAst::process_return() {
-	current_node = make_ast_node(AST::AST_ASSIGN_EQ, obj_h);
+	current_node = make_ast_node(AST::AST_ASSIGN_EQ);
 	auto func_node = find_ancestor({AST::AST_FUNCTION, AST::AST_TASK});
 	if (!func_node->children.empty()) {
 		auto lhs = new AST::AstNode(AST::AST_IDENTIFIER);
@@ -1540,7 +1661,7 @@ void UhdmAst::process_return() {
 }
 
 void UhdmAst::process_function() {
-	current_node = make_ast_node(vpi_get(vpiType, obj_h) == vpiFunction ? AST::AST_FUNCTION : AST::AST_TASK, obj_h);
+	current_node = make_ast_node(vpi_get(vpiType, obj_h) == vpiFunction ? AST::AST_FUNCTION : AST::AST_TASK);
 	visit_one_to_one({vpiReturn},
 					 obj_h,
 					 [&](AST::AstNode* node) {
@@ -1565,7 +1686,7 @@ void UhdmAst::process_function() {
 }
 
 void UhdmAst::process_logic_var() {
-	current_node = make_ast_node(AST::AST_WIRE, obj_h);
+	current_node = make_ast_node(AST::AST_WIRE);
 	visit_range(obj_h,
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
@@ -1573,7 +1694,7 @@ void UhdmAst::process_logic_var() {
 }
 
 void UhdmAst::process_sys_func_call() {
-	current_node = make_ast_node(AST::AST_FCALL, obj_h);
+	current_node = make_ast_node(AST::AST_FCALL);
 	if (current_node->str == "\\$signed") {
 		current_node->type = AST::AST_TO_SIGNED;
 	} else if (current_node->str == "\\$unsigned") {
@@ -1595,7 +1716,7 @@ void UhdmAst::process_sys_func_call() {
 }
 
 void UhdmAst::process_func_call() {
-	current_node = make_ast_node(AST::AST_FCALL, obj_h);
+	current_node = make_ast_node(AST::AST_FCALL);
 	visit_one_to_many({vpiArgument},
 					  obj_h,
 					  [&](AST::AstNode* node) {
@@ -1606,7 +1727,7 @@ void UhdmAst::process_func_call() {
 }
 
 void UhdmAst::process_immediate_assert() {
-	current_node = make_ast_node(AST::AST_ASSERT, obj_h);
+	current_node = make_ast_node(AST::AST_ASSERT);
 	visit_one_to_one({vpiExpr},
 					 obj_h,
 					 [&](AST::AstNode* n) {
@@ -1617,7 +1738,7 @@ void UhdmAst::process_immediate_assert() {
 }
 
 void UhdmAst::process_hier_path() {
-	current_node = make_ast_node(AST::AST_IDENTIFIER, obj_h);
+	current_node = make_ast_node(AST::AST_IDENTIFIER);
 	current_node->str = "\\";
 	visit_one_to_many({vpiActual},
 					  obj_h,
@@ -1665,7 +1786,7 @@ AST::AstNode* UhdmAst::process_object(vpiHandle obj_handle) {
 		case vpiContAssign: process_cont_assign(); break;
 		case vpiAssignStmt:
 		case vpiAssignment: process_assignment(); break;
-		case vpiRefObj: current_node = make_ast_node(AST::AST_IDENTIFIER, obj_h); break;
+		case vpiRefObj: current_node = make_ast_node(AST::AST_IDENTIFIER); break;
 		case vpiNet: process_net(); break;
 		case vpiArrayNet: process_array_net(); break;
 		case vpiPackedArrayNet: process_packed_array_net(); break;
@@ -1701,7 +1822,7 @@ AST::AstNode* UhdmAst::process_object(vpiHandle obj_handle) {
 		case vpiLogicVar: process_logic_var(); break;
 		case vpiSysFuncCall: process_sys_func_call(); break;
 		case vpiFuncCall: process_func_call(); break;
-		case vpiTaskCall: current_node = make_ast_node(AST::AST_TCALL, obj_h); break;
+		case vpiTaskCall: current_node = make_ast_node(AST::AST_TCALL); break;
 		case vpiImmediateAssert:
 				  if (!shared.no_assert)
 					  process_immediate_assert();
