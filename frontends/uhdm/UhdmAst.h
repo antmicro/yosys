@@ -34,7 +34,8 @@ class UhdmAst {
 
 		// Create an AstNode of the specified type with metadata extracted from
 		// the given vpiHandle.
-		AST::AstNode* make_ast_node(AST::AstNodeType type, vpiHandle obj_h);
+		AST::AstNode* make_ast_node(AST::AstNodeType type,
+					    std::vector<AST::AstNode*> children = {});
 
 		// Makes the passed node a cell node of the specified type
 		void make_cell(vpiHandle obj_h, AST::AstNode* node, AST::AstNode* type);
@@ -93,6 +94,7 @@ class UhdmAst {
 		void process_initial();
 		void process_begin();
 		void process_operation();
+		void process_stream_op();
 		void process_list_op();
 		void process_cast_op();
 		void process_inside_op();
