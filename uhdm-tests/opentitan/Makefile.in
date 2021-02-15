@@ -36,7 +36,6 @@ prim_generic_ram_1p.sv \
 prim_generic_ram_2p.sv \
 prim_generic_rom.sv \
 prim_gf_mult.sv \
-prim_lfsr.sv \
 prim_clock_gating.sv \
 prim_clock_mux2.sv \
 prim_flop.sv \
@@ -80,18 +79,12 @@ prim_generic_flash.sv \
 prim_ram_1p_adv.sv \
 prim_ram_2p_async_adv.sv \
 prim_rom_adv.sv \
-ibex_alu.sv \
-ibex_controller.sv \
 ibex_cs_registers.sv \
-ibex_counter.sv \
-ibex_decoder.sv \
 ibex_ex_block.sv \
-ibex_fetch_fifo.sv \
 ibex_id_stage.sv \
 ibex_if_stage.sv \
 ibex_load_store_unit.sv \
 ibex_multdiv_fast.sv \
-ibex_multdiv_slow.sv \
 ibex_prefetch_buffer.sv \
 ibex_pmp.sv \
 ibex_wb_stage.sv \
@@ -243,6 +236,13 @@ prim_secded_72_64_dec.sv \
 prim_secded_72_64_enc.sv \
 prim_alert_receiver.sv \
 prim_alert_sender.sv \
+prim_lfsr.sv \
+ibex_alu.sv \
+ibex_controller.sv \
+ibex_counter.sv \
+ibex_decoder.sv \
+ibex_fetch_fifo.sv \
+ibex_multdiv_slow.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
