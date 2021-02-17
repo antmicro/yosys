@@ -187,7 +187,8 @@ static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
 			if((*it)->is_input || (*it)->is_output) {
 				child->is_input = (*it)->is_input;
 				child->is_output = (*it)->is_output;
-				child->is_reg = (*it)->is_reg;
+				child->port_id = (*it)->port_id;
+				child->type = AST::AST_WIRE;
 			}
 			if (!(*it)->children.empty() && child->children.empty()) {
 				// This is a bit ugly, but if the child we're replacing has children and
@@ -197,16 +198,20 @@ static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
 					if (child->type == AST::AST_WIRE && grandchild->type == AST::AST_WIRETYPE)
 						child->is_custom_type = true;
 				}
-				// Special case for a wire with multirange
-				if (child->children.size() > 1 && child->type == AST::AST_WIRE &&
-					child->children[0]->type == AST::AST_RANGE && child->children[1]->type == AST::AST_RANGE) {
-					auto multirange_node = new AST::AstNode(AST::AST_MULTIRANGE);
-					multirange_node->is_packed = true;
-					multirange_node->children = child->children;
-					child->children.clear();
-					child->children.push_back(multirange_node);
-				}
 			}
+			// Special case for a wire with multirange
+			if (child->children.size() > 1 && child->type == AST::AST_WIRE &&
+				child->children[0]->type == AST::AST_RANGE && child->children[1]->type == AST::AST_RANGE) {
+				auto multirange_node = new AST::AstNode(AST::AST_MULTIRANGE);
+				multirange_node->is_packed = true;
+				for (auto *c : child->children) {
+					multirange_node->children.push_back(c->clone());
+				}
+				child->children.clear();
+				child->children.push_back(multirange_node);
+			}
+			//(*it)->dumpAst(NULL, "change > ");
+			//child->dumpAst(NULL, "to > ");
 			*it = child;
 			return;
 		}
@@ -542,7 +547,7 @@ void UhdmAst::process_module() {
 						  obj_h,
 						  [&](AST::AstNode* node) {
 							  if (node) {
-								  add_or_replace_child(module_node, node);
+								add_or_replace_child(module_node, node);
 							  }
 						  });
 		visit_one_to_many({vpiInterface,
@@ -552,7 +557,22 @@ void UhdmAst::process_module() {
 						  obj_h,
 						  [&](AST::AstNode* node) {
 							  if (node) {
-								  add_or_replace_child(module_node, node);
+								auto it = std::find_if(module_node->children.begin(),
+													   module_node->children.end(),
+													   [node](AST::AstNode* existing_child) {
+														   return existing_child->str == node->str;
+													   });
+								if (it != module_node->children.end() && node->children.size() > 0 && node->children[0]->type == AST::AST_WIRETYPE) {
+									for (auto *c : node->children) {
+										if (c->type != AST::AST_WIRETYPE) { //do not override wiretype
+											(*it)->children.push_back(c);
+										}
+									}
+								} else {
+									  add_or_replace_child(module_node, node);
+								}
+								//(*it)->dumpAst(NULL, "it >");
+								//node->dumpAst(NULL, "node >");
 							  }
 						  });
 		std::string module_parameters;
@@ -564,10 +584,7 @@ void UhdmAst::process_module() {
 											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER &&
 											                                        child->str == node->str &&
 																//skip real parameters as they are currently not working: https://github.com/alainmarcel/Surelog/issues/1035
-																child->children[0]->type != AST::AST_REALVALUE &&
-																//skip setting re-setting parameter if same value
-																(child->children[0]->integer != node->children[0]->integer ||
-																 child->children[0]->str != node->children[0]->str); })
+																child->children[0]->type != AST::AST_REALVALUE; })
 														!= module_node->children.end()) {
 									if (cell_instance) { //if cell is a blackbox, left setting parameters to yosys
 										auto clone = node->clone();
@@ -735,7 +752,7 @@ void UhdmAst::process_int_var() {
 }
 
 void UhdmAst::process_array_var() {
-	current_node = make_ast_node(AST::AST_MEMORY);
+	current_node = make_ast_node(AST::AST_WIRE);
 	vpiHandle itr = vpi_iterate(vpi_get(vpiType, obj_h) == vpiArrayVar ?
 								vpiReg : vpiElement, obj_h);
 	while (vpiHandle reg_h = vpi_scan(itr)) {
@@ -746,6 +763,7 @@ void UhdmAst::process_array_var() {
 			auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
 			wiretype_node->str = name;
 			current_node->children.push_back(wiretype_node);
+			current_node->is_custom_type = true;
 			shared.report.mark_handled(reg_h);
 			shared.report.mark_handled(typespec_h);
 		}
@@ -757,7 +775,6 @@ void UhdmAst::process_array_var() {
 					  [&](AST::AstNode* node) {
 						  current_node->children.push_back(node);
 					  });
-	current_node->is_custom_type = true;
 }
 
 void UhdmAst::process_param_assign() {
