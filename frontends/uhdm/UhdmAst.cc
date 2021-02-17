@@ -139,7 +139,7 @@ AST::AstNode* UhdmAst::process_value(vpiHandle obj_h) {
 			case vpiIntVal: {
 				auto size = vpi_get(vpiSize, obj_h);
 				if (size == 0) size = 32;
-				return AST::AstNode::mkconst_int(val.value.integer, false, size);
+				return AST::AstNode::mkconst_int(val.value.integer, true, size);
 			}
 			case vpiRealVal: return AST::AstNode::mkconst_real(val.value.real);
 			case vpiStringVal: return AST::AstNode::mkconst_str(val.value.str);
@@ -698,13 +698,14 @@ void UhdmAst::process_custom_var() {
 }
 
 void UhdmAst::process_int_var() {
-	auto type = (parent->current_node && parent->current_node->type == AST::AST_MODULE) ? AST::AST_WIRE : AST::AST_IDENTIFIER;
-	current_node = make_ast_node(type);
+	//auto type = (parent->current_node && parent->current_node->type == AST::AST_MODULE) ? AST::AST_WIRE : AST::AST_IDENTIFIER;
+	current_node = make_ast_node(AST::AST_WIRE);
 	if (current_node->type == AST::AST_WIRE) {
 		auto left_const = AST::AstNode::mkconst_int(31, true);
 		auto right_const = AST::AstNode::mkconst_int(0, true);
 		auto range = new AST::AstNode(AST::AST_RANGE, left_const, right_const);
 		current_node->children.push_back(range);
+		current_node->is_signed = true;
 	}
 	visit_default_expr(obj_h);
 }
@@ -1511,29 +1512,24 @@ void UhdmAst::process_for() {
 	current_node = make_ast_node(AST::AST_FOR);
 	auto loop_id = shared.next_loop_id();
 	current_node->str = "$loop" + std::to_string(loop_id);
-	auto loop_parent_node = find_ancestor({AST::AST_FUNCTION, AST::AST_TASK, AST::AST_MODULE});
-	AST::AstNode* counter = nullptr;
+	auto loop_parent_node = make_ast_node(AST::AST_BLOCK);
+	loop_parent_node->str = current_node->str;
 	visit_one_to_many({vpiForInitStmt},
 					  obj_h,
 					  [&](AST::AstNode* node) {
 						  if (node->type == AST::AST_ASSIGN_LE) node->type = AST::AST_ASSIGN_EQ;
+						  if (node->children[0]->type == AST::AST_WIRE) {
+							loop_parent_node->children.push_back(node->children[0]);
+							node->children[0] = node->children[0]->clone();
+							node->children[0]->type = AST::AST_IDENTIFIER;
+							node->children[0]->children.clear();
+						  }
 						  current_node->children.push_back(node);
-						  counter = new AST::AstNode(AST::AST_WIRE);
-						  counter->range_left = 31;
-						  counter->is_reg = true;
-						  counter->is_signed = true;
-						  counter->str = node->children[0]->str;
-						  loop_parent_node->children.push_back(counter);
 					  });
 	visit_one_to_one({vpiCondition},
 					 obj_h,
 					 [&](AST::AstNode* node) {
 						 current_node->children.push_back(node);
-						 node->visitEachDescendant([](AST::AstNode* node) {
-							 if (node->type == AST::AST_CONSTANT) {
-								 node->is_signed = true;
-							 }
-						 });
 					 });
 	visit_one_to_many({vpiForIncStmt},
 					  obj_h,
@@ -1548,13 +1544,8 @@ void UhdmAst::process_for() {
 						 statements->children.push_back(node);
 						 current_node->children.push_back(statements);
 					 });
-	auto local_counter_name = counter->str;
-	counter->str = "\\loop" + std::to_string(loop_id) + "::" + counter->str.substr(1);
-	current_node->visitEachDescendant([&](AST::AstNode* node) {
-		if (node->str == local_counter_name) {
-			node->str = counter->str;
-		}
-	});
+	loop_parent_node->children.push_back(current_node);
+	current_node = loop_parent_node;
 }
 
 void UhdmAst::process_gen_scope_array() {
