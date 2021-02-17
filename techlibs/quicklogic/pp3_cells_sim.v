@@ -147,6 +147,7 @@ module dffepc (
 );
   parameter [0:0] INIT = 1'b0;
 
+  // The CLR => Q and PRE => Q paths are commented out due to YosysHQ/yosys#2530.
   specify
     if (EN) (posedge CLK => (Q : D)) = 1701; // QCK -> QZ
     // if (CLR) (CLR => Q) = 967; // QRT -> QZ
