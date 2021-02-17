@@ -310,6 +310,7 @@ static int size_packed_struct(AstNode *snode, int base_offset)
 		}
 		else {
 			log_assert(node->type == AST_STRUCT_ITEM);
+			while(node->simplify(false, false,false, 1, -1, false, false)) { }
 			if (node->children.size() > 0 && node->children[0]->type == AST_RANGE) {
 				// member width e.g. bit [7:0] a
 				width = range_width(node, node->children[0]);
@@ -346,6 +347,9 @@ static int size_packed_struct(AstNode *snode, int base_offset)
 				width *= array_count;
 				// range nodes are now redundant
 				node->children.clear();
+			}
+			else if (node->children.size() == 1 && node->children[0]->type == AST_ENUM) {
+				width = node->children[0]->children[0]->range_left - node->children[0]->children[0]->range_right + 1;
 			}
 			else if (node->range_left < 0) {
 				// 1 bit signal: bit, logic or reg
@@ -1495,6 +1499,11 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				// replace with wire representing the packed structure
 				newNode = make_packed_struct(template_node, str);
 				// add original input/output attribute to resolved wire
+				if (children.size() == 2 && children[1]->type == AST_RANGE) {
+					int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
+					newNode->children[0]->range_left *= s;
+					newNode->children[0]->children[0]->integer *= s;
+				}
 				newNode->is_input = this->is_input;
 				newNode->is_output = this->is_output;
 				current_scope[str] = this;
