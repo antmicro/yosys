@@ -895,6 +895,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			}
 			scope_node->children.insert(scope_node->children.begin(), init_ast->children[0]);
 			init_ast->children[0]->simplify(false, false, true, stage, -1, false, in_param);
+			current_scope[init_ast->children[0]->str] = init_ast->children[0];
 			auto *clone = init_ast->children[0]->clone();
 			clone->type = AST_IDENTIFIER;
 			clone->id2ast = init_ast->children[0];
