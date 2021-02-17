@@ -521,11 +521,11 @@ void UhdmAst::process_module() {
 			if (!module_node) {
 				module_node = new AST::AstNode(AST::AST_MODULE);
 				module_node->str = type;
-				module_node->attributes[ID::hdlname] = AST::AstNode::mkconst_str(module_node->str);
 				module_node->attributes[ID::partial] = AST::AstNode::mkconst_int(2, false, 1);
 			}
 			shared.top_nodes[module_node->str] = module_node;
 		}
+		module_node = module_node->clone();
 		auto cell_instance = vpi_get(vpiCellInstance, obj_h);
 		if (cell_instance) {
 			module_node->attributes[ID::whitebox] = AST::AstNode::mkconst_int(1, false, 1);
@@ -555,19 +555,43 @@ void UhdmAst::process_module() {
 								  add_or_replace_child(module_node, node);
 							  }
 						  });
+		std::string module_parameters;
 		visit_one_to_many({vpiParamAssign},
 						  obj_h,
 						  [&](AST::AstNode* node) {
 							  if (node) {
 								if (std::find_if(module_node->children.begin(), module_node->children.end(),
-											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER && child->str == node->str && child->children[0]->type != AST::AST_REALVALUE && (child->children[0]->integer != node->children[0]->integer || child->children[0]->str != node->children[0]->str); })
+											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER &&
+											                                        child->str == node->str &&
+																//skip real parameters as they are currently not working: https://github.com/alainmarcel/Surelog/issues/1035
+																child->children[0]->type != AST::AST_REALVALUE &&
+																//skip setting re-setting parameter if same value
+																(child->children[0]->integer != node->children[0]->integer ||
+																 child->children[0]->str != node->children[0]->str); })
 														!= module_node->children.end()) {
-									auto clone = node->clone();
-									clone->type = AST::AST_PARASET;
-									current_node->children.push_back(clone);
+									if (cell_instance) { //if cell is a blackbox, left setting parameters to yosys
+										auto clone = node->clone();
+										clone->type = AST::AST_PARASET;
+										current_node->children.push_back(clone);
+									} else {
+										if (node->children[0]->str != "")
+											module_parameters += node->str + "=" + node->children[0]->str;
+										else
+											module_parameters += node->str + "=" + std::to_string(node->children[0]->integer);
+										//replace
+										add_or_replace_child(module_node, node);
+									}
 								}
 							  }
 						  });
+		//rename module in same way yosys do
+		if (module_parameters.size() > 60)
+			module_node->str = "$paramod$" + sha1(module_parameters) + type;
+		else if(module_parameters != "")
+			module_node->str = "$paramod" + type + module_parameters;
+		//add new module to templates and top nodes
+		shared.top_node_templates[module_node->str] = module_node;
+		shared.top_nodes[module_node->str] = module_node;
 		make_cell(obj_h, current_node, module_node);
 	}
 }
