@@ -746,7 +746,7 @@ void UhdmAst::process_array_var() {
 	vpiHandle itr = vpi_iterate(vpi_get(vpiType, obj_h) == vpiArrayVar ?
 								vpiReg : vpiElement, obj_h);
 	while (vpiHandle reg_h = vpi_scan(itr)) {
-		if (vpi_get(vpiType, reg_h) == vpiStructVar) {
+		if (vpi_get(vpiType, reg_h) == vpiStructVar || vpi_get(vpiType, reg_h) == vpiEnumVar) {
 			vpiHandle typespec_h = vpi_handle(vpiTypespec, reg_h);
 			std::string name = vpi_get_str(vpiName, typespec_h);
 			sanitize_symbol_name(name);
@@ -833,7 +833,7 @@ void UhdmAst::process_net() {
 }
 
 void UhdmAst::process_packed_array_net() {
-	current_node = make_ast_node(AST::AST_MEMORY);
+	current_node = make_ast_node(AST::AST_WIRE);
 	visit_one_to_many({vpiElement},
 					  obj_h,
 					  [&](AST::AstNode* node) {
