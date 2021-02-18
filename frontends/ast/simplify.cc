@@ -349,7 +349,7 @@ static int size_packed_struct(AstNode *snode, int base_offset)
 				node->children.clear();
 			}
 			else if (node->children.size() == 1 && node->children[0]->type == AST_ENUM) {
-				width = node->children[0]->children[0]->range_left - node->children[0]->children[0]->range_right + 1;
+				width = node->children[0]->children[0]->range_left - node->children[0]->children[0]->range_right + 2;
 			}
 			else if (node->range_left < 0) {
 				// 1 bit signal: bit, logic or reg
@@ -1493,6 +1493,8 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
 					newNode->children[0]->range_left *= s;
 					newNode->children[0]->children[0]->integer *= s;
+					newNode->children[0]->range_left -= 1;
+					newNode->children[0]->children[0]->integer -= 1;
 				}
 				newNode->is_input = this->is_input;
 				newNode->is_output = this->is_output;
