@@ -202,8 +202,8 @@ static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
 				child->children.clear();
 				child->children.push_back(multirange_node);
 			}
-			//(*it)->dumpAst(NULL, "change > ");
-			//child->dumpAst(NULL, "to > ");
+			(*it)->dumpAst(NULL, "change > ");
+			child->dumpAst(NULL, "to > ");
 			*it = child;
 			return;
 		}
@@ -847,7 +847,7 @@ void UhdmAst::process_packed_array_net() {
 					  });
 }
 void UhdmAst::process_array_net() {
-	current_node = make_ast_node(AST::AST_MEMORY);
+	current_node = make_ast_node(AST::AST_WIRE);
 	vpiHandle itr = vpi_iterate(vpiNet, obj_h);
 	while (vpiHandle net_h = vpi_scan(itr)) {
 		if (vpi_get(vpiType, net_h) == vpiLogicNet) {
@@ -866,9 +866,8 @@ void UhdmAst::process_array_net() {
 					  [&](AST::AstNode* node) {
 						  current_node->children.push_back(node);
 					  });
-	if (current_node->children.size() == 1) { // There need to be two range nodes
-		auto first_range = new AST::AstNode(AST::AST_RANGE, AST::AstNode::mkconst_int(0, false));
-		current_node->children.insert(current_node->children.begin(), first_range);
+	if (current_node->children.size() == 2) { // There need to be two range nodes
+		current_node->type = AST::AST_MEMORY;
 	}
 }
 
