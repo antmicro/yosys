@@ -103,38 +103,21 @@ void UhdmAst::visit_default_expr(vpiHandle obj_h)  {
 AST::AstNode* UhdmAst::process_value(vpiHandle obj_h) {
 	s_vpi_value val;
 	vpi_get_value(obj_h, &val);
+	std::string strValType;
 	if (val.format) { // Needed to handle parameter nodes without typespecs and constants
 		switch (val.format) {
 			case vpiScalarVal: return AST::AstNode::mkconst_int(val.value.scalar, false, 1);
 			case vpiBinStrVal: {
-				if (std::strchr(val.value.str, '\'')) {
-					return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
-				} else {
-					auto size = vpi_get(vpiSize, obj_h);
-					if (size == 0) size = 32;
-					auto str = std::to_string(size) + "'b" + val.value.str;
-					return VERILOG_FRONTEND::const2ast(str, 0, false);
-				}
+				strValType = "'b";
+				break;
 			}
 			case vpiDecStrVal: {
-				if (std::strchr(val.value.str, '\'')) {
-					return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
-				} else {
-					auto size = vpi_get(vpiSize, obj_h);
-					if (size == 0) size = 32;
-					auto str = std::to_string(size) + "'d" + val.value.str;
-					return VERILOG_FRONTEND::const2ast(str, 0, false);
-				}
+				strValType = "'d";
+				break;
 			}
 			case vpiHexStrVal: {
-				if (std::strchr(val.value.str, '\'')) {
-					return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
-				} else {
-					auto size = vpi_get(vpiSize, obj_h);
-					if (size == 0) size = 32;
-					auto str = std::to_string(size) + "'h" + val.value.str;
-					return VERILOG_FRONTEND::const2ast(str, 0, false);
-				}
+				strValType = "'h";
+				break;
 			}
 			case vpiIntVal: {
 				auto size = vpi_get(vpiSize, obj_h);
@@ -149,6 +132,15 @@ AST::AstNode* UhdmAst::process_value(vpiHandle obj_h) {
 				report_error("Encountered unhandled constant format %d at %s:%d\n", val.format,
 							 object->VpiFile().c_str(), object->VpiLineNo());
 			}
+		}
+		// handle vpiBinStrVal, vpiDecStrVal and vpiHexStrVal
+		if (std::strchr(val.value.str, '\'')) {
+			return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
+		} else {
+			auto size = vpi_get(vpiSize, obj_h);
+			if (size == 0) size = 32;
+			auto str = std::to_string(size) + strValType + val.value.str;
+			return VERILOG_FRONTEND::const2ast(str, 0, false);
 		}
 	}
 	return nullptr;
@@ -741,13 +733,11 @@ void UhdmAst::process_custom_var() {
 void UhdmAst::process_int_var() {
 	//auto type = (parent->current_node && parent->current_node->type == AST::AST_MODULE) ? AST::AST_WIRE : AST::AST_IDENTIFIER;
 	current_node = make_ast_node(AST::AST_WIRE);
-	if (current_node->type == AST::AST_WIRE) {
-		auto left_const = AST::AstNode::mkconst_int(31, true);
-		auto right_const = AST::AstNode::mkconst_int(0, true);
-		auto range = new AST::AstNode(AST::AST_RANGE, left_const, right_const);
-		current_node->children.push_back(range);
-		current_node->is_signed = true;
-	}
+	auto left_const = AST::AstNode::mkconst_int(31, true);
+	auto right_const = AST::AstNode::mkconst_int(0, true);
+	auto range = new AST::AstNode(AST::AST_RANGE, left_const, right_const);
+	current_node->children.push_back(range);
+	current_node->is_signed = true;
 	visit_default_expr(obj_h);
 }
 
