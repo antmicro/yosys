@@ -1155,6 +1155,10 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 	case AST_SHIFT_RIGHT:
 	case AST_SHIFT_SLEFT:
 	case AST_SHIFT_SRIGHT:
+		log_assert(children.size() > 1);
+		// 11.4.10 Shift operators
+		// The right operand is always treated as an unsigned number
+		children[1]->is_signed = false;
 	case AST_POW:
 		detect_width_simple = true;
 		child_1_is_self_determined = true;
