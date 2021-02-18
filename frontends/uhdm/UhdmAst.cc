@@ -578,7 +578,7 @@ void UhdmAst::process_module() {
 																//skip real parameters as they are currently not working: https://github.com/alainmarcel/Surelog/issues/1035
 																child->children[0]->type != AST::AST_REALVALUE; })
 														!= module_node->children.end()) {
-									if (cell_instance) { //if cell is a blackbox, left setting parameters to yosys
+									if (cell_instance || (node->children.size() > 0 && node->children[0]->type != AST::AST_CONSTANT)) { //if cell is a blackbox or we need to siplify parameter first, left setting parameters to yosys
 										auto clone = node->clone();
 										clone->type = AST::AST_PARASET;
 										current_node->children.push_back(clone);
