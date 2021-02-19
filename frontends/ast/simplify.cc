@@ -31,6 +31,7 @@
 #include "frontends/verilog/verilog_frontend.h"
 #include "ast.h"
 
+#include <iterator>
 #include <sstream>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -226,12 +227,13 @@ void AstNode::annotateTypedEnums(AstNode *template_node)
 	}
 }
 
-static bool name_has_dot(const std::string &name, std::string &struct_name)
+static bool name_has_dot(const std::string &name, std::string &struct_name, std::string &struct_field)
 {
 	// check if plausible struct member name \sss.mmm
 	std::string::size_type pos;
 	if (name.substr(0, 1) == "\\" && (pos = name.find('.', 0)) != std::string::npos) {
 		struct_name = name.substr(0, pos);
+		struct_field = name.substr(pos); // return str with . at begining
 		return true;
 	}
 	return false;
@@ -337,7 +339,7 @@ static int size_packed_struct(AstNode *snode, int base_offset)
 				node->children.clear();
 			}
 			else if (node->children.size() == 1 && node->children[0]->type == AST_ENUM) {
-				width = node->children[0]->children[0]->range_left - node->children[0]->children[0]->range_right + 2;
+				width = node->children[0]->children[0]->range_left - node->children[0]->children[0]->range_right + 1;
 			}
 			else if (node->range_left < 0) {
 				// 1 bit signal: bit, logic or reg
@@ -409,7 +411,7 @@ static AstNode *offset_indexed_range(int offset_right, int stride, AstNode *left
 	return new AstNode(AST_RANGE, left, right);
 }
 
-static AstNode *make_struct_member_range(AstNode *node, AstNode *member_node)
+static AstNode *make_struct_member_range(AstNode *node, AstNode *member_node, int move)
 {
 	// Work out the range in the packed array that corresponds to a struct member
 	// taking into account any range operations applicable to the current node
@@ -438,7 +440,7 @@ static AstNode *make_struct_member_range(AstNode *node, AstNode *member_node)
 		// TODO multirange, i.e. bit slice after array index s.a[i][p:q]
 		struct_op_error(node);
 	}
-	return make_range(range_left, range_right);
+	return make_range(range_left + move, range_right + move);
 }
 
 static void add_members_to_scope(AstNode *snode, std::string name)
@@ -1386,14 +1388,17 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			if (template_node->type == AST_STRUCT || template_node->type == AST_UNION) {
 				// replace with wire representing the packed structure
 				newNode = make_packed_struct(template_node, str);
-				// add original input/output attribute to resolved wire
+				newNode->dumpAst(NULL, "struct p> ");
 				if (children.size() == 2 && children[1]->type == AST_RANGE) {
+					//save size of single struct in wiretype attribute
+					newNode->attributes[ID::wiretype] = mkconst_int(newNode->children[0]->range_left + 1, false, 32);
 					int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
-					newNode->children[0]->range_left *= s;
-					newNode->children[0]->children[0]->integer *= s;
+					newNode->children[0]->range_left = (newNode->children[0]->range_left + 1) * s;
+					newNode->children[0]->children[0]->integer = (newNode->children[0]->children[0]->integer + 1) * s;
 					newNode->children[0]->range_left -= 1;
 					newNode->children[0]->children[0]->integer -= 1;
 				}
+				// add original input/output attribute to resolved wire
 				newNode->is_input = this->is_input;
 				newNode->is_output = this->is_output;
 				current_scope[str] = this;
@@ -1995,18 +2000,61 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 	if (type == AST_IDENTIFIER && !basic_prep) {
 		// check if a plausible struct member sss.mmmm
-		std::string sname;
-		if (name_has_dot(str, sname)) {
-			if (current_scope.count(str) > 0) {
-				auto item_node = current_scope[str];
+		// check if a plausible struct member sss[srange].mmmm
+		std::string sname, sfield, srange;
+		if (name_has_dot(str, sname, sfield)) {
+			//if (current_block_backup) {
+			//	log_warning("curr block str: %s\n", current_block_backup->str.c_str());
+			//}
+			log_warning("1. str: %s, sname: %s, sfield: %s\n", str.c_str(), sname.c_str(), sfield.c_str());
+			std::string::size_type pos_start = str.find("[", 0);
+			std::string::size_type pos_end = str.find("]", pos_start);
+			std::string look_str = str;
+			int struct_size = 0;
+			int struct_mult = 0;
+			if (pos_start != std::string::npos && pos_end != std::string::npos) {
+				sname = str.substr(0, pos_start);
+				srange = str.substr(pos_start + 1, pos_end - pos_start - 1);
+				log_warning("srange: %s\n", srange.c_str());
+				if (!srange.empty() && std::find_if(srange.begin(), srange.end(), [](unsigned char c) { return !std::isdigit(c); }) == srange.end()) {
+					struct_mult = stoi(srange);
+				} else {
+					for(auto it = current_scope.rbegin(); it != current_scope.rend(); it++) {
+						auto s = *it;
+						std::string::size_type find_pos = s.first.find("." + srange, 0);
+						log_warning("Scope: %s, find pos: %d, len: %d\n", s.first.c_str(), find_pos, s.first.size());
+						if (find_pos != std::string::npos && find_pos + 1 + srange.size() == s.first.size()) {
+							log_warning("Found scope for: %s\n", srange.c_str());
+							s.second->dumpAst(NULL, "range >");
+							struct_mult = s.second->children[0]->integer;
+							break;
+						}
+					}
+
+				}
+				look_str = sname + sfield;
+				if (current_scope.count(sname) > 0) {
+					if (current_scope[sname]->attributes.count(ID::wiretype)) {
+						struct_size = current_scope[sname]->attributes[ID::wiretype]->integer;
+					}
+				}
+			}
+			log_warning("2. str: %s, sname: %s, sfield: %s, struct_size: %d, struct_mult: %d, result: %d\n", str.c_str(), sname.c_str(), sfield.c_str(), struct_size, struct_mult, struct_size * struct_mult);
+			if (current_scope.count(look_str) > 0) {
+				log_warning("Found\n");
+				auto item_node = current_scope[look_str];
 				if (item_node->type == AST_STRUCT_ITEM) {
 					// structure member, rewrite this node to reference the packed struct wire
-					auto range = make_struct_member_range(this, item_node);
+					item_node->dumpAst(NULL, "struct >");
+					auto range = make_struct_member_range(this, item_node, struct_size * struct_mult);
 					newNode = new AstNode(AST_IDENTIFIER, range);
 					newNode->str = sname;
 					newNode->basic_prep = true;
+					newNode->dumpAst(NULL, "newNode >");
 					goto apply_newNode;
 				}
+			} else {
+				log_warning("Not found\n");
 			}
 		}
 	}
