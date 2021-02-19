@@ -1583,17 +1583,6 @@ void UhdmAst::process_gen_scope_array() {
 	visit_one_to_many({vpiGenScope},
 					  obj_h,
 					  [&](AST::AstNode* genscope_node) {
-						  for (auto* child : genscope_node->children) {
-							  if (child->type == AST::AST_PARAMETER) {
-								  auto prev_name = child->str;
-								  child->str = current_node->str + "::" + child->str.substr(1);
-								  genscope_node->visitEachDescendant([&](AST::AstNode* node) {
-									  if (node->str == prev_name) {
-										  node->str = child->str;
-									  }
-								  });
-							  }
-						  }
 						  current_node->children.insert(current_node->children.end(),
 														genscope_node->children.begin(),
 														genscope_node->children.end());
@@ -1764,13 +1753,18 @@ void UhdmAst::process_hier_path() {
 	visit_one_to_many({vpiActual},
 					  obj_h,
 					  [&](AST::AstNode* node) {
-						  if (current_node->str != "\\") {
-							  current_node->str += ".";
+					  	  if (current_node->str != "\\") {
+						  	current_node->str += ".";
 						  }
 						  current_node->str += node->str.substr(1);
-						  for (auto child : node->children) {
-							  current_node->children.push_back(child->clone());
+						  if (node->children.size() > 0 && node->children[0]->type == AST::AST_RANGE) {
+						  	if (node->children[0]->children[0]->str != "") {
+								current_node->str += "[" + node->children[0]->children[0]->str.substr(1) + "]";
+							} else {
+								current_node->str += "[" + std::to_string(node->children[0]->children[0]->integer) + "]";
+							}
 						  }
+						  current_node->dumpAst(NULL, "hier >");
 					  });
 }
 
