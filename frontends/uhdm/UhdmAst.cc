@@ -1583,6 +1583,22 @@ void UhdmAst::process_gen_scope_array() {
 	visit_one_to_many({vpiGenScope},
 					  obj_h,
 					  [&](AST::AstNode* genscope_node) {
+						  for (auto* child : genscope_node->children) {
+							  if (child->type == AST::AST_PARAMETER) {
+								  auto prev_name = child->str;
+								  child->str = current_node->str + "::" + child->str.substr(1);
+								  genscope_node->visitEachDescendant([&](AST::AstNode* node) {
+									  auto pos = node->str.find("[" + prev_name.substr(1) + "]");
+									  if (node->str == prev_name) {
+										  node->str = child->str;
+									  } else if (pos != std::string::npos) {
+									  	  log_warning("Replace str: %s\n", node->str.c_str());
+									  	  node->str.replace(pos + 1, prev_name.size() - 1, child->str.substr(1));
+									  	  log_warning("Replace to str: %s\n", node->str.c_str());
+									  }
+								  });
+							  }
+						  }
 						  current_node->children.insert(current_node->children.end(),
 														genscope_node->children.begin(),
 														genscope_node->children.end());
