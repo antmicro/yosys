@@ -202,8 +202,6 @@ static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
 				child->children.clear();
 				child->children.push_back(multirange_node);
 			}
-			(*it)->dumpAst(NULL, "change > ");
-			child->dumpAst(NULL, "to > ");
 			*it = child;
 			return;
 		}
@@ -563,8 +561,6 @@ void UhdmAst::process_module() {
 								} else {
 									  add_or_replace_child(module_node, node);
 								}
-								//(*it)->dumpAst(NULL, "it >");
-								//node->dumpAst(NULL, "node >");
 							  }
 						  });
 		std::string module_parameters;
@@ -1592,9 +1588,7 @@ void UhdmAst::process_gen_scope_array() {
 									  if (node->str == prev_name) {
 										  node->str = child->str;
 									  } else if (pos != std::string::npos) {
-									  	  log_warning("Replace str: %s\n", node->str.c_str());
 									  	  node->str.replace(pos + 1, prev_name.size() - 1, child->str.substr(1));
-									  	  log_warning("Replace to str: %s\n", node->str.c_str());
 									  }
 								  });
 							  }
@@ -1780,7 +1774,6 @@ void UhdmAst::process_hier_path() {
 								current_node->str += "[" + std::to_string(node->children[0]->children[0]->integer) + "]";
 							}
 						  }
-						  current_node->dumpAst(NULL, "hier >");
 					  });
 }
 
