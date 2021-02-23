@@ -727,7 +727,6 @@ void UhdmAst::process_custom_var() {
 }
 
 void UhdmAst::process_int_var() {
-	//auto type = (parent->current_node && parent->current_node->type == AST::AST_MODULE) ? AST::AST_WIRE : AST::AST_IDENTIFIER;
 	current_node = make_ast_node(AST::AST_WIRE);
 	auto left_const = AST::AstNode::mkconst_int(31, true);
 	auto right_const = AST::AstNode::mkconst_int(0, true);
@@ -862,7 +861,7 @@ void UhdmAst::process_array_net() {
 					  [&](AST::AstNode* node) {
 						  current_node->children.push_back(node);
 					  });
-	if (current_node->children.size() == 2) { // There need to be two range nodes
+	if (current_node->children.size() == 2) { // If there is 2 ranges, change type to AST_MEMORY
 		current_node->type = AST::AST_MEMORY;
 	}
 }
