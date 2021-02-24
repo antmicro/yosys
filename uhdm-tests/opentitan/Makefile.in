@@ -83,7 +83,6 @@ ibex_cs_registers.sv \
 ibex_ex_block.sv \
 ibex_id_stage.sv \
 ibex_if_stage.sv \
-ibex_multdiv_fast.sv \
 ibex_prefetch_buffer.sv \
 ibex_wb_stage.sv \
 ibex_dummy_instr.sv \
@@ -243,6 +242,7 @@ ibex_fetch_fifo.sv \
 ibex_multdiv_slow.sv \
 ibex_pmp.sv \
 ibex_load_store_unit.sv \
+ibex_multdiv_fast.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -291,8 +291,8 @@ uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 		-p "verilog_defines -DPRIM_DEFAULT_IMPL=prim_pkg::ImplXilinx" \
 		-p "verilog_defaults -push" \
 		-p "verilog_defaults -add -defer" \
-		-p "read_uhdm -defer ${UHDM_file}" \
-		-p "read_verilog ${SV2V_FILE}" \
+		-p "read_uhdm -debug -defer ${UHDM_file}" \
+		-p "read_verilog -dump_ast1 ${SV2V_FILE}" \
 		-p "read_verilog -overwrite ${CUSTOM_FILES}" \
 		-p "verilog_defaults -pop" \
 	        -p 'synth_xilinx -iopad -family xc7 -top top_earlgrey_nexysvideo' \

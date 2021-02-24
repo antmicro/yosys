@@ -16,6 +16,30 @@ index 962d3b559..d6430bc5a 100644
  `else
      // different driver types
      assign (strong0, strong1) inout_io = (oe && drv != DRIVE_00) ? out : 1'bz;
+diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_multdiv_fast.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_multdiv_fast.sv
+index 617bb5162..11ccd8fd2 100644
+--- a/hw/vendor/lowrisc_ibex/rtl/ibex_multdiv_fast.sv
++++ b/hw/vendor/lowrisc_ibex/rtl/ibex_multdiv_fast.sv
+@@ -15,7 +15,7 @@
+ `include "prim_assert.sv"
+ 
+ module ibex_multdiv_fast #(
+-    parameter bit SingleCycleMultiply = 0
++    parameter bit SingleCycleMultiply = 1
+   ) (
+     input  logic             clk_i,
+     input  logic             rst_ni,
+@@ -35,8 +35,8 @@ module ibex_multdiv_fast #(
+     output logic [32:0]      alu_operand_a_o,
+     output logic [32:0]      alu_operand_b_o,
+ 
+-    input  logic [33:0]      imd_val_q_i[2],
+-    output logic [33:0]      imd_val_d_o[2],
++    input  logic [1:0][33:0]      imd_val_q_i,
++    output logic [1:0][33:0]      imd_val_d_o,
+     output logic [1:0]       imd_val_we_o,
+ 
+     input  logic             multdiv_ready_id_i,
 diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_pmp.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_pmp.sv
 index 1b48693a0..5ff425c4e 100644
 --- a/hw/vendor/lowrisc_ibex/rtl/ibex_pmp.sv
