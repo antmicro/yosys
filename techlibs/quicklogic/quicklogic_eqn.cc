@@ -62,7 +62,7 @@ struct QuicklogicEqnPass : public Pass {
 		return Const(eqn);
 	}
 
-	void execute(std::vector<std::string> args, RTLIL::Design *design) YS_OVERRIDE
+	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		log_header(design, "Executing Quicklogic_EQN pass (calculate equations for luts).\n");
 

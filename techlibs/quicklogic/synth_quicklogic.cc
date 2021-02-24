@@ -88,7 +88,7 @@ struct SynthQuickLogicPass : public ScriptPass {
         bool inferAdder, openfpga, infer_dbuff, abc9, inferMult;
         bool abcOpt;
 
-        void clear_flags() YS_OVERRIDE
+        void clear_flags() override
         {
                 top_opt = "-auto-top";
                 edif_file = "";
@@ -104,7 +104,7 @@ struct SynthQuickLogicPass : public ScriptPass {
                 infer_dbuff = false;
         }
 
-        void execute(std::vector<std::string> args, RTLIL::Design *design) YS_OVERRIDE
+        void execute(std::vector<std::string> args, RTLIL::Design *design) override
         {
                 string run_from, run_to;
                 clear_flags();
@@ -169,8 +169,9 @@ struct SynthQuickLogicPass : public ScriptPass {
                 log_header(design, "Executing SYNTH_QUICKLOGIC pass.\n");
                 log_push();
 
-                log_warning("delay target has not been set via SDC or scratchpad; assuming 12 MHz clock.\n");
-                design->scratchpad_set_int("abc9.D", 41667); // 12MHz = 83.33.. ns; divided by two to allow for interconnect delay.
+                if (abc9 && design->scratchpad_get_int("abc9.D", 0) == 0) {
+                        log_warning("delay target has not been set via SDC or scratchpad; assuming 12 MHz clock.\n");
+                        design->scratchpad_set_int("abc9.D", 41667); // 12MHz = 83.33.. ns; divided by two to allow for interconnect delay.
                 }
 
                 run_script(design, run_from, run_to);
@@ -178,7 +179,7 @@ struct SynthQuickLogicPass : public ScriptPass {
                 log_pop();
         }
 
-        void script() YS_OVERRIDE
+        void script() override
         {
                 if (check_label("begin")) {
                         std::string readVelArgs;
@@ -301,7 +302,7 @@ struct SynthQuickLogicPass : public ScriptPass {
 
                                 if (abc9) {
                                         run("read_verilog -lib -specify -icells +/quicklogic/abc9_model.v");
-                                        run(stringf("techmap -map +/quicklogic/%s_cells_map.v t:$_MUX4_ t:$_MUX8_", family.c_str());
+                                        run(stringf("techmap -map +/quicklogic/%s_cells_map.v t:$_MUX4_ t:$_MUX8_", family.c_str()));
                                         run("abc9 -maxlut 4 -dff");
                                         run("techmap -map +/quicklogic/abc9_unmap.v");
                                 } else if (abcOpt) {

@@ -2583,10 +2583,10 @@ module qlal4s3b_cell_macro (
   input FB_Busy,
   output WB_RST,
   output Sys_PKfb_Rst,
-  output Sys_Clk0,
-  output Sys_Clk0_Rst,
-  output Sys_Clk1,
-  output Sys_Clk1_Rst,
+  output Clk16,
+  output Clk16_Rst,
+  output Clk21,
+  output Clk21_Rst,
   output Sys_Pclk,
   output Sys_Pclk_Rst,
   input Sys_PKfb_Clk,
@@ -2661,10 +2661,10 @@ module qlal4s3b_cell_macro (
     //
     // FB Clocks
     //
-    .Sys_Clk0(Sys_Clk0),
-    .Sys_Clk0_Rst(Sys_Clk0_Rst),
-    .Sys_Clk1(Sys_Clk1),
-    .Sys_Clk1_Rst(Sys_Clk1_Rst),
+    .Sys_Clk0(Sys_Clk12),
+    .Sys_Clk0_Rst(Sys_Clk12_Rst),
+    .Sys_Clk1(Sys_Clk21),
+    .Sys_Clk1_Rst(Sys_Clk21_Rst),
     //
     // Packet FIFO
     //
@@ -2761,201 +2761,9 @@ module fifo_controller_model (
 
   parameter MAX_PTR_WIDTH = 12;
 
-(* blackbox *)
-(* keep *)
-module qlal4s3b_cell_macro(
-    input	WB_CLK,
-    input	WBs_ACK,
-    input	[31:0]WBs_RD_DAT,
-    output	[3:0]WBs_BYTE_STB,
-    output	WBs_CYC,
-    output	WBs_WE,
-    output	WBs_RD,
-    output	WBs_STB,
-    output	[16:0]WBs_ADR,
-    input	[3:0]SDMA_Req,
-    input	[3:0]SDMA_Sreq,
-    output	[3:0]SDMA_Done,
-    output	[3:0]SDMA_Active,
-    input	[3:0]FB_msg_out,
-    input	[7:0]FB_Int_Clr,
-    output	FB_Start,
-    input	FB_Busy,
-    output	WB_RST,
-    output	Sys_PKfb_Rst,
-    output	Clk16,
-    output	Clk16_Rst,
-    output	Clk21,
-    output	Clk21_Rst,
-    output	Sys_Pclk,
-    output	Sys_Pclk_Rst,
-    input	Sys_PKfb_Clk,
-    input	[31:0]FB_PKfbData,
-    output	[31:0]WBs_WR_DAT,
-    input	[3:0]FB_PKfbPush,
-    input	FB_PKfbSOF,
-    input	FB_PKfbEOF,
-    output	[7:0]Sensor_Int,
-    output	FB_PKfbOverflow,
-    output	[23:0]TimeStamp,
-    input	Sys_PSel,
-    input	[15:0]SPIm_Paddr,
-    input	SPIm_PEnable,
-    input	SPIm_PWrite,
-    input	[31:0]SPIm_PWdata,
-    output	SPIm_PReady,
-    output	SPIm_PSlvErr,
-    output	[31:0]SPIm_Prdata,
-    input	[15:0]Device_ID,
-    input	[13:0]FBIO_In_En,
-    input	[13:0]FBIO_Out,
-    input	[13:0]FBIO_Out_En,
-    output	[13:0]FBIO_In,
-    inout 	[13:0]SFBIO,
-    input   Device_ID_6S,
-    input   Device_ID_4S,
-    input   SPIm_PWdata_26S,
-    input   SPIm_PWdata_24S,
-    input   SPIm_PWdata_14S,
-    input   SPIm_PWdata_11S,
-    input   SPIm_PWdata_0S,
-    input   SPIm_Paddr_8S,
-    input   SPIm_Paddr_6S,
-    input   FB_PKfbPush_1S,
-    input   FB_PKfbData_31S,
-    input   FB_PKfbData_21S,
-    input   FB_PKfbData_19S,
-    input   FB_PKfbData_9S,
-    input   FB_PKfbData_6S,
-    input   Sys_PKfb_ClkS,
-    input   FB_BusyS,
-    input   WB_CLKS);
-
-
-qlal4s3b_cell_macro_bfm	 u_ASSP_bfm_inst(
-		.WBs_ADR     (WBs_ADR),
-        .WBs_CYC     (WBs_CYC),
-        .WBs_BYTE_STB(WBs_BYTE_STB),
-        .WBs_WE      (WBs_WE),
-        .WBs_RD      (WBs_RD),
-        .WBs_STB     (WBs_STB),
-        .WBs_WR_DAT  (WBs_WR_DAT),
-        .WB_CLK      (WB_CLK),
-        .WB_RST      (WB_RST),
-        .WBs_RD_DAT  (WBs_RD_DAT),
-        .WBs_ACK     (WBs_ACK),
-        //
-        // SDMA Signals
-        //
-        .SDMA_Req     (SDMA_Req),
-        .SDMA_Sreq    (SDMA_Sreq),
-        .SDMA_Done    (SDMA_Done),
-        .SDMA_Active  (SDMA_Active),
-        //
-        // FB Interrupts
-        //
-        .FB_msg_out    (FB_msg_out),
-        .FB_Int_Clr    (FB_Int_Clr),
-        .FB_Start      (FB_Start),
-        .FB_Busy       (FB_Busy),
-        //
-        // FB Clocks
-        //
-        .Sys_Clk0      (Clk16),
-        .Sys_Clk0_Rst  (Clk16_Rst),
-        .Sys_Clk1      (Clk21),
-        .Sys_Clk1_Rst  (Clk21_Rst),
-        //
-        // Packet FIFO
-        //
-        .Sys_PKfb_Clk     (Sys_PKfb_Clk),
-        .Sys_PKfb_Rst     (Sys_PKfb_Rst),
-        .FB_PKfbData      (FB_PKfbData),
-        .FB_PKfbPush      (FB_PKfbPush),
-        .FB_PKfbSOF       (FB_PKfbSOF),
-        .FB_PKfbEOF       (FB_PKfbEOF),
-        .FB_PKfbOverflow  (FB_PKfbOverflow),
-        //
-        // Sensor Interface
-        //
-        .Sensor_Int       (Sensor_Int),
-        .TimeStamp        (TimeStamp),
-        //
-        // SPI Master APB Bus
-        //
-        .Sys_Pclk        (Sys_Pclk),
-        .Sys_Pclk_Rst    (Sys_Pclk_Rst),
-        .Sys_PSel        (Sys_PSel),
-        .SPIm_Paddr      (SPIm_Paddr),
-        .SPIm_PEnable    (SPIm_PEnable),
-        .SPIm_PWrite     (SPIm_PWrite),
-        .SPIm_PWdata     (SPIm_PWdata),
-        .SPIm_Prdata     (SPIm_Prdata),
-        .SPIm_PReady     (SPIm_PReady),
-        .SPIm_PSlvErr    (SPIm_PSlvErr),
-        //
-        // Misc
-        //
-        .Device_ID		 (Device_ID),
-        //
-        // FBIO Signals
-        //
-        .FBIO_In         (FBIO_In),
-        .FBIO_In_En      (FBIO_In_En),
-        .FBIO_Out        (FBIO_Out),
-        .FBIO_Out_En     (FBIO_Out_En),
-        //
-        // ???
-        //
-        .SFBIO              (SFBIO),
-        .Device_ID_6S       (Device_ID_6S),
-        .Device_ID_4S       (Device_ID_4S),
-        .SPIm_PWdata_26S    (SPIm_PWdata_26S),
-        .SPIm_PWdata_24S    (SPIm_PWdata_24S),
-        .SPIm_PWdata_14S    (SPIm_PWdata_14S),
-        .SPIm_PWdata_11S    (SPIm_PWdata_11S),
-        .SPIm_PWdata_0S     (SPIm_PWdata_0S),
-        .SPIm_Paddr_8S      (SPIm_Paddr_8S),
-        .SPIm_Paddr_6S      (SPIm_Paddr_6S),
-        .FB_PKfbPush_1S     (FB_PKfbPush_1S),
-        .FB_PKfbData_31S    (FB_PKfbData_31S),
-        .FB_PKfbData_21S    (FB_PKfbData_21S),
-        .FB_PKfbData_19S    (FB_PKfbData_19S),
-        .FB_PKfbData_9S     (FB_PKfbData_9S),
-        .FB_PKfbData_6S     (FB_PKfbData_6S),
-        .Sys_PKfb_ClkS      (Sys_PKfb_ClkS),
-        .FB_BusyS           (FB_BusyS),
-        .WB_CLKS            (WB_CLKS)
-		);
-
-endmodule /* qlal4s3b_cell_macro */
-
-`timescale 1ns/10ps
-module fifo_controller_model(
-	 Rst_n,
-	 Push_Clk,
-	 Pop_Clk,
-
-	 Fifo_Push,
-	 Fifo_Push_Flush,
-	 Fifo_Full,
-	 Fifo_Full_Usr,
-
-	 Fifo_Pop,
-	 Fifo_Pop_Flush,
-	 Fifo_Empty,
-	 Fifo_Empty_Usr,
-
-	 Write_Addr,
-
-	 Read_Addr,
-
-	 //	 Static Control Signals
-	 Fifo_Ram_Mode,
-	 Fifo_Sync_Mode,
-	 Fifo_Push_Width,
-	 Fifo_Pop_Width
-	  );
+  parameter DEPTH1 = (1 << (MAX_PTR_WIDTH - 3));
+  parameter DEPTH2 = (1 << (MAX_PTR_WIDTH - 2));
+  parameter DEPTH3 = (1 << (MAX_PTR_WIDTH - 1));
 
   parameter D1_QTR_A = MAX_PTR_WIDTH - 5;
   parameter D2_QTR_A = MAX_PTR_WIDTH - 4;

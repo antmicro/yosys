@@ -138,7 +138,7 @@ struct PP3BRAMInitPass : public Pass {
 		log("parameter and converts it into the required INIT attributes\n");
 		log("\n");
 	}
-	void execute(std::vector<std::string> args, RTLIL::Design *design) YS_OVERRIDE
+	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		log_header(design, "Executing PP3_BRAMINIT pass.\n");
 

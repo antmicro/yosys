@@ -90,7 +90,7 @@ struct AP3WrapCarryPass : public Pass {
 		log("        including restoring their attributes.\n");
 		log("\n");
 	}
-	void execute(std::vector<std::string> args, RTLIL::Design *design) YS_OVERRIDE
+	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		bool unwrap = false;
 
