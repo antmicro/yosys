@@ -336,7 +336,7 @@ struct SynthQuickLogicPass : public ScriptPass {
                                 run("opt -fast");
                                 run("opt_expr");
                                 run("opt_merge");
-                                run("opt_rmdff");
+                                run("opt_dff");
                                 run("opt_clean");
                                 run("opt");
                         }
@@ -364,7 +364,7 @@ struct SynthQuickLogicPass : public ScriptPass {
                         if (family == "ap3" || family == "ap2") {
                                 run("opt_expr");
                                 run("opt_merge");
-                                run("opt_rmdff");
+                                run("opt_dff");
                                 run("opt_clean");
                                 run("opt");
                         }
