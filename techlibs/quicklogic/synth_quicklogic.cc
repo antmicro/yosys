@@ -45,6 +45,7 @@ struct SynthQuickLogicPass : public ScriptPass {
                 log("        - ap: ArcticPro \n");
                 log("        - ap2: ArcticPro 2 \n");
                 log("        - ap3: ArcticPro 3 \n");
+                log("        - qlf_k4n8: qlf_k4n8 \n");
                 log("\n");
                 log("    -no_abc_opt\n");
                 log("        By default most of ABC logic optimization features is\n");
@@ -74,18 +75,13 @@ struct SynthQuickLogicPass : public ScriptPass {
 		log("    -mult\n");
 		log("        use multiplier cells in output netlist\n");
                 log("\n");
-                log("    -openfpga\n");
-                log("        to generate blif file compliant with openfpga flow\n");
-                log("        (this feature is experimental and incomplete)\n");
-                log("\n");
-                log("\n");
                 log("The following commands are executed by this synthesis command:\n");
                 help_script();
                 log("\n");
         }
 
         string top_opt, edif_file, blif_file, family, currmodule, verilog_file;
-        bool inferAdder, openfpga, infer_dbuff, abc9, inferMult;
+        bool inferAdder, infer_dbuff, abc9, inferMult;
         bool abcOpt;
 
         void clear_flags() override
@@ -100,7 +96,6 @@ struct SynthQuickLogicPass : public ScriptPass {
                 abcOpt = true;
                 abc9 = false;
                 inferMult = false;
-                openfpga = false;
                 infer_dbuff = false;
         }
 
@@ -153,12 +148,6 @@ struct SynthQuickLogicPass : public ScriptPass {
                                 continue;
                         }
 
-                        if (args[argidx] == "-openfpga") {
-                                openfpga = true;
-                                // pick ap3 related cells in openfpga mode
-                                family = "ap3";
-                                continue;
-                        }
                         break;
                 }
                 extra_args(args, argidx, design);
@@ -243,24 +232,19 @@ struct SynthQuickLogicPass : public ScriptPass {
                 }
 
                 if (check_label("map_gates")) {
-                        if (openfpga) {
+                        if (family == "qlf_k4n8") {
                                 run("async2sync");
                         }
                         if (inferAdder && family != "pp3" && family != "ap") {
-                                if (openfpga) {
-                                        run("techmap -map +/techmap.v -map +/quicklogic/openfpga_arith_map.v");
-                                } else {
-                                        run("techmap -map +/techmap.v -map +/quicklogic/" + family + "_arith_map.v");
-                                }
+                                run("techmap -map +/techmap.v -map +/quicklogic/" + family + "_arith_map.v");
                         } else {
                                 run("techmap");
                         }
                         run("opt -fast");
                         if (family == "pp3" || family == "ap") {
                                 run("muxcover -mux8 -mux4");
-                        }
-                        if (family == "ap3" || family == "ap2") {
-                                run("opt_expr");
+                        } else {
+                                run("opt_expr -clkinv");
                                 run("opt -fast");
                                 run("opt_expr");
                                 run("opt_merge");
@@ -279,7 +263,7 @@ struct SynthQuickLogicPass : public ScriptPass {
                         run("dfflegalize -cell $_DFFSRE_PPPP_ 0 -cell $_DLATCH_?_ x");
                         std::string techMapArgs = " -map +/quicklogic/" + family + "_ffs_map.v";
 
-                        if (!openfpga) {
+                        if (family != "qlf_k4n8") {
                                 run("techmap " + techMapArgs);
                         }
                         run("opt_expr -mux_undef");
@@ -297,7 +281,7 @@ struct SynthQuickLogicPass : public ScriptPass {
 
                 if (check_label("map_luts")) {
                         std::string techMapArgs = " -map +/quicklogic/" + family + "_latches_map.v";
-                        if (!openfpga) {
+                        if (family != "qlf_k4n8") {
                                 run("techmap " + techMapArgs);
 
                                 if (abc9) {
@@ -330,7 +314,7 @@ struct SynthQuickLogicPass : public ScriptPass {
                         }
 
                         techMapArgs = " -map +/quicklogic/" + family + "_ffs_map.v";
-                        if (!openfpga) {
+                        if (family != "qlf_k4n8") {
                                 run("techmap " + techMapArgs);
                         }
 
@@ -343,7 +327,7 @@ struct SynthQuickLogicPass : public ScriptPass {
                 if (check_label("map_cells")) {
 
                         std::string techMapArgs = " -map +/quicklogic/" + family + "_cells_map.v";
-                        if (openfpga && family != "pp3" && family != "ap") {
+                        if (family != "qlf_k4n8" && family != "pp3" && family != "ap") {
                                 techMapArgs += " -D NO_LUT -map +/quicklogic/" + family + "_lut_map.v";
                         } else {
                                 techMapArgs += " -map +/quicklogic/" + family + "_lut_map.v";
@@ -367,7 +351,7 @@ struct SynthQuickLogicPass : public ScriptPass {
                                 run("clkbufmap -buf $_BUF_ Y:A -inpad ckpad Q:P");
                                 run("iopadmap -bits -outpad outpad A:P -inpad inpad Q:P -tinoutpad bipad EN:Q:A:P A:top");
                         } else {
-                                if (!openfpga) {
+                                if (family != "qlf_k4n8") {
                                         run("clkbufmap -buf $_BUF_ Y:A -inpad ck_buff Q:A");
                                         string ioTechmapFile;
                                         if (infer_dbuff) {
@@ -383,7 +367,7 @@ struct SynthQuickLogicPass : public ScriptPass {
                 }
 
                 if (check_label("finalize")) {
-                        if (!openfpga) {
+                        if (family != "qlf_k4n8") {
                                 run("splitnets -ports -format ()");
                                 run("setundef -zero -params -undriven");
                                 run("hilomap -hicell logic_1 a -locell logic_0 a -singleton A:top");
@@ -399,8 +383,8 @@ struct SynthQuickLogicPass : public ScriptPass {
 
                 if (check_label("blif")) {
                         if (!blif_file.empty() || help_mode) {
-                                if (openfpga && family != "pp3") {
-                                        run(stringf("opt_clean -purge"), "                                 (openfpga mode)");
+                                if (family == "qlf_k4n8") {
+                                        run(stringf("opt_clean -purge"), "                                 (qlf_k4n8 mode)");
                                         if (inferAdder) {
                                                 run(stringf("write_blif -param %s", help_mode ? "<file-name>" : blif_file.c_str()));
                                         } else {
