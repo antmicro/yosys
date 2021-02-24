@@ -83,7 +83,6 @@ ibex_cs_registers.sv \
 ibex_ex_block.sv \
 ibex_id_stage.sv \
 ibex_if_stage.sv \
-ibex_load_store_unit.sv \
 ibex_multdiv_fast.sv \
 ibex_prefetch_buffer.sv \
 ibex_wb_stage.sv \
@@ -243,6 +242,7 @@ ibex_decoder.sv \
 ibex_fetch_fifo.sv \
 ibex_multdiv_slow.sv \
 ibex_pmp.sv \
+ibex_load_store_unit.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
