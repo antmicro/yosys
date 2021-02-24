@@ -2511,6 +2511,7 @@ assert_property:
 		}
 	};
 
+
 simple_behavioral_stmt:
 	attr lvalue '=' delay expr {
 		if($5->type == AST_BLOCK) { //struct assigment list
@@ -2670,11 +2671,13 @@ behavioral_stmt:
 		ast_stack.pop_back();
 	} |
 	attr TOK_FOR '(' {
+		AstNode *block = new AstNode(AST_BLOCK);
 		AstNode *node = new AstNode(AST_FOR);
 		static int loop_count;
-		node->str = std::string("$loop");
-		node->str += std::to_string(loop_count++);
-		ast_stack.back()->children.push_back(node);
+		node->str = std::string("$loop") + std::to_string(loop_count++);
+		block->str = node->str;
+		block->children.push_back(node);
+		ast_stack.back()->children.push_back(block);
 		ast_stack.push_back(node);
 		append_attr(node, $1);
 		add_genvar = false;

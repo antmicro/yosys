@@ -86,7 +86,6 @@ ibex_if_stage.sv \
 ibex_load_store_unit.sv \
 ibex_multdiv_fast.sv \
 ibex_prefetch_buffer.sv \
-ibex_pmp.sv \
 ibex_wb_stage.sv \
 ibex_dummy_instr.sv \
 ibex_register_file_ff.sv \
@@ -213,6 +212,16 @@ rstmgr_ctrl.sv \
 rstmgr_por.sv \
 rstmgr_info.sv \
 rstmgr.sv \
+prim_alert_pkg.sv \
+prim_secded_28_22_dec.sv \
+prim_secded_28_22_enc.sv \
+prim_secded_39_32_dec.sv \
+prim_secded_39_32_enc.sv \
+prim_secded_72_64_dec.sv \
+prim_secded_72_64_enc.sv \
+prim_alert_receiver.sv \
+prim_alert_sender.sv \
+prim_lfsr.sv \
 top_earlgrey.sv \
 clkgen_xil7series.sv \
 top_earlgrey_nexysvideo.sv
@@ -226,23 +235,14 @@ SV2V_FILES_FULL = \
 
 UHDM_FILES = \
 ibex_pkg.sv \
-prim_alert_pkg.sv \
 ibex_compressed_decoder.sv \
-prim_secded_28_22_dec.sv \
-prim_secded_28_22_enc.sv \
-prim_secded_39_32_dec.sv \
-prim_secded_39_32_enc.sv \
-prim_secded_72_64_dec.sv \
-prim_secded_72_64_enc.sv \
-prim_alert_receiver.sv \
-prim_alert_sender.sv \
-prim_lfsr.sv \
 ibex_alu.sv \
 ibex_controller.sv \
 ibex_counter.sv \
 ibex_decoder.sv \
 ibex_fetch_fifo.sv \
 ibex_multdiv_slow.sv \
+ibex_pmp.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -296,7 +296,8 @@ uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 		-p "read_verilog -overwrite ${CUSTOM_FILES}" \
 		-p "verilog_defaults -pop" \
 	        -p 'synth_xilinx -iopad -family xc7 -top top_earlgrey_nexysvideo' \
-	        -p 'write_edif -pvector bra ${root_dir}/build/top_earlgrey_nexysvideo.edif')
+	        -p 'write_edif -pvector bra ${root_dir}/build/top_earlgrey_nexysvideo.edif' \
+		-p 'write_verilog -noattr earlgray.v')
 
 uhdm/yosys/synth-opentitan-build: | ${root_dir}/build/top_earlgrey_nexysvideo.edif
 	cp ${curr_dir}/build.tcl ${root_dir}/build/build.tcl
