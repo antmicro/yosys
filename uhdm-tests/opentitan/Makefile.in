@@ -81,9 +81,6 @@ prim_ram_2p_async_adv.sv \
 prim_rom_adv.sv \
 ibex_cs_registers.sv \
 ibex_ex_block.sv \
-ibex_id_stage.sv \
-ibex_if_stage.sv \
-ibex_prefetch_buffer.sv \
 ibex_dummy_instr.sv \
 ibex_core.sv \
 usb_fs_nb_in_pe.sv \
@@ -243,6 +240,9 @@ ibex_load_store_unit.sv \
 ibex_multdiv_fast.sv \
 ibex_wb_stage.sv \
 ibex_register_file_ff.sv \
+ibex_prefetch_buffer.sv \
+ibex_if_stage.sv \
+ibex_id_stage.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
