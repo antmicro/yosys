@@ -16,6 +16,46 @@ index 962d3b559..d6430bc5a 100644
  `else
      // different driver types
      assign (strong0, strong1) inout_io = (oe && drv != DRIVE_00) ? out : 1'bz;
+diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_ex_block.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_ex_block.sv
+index eccc68e95..c8bf69ebd 100644
+--- a/hw/vendor/lowrisc_ibex/rtl/ibex_ex_block.sv
++++ b/hw/vendor/lowrisc_ibex/rtl/ibex_ex_block.sv
+@@ -11,8 +11,8 @@
+ module ibex_ex_block #(
+     parameter bit               RV32M                    = 1,
+     parameter ibex_pkg::rv32b_e RV32B                    = ibex_pkg::RV32BNone,
+-    parameter bit               BranchTargetALU          = 0,
+-    parameter                   MultiplierImplementation = "fast"
++    parameter bit               BranchTargetALU          = 1,
++    parameter                   MultiplierImplementation = "single-cycle"
+ ) (
+     input  logic                  clk_i,
+     input  logic                  rst_ni,
+@@ -42,8 +42,8 @@ module ibex_ex_block #(
+ 
+     // intermediate val reg
+     output logic [1:0]            imd_val_we_o,
+-    output logic [33:0]           imd_val_d_o[2],
+-    input  logic [33:0]           imd_val_q_i[2],
++    output logic [1:0][33:0]           imd_val_d_o,
++    input  logic [1:0][33:0]           imd_val_q_i,
+ 
+     // Outputs
+     output logic [31:0]           alu_adder_result_ex_o, // to LSU
+@@ -63,10 +63,10 @@ module ibex_ex_block #(
+   logic        alu_cmp_result, alu_is_equal_result;
+   logic        multdiv_valid;
+   logic        multdiv_sel;
+-  logic [31:0] alu_imd_val_q[2];
+-  logic [31:0] alu_imd_val_d[2];
++  logic [1:0][31:0] alu_imd_val_q;
++  logic [1:0][31:0] alu_imd_val_d;
+   logic [ 1:0] alu_imd_val_we;
+-  logic [33:0] multdiv_imd_val_d[2];
++  logic [1:0][33:0] multdiv_imd_val_d;
+   logic [ 1:0] multdiv_imd_val_we;
+ 
+   /*
 diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_id_stage.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_id_stage.sv
 index bba4c2af8..a4fbb8da6 100644
 --- a/hw/vendor/lowrisc_ibex/rtl/ibex_id_stage.sv
