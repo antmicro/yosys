@@ -403,6 +403,7 @@ void UhdmAst::process_port() {
 			}
 			case vpiLogicNet: {
 				current_node->is_logic = true;
+				current_node->is_signed = vpi_get(vpiSigned, actual_h);
 				visit_range(actual_h,
 							[&](AST::AstNode* node) {
 								if (node->type == AST::AST_MULTIRANGE) node->is_packed = true;
@@ -818,6 +819,7 @@ void UhdmAst::process_net() {
 	current_node->is_reg = net_type == vpiReg;
 	current_node->is_output = net_type == vpiOutput;
 	current_node->is_logic = true;
+	current_node->is_signed = vpi_get(vpiSigned, obj_h);
 	visit_range(obj_h,
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
@@ -847,6 +849,7 @@ void UhdmAst::process_array_net() {
 	while (vpiHandle net_h = vpi_scan(itr)) {
 		if (vpi_get(vpiType, net_h) == vpiLogicNet) {
 			current_node->is_logic = true;
+			current_node->is_signed = vpi_get(vpiSigned, net_h);
 			visit_range(net_h,
 						[&](AST::AstNode* node) {
 							current_node->children.push_back(node);
