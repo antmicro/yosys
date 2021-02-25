@@ -85,7 +85,6 @@ ibex_id_stage.sv \
 ibex_if_stage.sv \
 ibex_prefetch_buffer.sv \
 ibex_dummy_instr.sv \
-ibex_register_file_ff.sv \
 ibex_core.sv \
 usb_fs_nb_in_pe.sv \
 usb_fs_nb_out_pe.sv \
@@ -243,6 +242,7 @@ ibex_pmp.sv \
 ibex_load_store_unit.sv \
 ibex_multdiv_fast.sv \
 ibex_wb_stage.sv \
+ibex_register_file_ff.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
