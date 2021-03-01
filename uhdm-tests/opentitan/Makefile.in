@@ -79,7 +79,6 @@ prim_generic_flash.sv \
 prim_ram_1p_adv.sv \
 prim_ram_2p_async_adv.sv \
 prim_rom_adv.sv \
-ibex_cs_registers.sv \
 ibex_dummy_instr.sv \
 ibex_core.sv \
 usb_fs_nb_in_pe.sv \
@@ -243,6 +242,7 @@ ibex_prefetch_buffer.sv \
 ibex_if_stage.sv \
 ibex_id_stage.sv \
 ibex_ex_block.sv \
+ibex_cs_registers.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -291,7 +291,7 @@ uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 		-p "verilog_defines -DPRIM_DEFAULT_IMPL=prim_pkg::ImplXilinx" \
 		-p "verilog_defaults -push" \
 		-p "verilog_defaults -add -defer" \
-		-p "read_uhdm -debug -defer ${UHDM_file}" \
+		-p "read_uhdm -debug ${UHDM_file}" \
 		-p "read_verilog -dump_ast1 ${SV2V_FILE}" \
 		-p "read_verilog -overwrite ${CUSTOM_FILES}" \
 		-p "verilog_defaults -pop" \
