@@ -16,6 +16,105 @@ index 962d3b559..d6430bc5a 100644
  `else
      // different driver types
      assign (strong0, strong1) inout_io = (oe && drv != DRIVE_00) ? out : 1'bz;
+diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_cs_registers.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_cs_registers.sv
+index 6e5eaf4dc..9668ae5c5 100644
+--- a/hw/vendor/lowrisc_ibex/rtl/ibex_cs_registers.sv
++++ b/hw/vendor/lowrisc_ibex/rtl/ibex_cs_registers.sv
+@@ -13,17 +13,17 @@
+ `include "prim_assert.sv"
+ 
+ module ibex_cs_registers #(
+-    parameter bit          DbgTriggerEn      = 0,
++    parameter bit          DbgTriggerEn      = 1,
+     parameter bit          DataIndTiming     = 1'b0,
+     parameter bit          DummyInstructions = 1'b0,
+     parameter bit          ICache            = 1'b0,
+-    parameter int unsigned MHPMCounterNum    = 10,
++    parameter int unsigned MHPMCounterNum    = 8,
+     parameter int unsigned MHPMCounterWidth  = 40,
+-    parameter bit          PMPEnable         = 0,
++    parameter bit          PMPEnable         = 1,
+     parameter int unsigned PMPGranularity    = 0,
+-    parameter int unsigned PMPNumRegions     = 4,
++    parameter int unsigned PMPNumRegions     = 16,
+     parameter bit          RV32E             = 0,
+-    parameter bit          RV32M             = 0
++    parameter bit          RV32M             = 1
+ ) (
+     // Clock and Reset
+     input  logic                 clk_i,
+@@ -64,7 +64,7 @@ module ibex_cs_registers #(
+ 
+     // PMP
+     output ibex_pkg::pmp_cfg_t   csr_pmp_cfg_o  [PMPNumRegions],
+-    output logic [33:0]          csr_pmp_addr_o [PMPNumRegions],
++    output logic [PMPNumRegions-1:0][33:0]          csr_pmp_addr_o,
+ 
+     // debug
+     input  logic                 debug_mode_i,
+@@ -117,8 +117,8 @@ module ibex_cs_registers #(
+   import ibex_pkg::*;
+ 
+   // misa
+-  localparam logic [31:0] MISA_VALUE =
+-      (0                 <<  0)  // A - Atomic Instructions extension
++  localparam logic [31:0] MISA_VALUE = 32'd1074794756;
++/*      (0                 <<  0)  // A - Atomic Instructions extension
+     | (1                 <<  2)  // C - Compressed extension
+     | (0                 <<  3)  // D - Double precision floating-point extension
+     | (32'(RV32E)        <<  4)  // E - RV32E base ISA
+@@ -129,7 +129,7 @@ module ibex_cs_registers #(
+     | (0                 << 18)  // S - Supervisor mode implemented
+     | (1                 << 20)  // U - User mode implemented
+     | (0                 << 23)  // X - Non-standard extensions present
+-    | (32'(CSR_MISA_MXL) << 30); // M-XLEN
++    | (32'(CSR_MISA_MXL) << 30); // M-XLEN*/
+ 
+   typedef struct packed {
+     logic      mie;
+@@ -196,8 +196,8 @@ module ibex_cs_registers #(
+   logic  [5:0] mstack_cause_q, mstack_cause_d;
+ 
+   // PMP Signals
+-  logic [31:0]                 pmp_addr_rdata  [PMP_MAX_REGIONS];
+-  logic [PMP_CFG_W-1:0]        pmp_cfg_rdata   [PMP_MAX_REGIONS];
++  logic [PMP_MAX_REGIONS-1:0][31:0]                 pmp_addr_rdata;
++  logic [PMP_MAX_REGIONS-1:0][PMP_CFG_W-1:0]        pmp_cfg_rdata;
+ 
+   // Hardware performance monitor signals
+   logic [31:0]                 mcountinhibit;
+@@ -208,11 +208,11 @@ module ibex_cs_registers #(
+   // mhpmcounter flops are elaborated below providing only the precise number that is required based
+   // on MHPMCounterNum/MHPMCounterWidth. This signal connects to the Q output of these flops
+   // where they exist and is otherwise 0.
+-  logic [63:0] mhpmcounter [32];
++  logic [31:0][63:0] mhpmcounter;
+   logic [31:0] mhpmcounter_we;
+   logic [31:0] mhpmcounterh_we;
+   logic [31:0] mhpmcounter_incr;
+-  logic [31:0] mhpmevent [32];
++  logic [31:0][31:0] mhpmevent;
+   logic  [4:0] mhpmcounter_idx;
+ 
+   // Debug / trigger registers
+@@ -736,12 +736,12 @@ module ibex_cs_registers #(
+   // PMP registers
+   // -----------------
+ 
++  pmp_cfg_t                    pmp_cfg         [PMPNumRegions];
++  pmp_cfg_t                    pmp_cfg_wdata   [PMPNumRegions];
++  logic [PMPNumRegions-1:0][31:0]                 pmp_addr;
++  logic [PMPNumRegions-1:0]    pmp_cfg_we;
++  logic [PMPNumRegions-1:0]    pmp_addr_we;
+   if (PMPEnable) begin : g_pmp_registers
+-    pmp_cfg_t                    pmp_cfg         [PMPNumRegions];
+-    pmp_cfg_t                    pmp_cfg_wdata   [PMPNumRegions];
+-    logic [31:0]                 pmp_addr        [PMPNumRegions];
+-    logic [PMPNumRegions-1:0]    pmp_cfg_we;
+-    logic [PMPNumRegions-1:0]    pmp_addr_we;
+ 
+     // Expanded / qualified register read data
+     for (genvar i = 0; i < PMP_MAX_REGIONS; i++) begin : g_exp_rd_data
 diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_ex_block.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_ex_block.sv
 index eccc68e95..c8bf69ebd 100644
 --- a/hw/vendor/lowrisc_ibex/rtl/ibex_ex_block.sv
@@ -94,7 +193,7 @@ index bba4c2af8..a4fbb8da6 100644
    op_a_sel_e   bt_a_mux_sel;
    imm_b_sel_e  bt_b_mux_sel;
 diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_multdiv_fast.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_multdiv_fast.sv
-index 617bb5162..11ccd8fd2 100644
+index 617bb5162..8a11ff71b 100644
 --- a/hw/vendor/lowrisc_ibex/rtl/ibex_multdiv_fast.sv
 +++ b/hw/vendor/lowrisc_ibex/rtl/ibex_multdiv_fast.sv
 @@ -15,7 +15,7 @@
@@ -117,6 +216,24 @@ index 617bb5162..11ccd8fd2 100644
      output logic [1:0]       imd_val_we_o,
  
      input  logic             multdiv_ready_id_i,
+@@ -132,13 +132,11 @@ module ibex_multdiv_fast #(
+ 
+   // The single cycle multiplier uses three 17 bit multipliers to compute MUL instructions in a
+   // single cycle and MULH instructions in two cycles.
++  typedef enum logic {
++    MULL, MULH
++  } mult_fsm_e;
++  mult_fsm_e mult_state_q, mult_state_d;
+   if (SingleCycleMultiply) begin : gen_multiv_single_cycle
+-
+-    typedef enum logic {
+-      MULL, MULH
+-    } mult_fsm_e;
+-    mult_fsm_e mult_state_q, mult_state_d;
+-
+     logic signed [33:0] mult1_res, mult2_res, mult3_res;
+     logic [15:0]        mult1_op_a, mult1_op_b;
+     logic [15:0]        mult2_op_a, mult2_op_b;
 diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_pmp.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_pmp.sv
 index 1b48693a0..5ff425c4e 100644
 --- a/hw/vendor/lowrisc_ibex/rtl/ibex_pmp.sv
