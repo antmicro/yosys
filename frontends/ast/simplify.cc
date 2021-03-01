@@ -2148,10 +2148,8 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				} else {
 					for(auto it = current_scope.rbegin(); it != current_scope.rend(); it++) {
 						auto s = *it;
-						std::string::size_type find_pos = s.first.find(srange, 0);
-						if (find_pos != std::string::npos) {
-							log_warning("Found scope for: %s\n", srange.c_str());
-							s.second->dumpAst(NULL, "range >");
+						// append '\' to srange to make sure we find correct wire
+						if (s.first == "\\" + srange && s.second->children.size() > 0 && s.second->children[0]->integer > 0) {
 							struct_mult = s.second->children[0]->integer;
 							break;
 						}
