@@ -2,7 +2,6 @@ read_verilog v/consts.v
 
 synth_quicklogic -top my_top
 stat
-cd my_top
 select -assert-count 1 t:LUT4
 select -assert-count 1 t:inpad
 select -assert-count 1 t:outpad
