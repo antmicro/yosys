@@ -441,7 +441,6 @@ void UhdmAst::process_port() {
 			current_node->is_input = true;
 		} else if (n == vpiOutput) {
 			current_node->is_output = true;
-			current_node->is_reg = true;
 		} else if (n == vpiInout) {
 			current_node->is_input = true;
 			current_node->is_output = true;
@@ -526,6 +525,10 @@ void UhdmAst::process_module() {
 		if (cell_instance) {
 			module_node->attributes[ID::whitebox] = AST::AstNode::mkconst_int(1, false, 1);
 		}
+		//TODO: setting keep attribute probably shouldn't be needed,
+		// but without this, modules that are generated in genscope are removed
+		// for now lets just add this attribute
+		module_node->attributes[ID::keep] = AST::AstNode::mkconst_int(1, false, 1);
 		if (module_node->attributes.count(ID::partial)) {
 			AST::AstNode *attr = module_node->attributes.at(ID::partial);
 			if (attr->type == AST::AST_CONSTANT)
@@ -818,7 +821,7 @@ void UhdmAst::process_net() {
 	auto net_type = vpi_get(vpiNetType, obj_h);
 	current_node->is_reg = net_type == vpiReg;
 	current_node->is_output = net_type == vpiOutput;
-	current_node->is_logic = true;
+	current_node->is_logic = !current_node->is_reg;
 	current_node->is_signed = vpi_get(vpiSigned, obj_h);
 	visit_range(obj_h,
 				[&](AST::AstNode* node) {
@@ -1593,12 +1596,16 @@ void UhdmAst::process_gen_scope_array() {
 									  	  node->str.replace(pos + 1, prev_name.size() - 1, child->str.substr(1));
 									  }
 								  });
+							  } else if (child->type == AST::AST_CELL) {
+							  	child->str = current_node->str + "." + child->str.substr(1);
 							  }
 						  }
 						  current_node->children.insert(current_node->children.end(),
 														genscope_node->children.begin(),
 														genscope_node->children.end());
 					  });
+	// clear AST_GENBLOCK str field, to make yosys do not rename variables again
+	current_node->str = "";
 }
 
 void UhdmAst::process_gen_scope() {
