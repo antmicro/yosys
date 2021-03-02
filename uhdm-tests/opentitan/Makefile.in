@@ -33,6 +33,9 @@ prim_generic_pad_wrapper.sv \
 prim_generic_ram_1p.sv \
 prim_generic_ram_2p.sv \
 prim_generic_rom.sv \
+prim_clock_gating.sv \
+prim_generic_clock_gating.sv \
+prim_xilinx_clock_gating.sv \
 prim_gf_mult.sv \
 prim_clock_mux2.sv \
 prim_flop.sv \
@@ -41,9 +44,6 @@ prim_pad_wrapper.sv \
 prim_ram_1p.sv \
 prim_ram_2p.sv \
 prim_rom.sv \
-prim_clock_gating.sv \
-prim_generic_clock_gating.sv \
-prim_xilinx_clock_gating.sv \
 alert_handler_reg_top.sv \
 padctrl_reg_top.sv \
 pinmux_reg_top.sv \
@@ -80,7 +80,6 @@ prim_ram_1p_adv.sv \
 prim_ram_2p_async_adv.sv \
 prim_rom_adv.sv \
 ibex_dummy_instr.sv \
-ibex_core.sv \
 usb_fs_nb_in_pe.sv \
 usb_fs_nb_out_pe.sv \
 usb_fs_nb_pe.sv \
@@ -244,9 +243,7 @@ ibex_if_stage.sv \
 ibex_id_stage.sv \
 ibex_ex_block.sv \
 ibex_cs_registers.sv \
-prim_clock_gating.sv \
-prim_generic_clock_gating.sv \
-prim_xilinx_clock_gating.sv \
+ibex_core.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -285,6 +282,21 @@ ${UHDM_file}: ${SV2V_FILE}
 			-DSYNTHESIS \
 			-DPRIM_DEFAULT_IMPL=prim_pkg::ImplGeneric \
 			-DBootRomInitFile=boot_rom_fpga_nexysvideo.32.vmem \
+			-PPMPEnable=1 \
+			-PPMPGranularity=0 \
+			-PPMPNumRegions=16 \
+			-PMHPMCounterNum=8 \
+			-PMHPMCounterWidth=40 \
+			-PRV32E=0 \
+			-PRV32M=1 \
+			-PBranchTargetALU=1 \
+			-PWritebackStage=1 \
+			-PMultiplierImplementation="single-cycle" \
+			-PICache=0 \
+			-PICacheECC=0 \
+			-PDbgTriggerEn=1 \
+			-PSecureIbex=0 \
+			-top ibex_core \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
