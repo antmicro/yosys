@@ -233,9 +233,6 @@ struct SynthQuickLogicPass : public ScriptPass {
                 }
 
                 if (check_label("map_gates")) {
-                        if (family == "qlf_k4n8") {
-                                run("async2sync");
-                        }
                         if (inferAdder && family != "pp3" && family != "ap") {
                                 run("techmap -map +/techmap.v -map +/quicklogic/" + family + "_arith_map.v");
                         } else {
@@ -245,7 +242,7 @@ struct SynthQuickLogicPass : public ScriptPass {
                         if (family == "pp3" || family == "ap") {
                                 run("muxcover -mux8 -mux4");
                         } else {
-                                run("opt_expr -clkinv");
+                                run("opt_expr");
                                 run("opt -fast");
                                 run("opt_expr");
                                 run("opt_merge");
@@ -256,20 +253,16 @@ struct SynthQuickLogicPass : public ScriptPass {
                 }
 
                 if (check_label("map_ffs")) {
-                        if (family == "pp3" || family == "ap") {
+                        if(family != "qlf_k4n8") {
                                 run("opt_expr");
-                        }
-                        run("opt_dff");
-
-                        run("dfflegalize -cell $_DFFSRE_PPPP_ 0 -cell $_DLATCH_?_ x");
-                        std::string techMapArgs = " -map +/quicklogic/" + family + "_ffs_map.v";
-
-                        if (family != "qlf_k4n8") {
+                                run("dfflegalize -cell $_DFFSRE_PPPP_ 0 -cell $_DLATCH_?_ x");
+                                std::string techMapArgs = " -map +/quicklogic/" + family + "_ffs_map.v";
                                 run("techmap " + techMapArgs);
                         }
+
                         run("opt_expr -mux_undef");
                         run("simplemap");
-                        if (family == "ap3" || family == "ap2") {
+                        if (family != "ap" && family != "pp3") {
                                 run("opt_expr");
                                 run("opt_merge");
                                 run("opt_dff");
@@ -277,7 +270,9 @@ struct SynthQuickLogicPass : public ScriptPass {
                                 run("opt");
                         }
                         // hack to work around upstream bug 2546.
-                        run("attrmap -remove init");
+                        if (abc9) {
+                                run("attrmap -remove init");
+                        }
                 }
 
                 if (check_label("map_luts")) {
@@ -326,12 +321,9 @@ struct SynthQuickLogicPass : public ScriptPass {
                 }
 
                 if (check_label("map_cells")) {
-
                         std::string techMapArgs;
-                        if (family == "qlf_k4n8") {
-                                techMapArgs += " -D NO_LUT -map +/quicklogic/" + family + "_lut_map.v";
-                        } else {
-                                techMapArgs += " -map +/quicklogic/" + family + "_cells_map.v";
+                        if(family != "qlf_k4n8") {
+                                techMapArgs = " -map +/quicklogic/" + family + "_cells_map.v";
                                 techMapArgs += " -map +/quicklogic/" + family + "_lut_map.v";
                         }
                         run("techmap" + techMapArgs);
@@ -370,7 +362,6 @@ struct SynthQuickLogicPass : public ScriptPass {
 
                 if (check_label("finalize")) {
                         if (family != "qlf_k4n8") {
-                                run("splitnets -ports -format ()");
                                 run("setundef -zero -params -undriven");
                                 run("hilomap -hicell logic_1 a -locell logic_0 a -singleton A:top");
                                 run("opt_clean -purge");
@@ -386,7 +377,6 @@ struct SynthQuickLogicPass : public ScriptPass {
                 if (check_label("blif")) {
                         if (!blif_file.empty() || help_mode) {
                                 if (family == "qlf_k4n8") {
-                                        run(stringf("opt_clean -purge"), "                                 (qlf_k4n8 mode)");
                                         if (inferAdder) {
                                                 run(stringf("write_blif -param %s", help_mode ? "<file-name>" : blif_file.c_str()));
                                         } else {
