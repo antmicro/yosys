@@ -18,13 +18,13 @@ index 811fb93..3a45048 100644
 +        synth: "yosys"
 +        yosys_synth_options: ['-iopad', '-family xc7', '-run :check', "frontend=surelog"]
 +        yosys_read_options: ['-noassert']
-+        surelog_options: ['-verilator']
++        surelog_options: ['--disable-feature=parametersubstitution']
 +        library_files: ""
 +      yosys:
 +        arch: "xilinx"
 +        yosys_synth_options: ['-iopad', '-family xc7', '-run :check', "frontend=surelog"]
 +        yosys_read_options: ['-noassert']
-+        surelog_options: ['-verilator']
++        surelog_options: ['--disable-feature=parametersubstitution']
 +        library_files: ""
 +      symbiflow:
 +        package: "csg324-1"
@@ -32,5 +32,5 @@ index 811fb93..3a45048 100644
 +        pnr: "vtr"
 +        vendor: "xilinx"
 +        yosys_frontend: "uhdm"
-+        surelog_options: ['-verilator']
++        surelog_options: ['--disable-feature=parametersubstitution']
 +        library_files: []
