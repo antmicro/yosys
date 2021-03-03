@@ -358,6 +358,10 @@ void UhdmAst::process_parameter() {
 			current_node->children.push_back(constant_node);
 		}
 	}
+	// PARAMETER/LOCALPARAM needs at least 1 children
+	if (current_node->children.size() == 0) {
+		current_node = nullptr;
+	}
 }
 
 void UhdmAst::process_port() {
@@ -718,6 +722,10 @@ void UhdmAst::process_custom_var() {
 							 current_node->type = node->type;
 							 current_node->children = std::move(node->children);
 						 } else {
+						 	 // custom var in gen scope have definition with declaration
+						 	 if (shared.type_names.count(node) == 0 && node->children.size() > 0) {
+							     add_typedef(find_ancestor({AST::AST_GENBLOCK, AST::AST_BLOCK}), node);
+							 }
 							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
 							 wiretype_node->str = shared.type_names[node];
 							 current_node->children.push_back(wiretype_node);
@@ -1613,6 +1621,7 @@ void UhdmAst::process_gen_scope() {
 	visit_one_to_many({vpiParameter,
 					   vpiNet,
 					   vpiArrayNet,
+					   vpiVariables,
 					   vpiProcess,
 					   vpiContAssign,
 					   vpiParamAssign,
