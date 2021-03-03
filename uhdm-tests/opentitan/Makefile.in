@@ -94,7 +94,6 @@ tlul_fifo_async.sv \
 tlul_assert.sv \
 tlul_err.sv \
 tlul_assert_multiple.sv \
-tlul_adapter_host.sv \
 tlul_adapter_reg.sv \
 tlul_adapter_sram.sv \
 tlul_err_resp.sv \
@@ -226,6 +225,8 @@ SV2V_FILES_FULL = \
 UHDM_FILES = \
 ibex_pkg.sv \
 prim_pkg.sv \
+top_pkg.sv \
+tlul_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -244,6 +245,7 @@ ibex_id_stage.sv \
 ibex_ex_block.sv \
 ibex_cs_registers.sv \
 ibex_core.sv \
+tlul_adapter_host.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -297,6 +299,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PDbgTriggerEn=1 \
 			-PSecureIbex=0 \
 			-top ibex_core \
+			-top tlul_adapter_host \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
