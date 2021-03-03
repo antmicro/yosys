@@ -2558,6 +2558,14 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		}
 
 		for (size_t i = 0; i < children.size(); i++) {
+			if (children[i]->type == AST_WIRE || children[i]->type == AST_MEMORY || children[i]->type == AST_PARAMETER || children[i]->type == AST_LOCALPARAM || children[i]->type == AST_TYPEDEF || children[i]->type == AST_ENUM) {
+				current_scope[children[i]->str] = children[i];
+				for(auto *c : children[i]->children) {
+					if (c->type == AST_ENUM_ITEM) {
+						current_scope[c->str] = c;
+					}
+				}
+			}
 			children[i]->simplify(const_fold, false, false, stage, -1, false, false);
 			current_ast_mod->children.push_back(children[i]);
 		}
