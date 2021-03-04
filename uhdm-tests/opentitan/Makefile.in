@@ -227,6 +227,7 @@ ibex_pkg.sv \
 prim_pkg.sv \
 top_pkg.sv \
 tlul_pkg.sv \
+prim_util_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
