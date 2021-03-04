@@ -358,10 +358,6 @@ void UhdmAst::process_parameter() {
 			current_node->children.push_back(constant_node);
 		}
 	}
-	// PARAMETER/LOCALPARAM needs at least 1 children
-	if (current_node->children.size() == 0) {
-		current_node = nullptr;
-	}
 }
 
 void UhdmAst::process_port() {
@@ -1593,7 +1589,8 @@ void UhdmAst::process_gen_scope_array() {
 					  obj_h,
 					  [&](AST::AstNode* genscope_node) {
 						  for (auto* child : genscope_node->children) {
-							  if (child->type == AST::AST_PARAMETER) {
+							  if (child->type == AST::AST_PARAMETER ||
+									  child->type == AST::AST_LOCALPARAM) {
 								  auto prev_name = child->str;
 								  child->str = current_node->str + "::" + child->str.substr(1);
 								  genscope_node->visitEachDescendant([&](AST::AstNode* node) {
@@ -1618,18 +1615,24 @@ void UhdmAst::process_gen_scope_array() {
 
 void UhdmAst::process_gen_scope() {
 	current_node = make_ast_node(AST::AST_GENBLOCK);
-	visit_one_to_many({vpiParameter,
+	visit_one_to_many({
+					   vpiParamAssign,
+					   vpiParameter,
 					   vpiNet,
 					   vpiArrayNet,
 					   vpiVariables,
 					   vpiProcess,
 					   vpiContAssign,
-					   vpiParamAssign,
 					   vpiModule,
 					   vpiGenScopeArray},
 					   obj_h,
 					   [&](AST::AstNode* node) {
 						   if (node) {
+						   	   if ((node->type == AST::AST_PARAMETER || node->type == AST::AST_LOCALPARAM) &&
+									   node->children.size() == 0) {
+
+							   	return; //skip parameters without any children
+								}
 							   current_node->children.push_back(node);
 						   }
 					   });
