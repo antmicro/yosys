@@ -309,6 +309,11 @@ static int size_packed_struct(AstNode *snode, int base_offset)
 		if (node->type == AST_STRUCT || node->type == AST_UNION) {
 			// embedded struct or union
 			width = size_packed_struct(node, base_offset + offset);
+			// and change type to AST_STRUCT_ITEM
+			node->type = AST_STRUCT_ITEM;
+			node->range_right = base_offset + offset;
+			node->range_left = base_offset + offset + width - 1;
+			node->range_valid = true;
 		}
 		else {
 			log_assert(node->type == AST_STRUCT_ITEM);
@@ -499,10 +504,8 @@ static void add_members_to_scope(AstNode *snode, std::string name)
 			// embedded struct or union
 			add_members_to_scope(node, name + "." + node->str);
 		}
-		else {
-			auto member_name = name + "." + node->str;
-			current_scope[member_name] = node;
-		}
+		auto member_name = name + "." + node->str;
+		current_scope[member_name] = node;
 	}
 }
 
