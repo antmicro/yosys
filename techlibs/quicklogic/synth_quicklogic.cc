@@ -48,7 +48,7 @@ struct SynthQuickLogicPass : public ScriptPass {
                 log("        - qlf_k4n8: qlf_k4n8 \n");
                 log("\n");
                 log("    -no_ff_map\n");
-                log("        Specifying this switch turns off ff tehmap\n");
+                log("        By default ff techmap is turned on. Specifying this switch turns it off.\n");
                 log("\n");
                 log("    -no_abc_opt\n");
                 log("        By default most of ABC logic optimization features is\n");
@@ -261,10 +261,12 @@ struct SynthQuickLogicPass : public ScriptPass {
                 }
 
                 if (check_label("map_ffs")) {
-                        if(!noffmap) {
+                        if (family == "qlf_k4n8") {
+                                run("shregmap -minlen 8 -maxlen 8");
+                        }
+                        if (!noffmap) {
                                 run("opt_expr");
                                 run("dfflegalize -cell $_DFFSRE_PPPP_ 0 -cell $_DLATCH_?_ x");
-                                run("shregmap -minlen 8 -maxlen 8");
                                 std::string techMapArgs = " -map +/quicklogic/" + family + "_ffs_map.v";
                                 run("techmap " + techMapArgs);
                         }
@@ -318,8 +320,12 @@ struct SynthQuickLogicPass : public ScriptPass {
                                 run("abc -lut 4 ");
                         }
 
-                        techMapArgs = " -map +/quicklogic/" + family + "_ffs_map.v";
-                        if (family != "qlf_k4n8") {
+                        if (family == "qlf_k4n8") {
+                                run("shregmap -minlen 8 -maxlen 8");
+                        }
+
+                        if (!noffmap) {
+                                techMapArgs = " -map +/quicklogic/" + family + "_ffs_map.v";
                                 run("techmap " + techMapArgs);
                         }
 
