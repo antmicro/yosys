@@ -281,6 +281,7 @@ ${SV2V_FILE}: prep-sources
 ${UHDM_file}: ${SV2V_FILE}
 	(cd ${EARLGRAY_BUILD} && \
 		${root_dir}/../image/bin/surelog -parse -sverilog \
+			--disable-feature=parametersubstitution \
 			-DSYNTHESIS \
 			-DPRIM_DEFAULT_IMPL=prim_pkg::ImplGeneric \
 			-DBootRomInitFile=boot_rom_fpga_nexysvideo.32.vmem \
