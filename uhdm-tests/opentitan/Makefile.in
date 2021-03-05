@@ -253,6 +253,8 @@ tlul_adapter_reg.sv \
 prim_subreg.sv \
 prim_subreg_ext.sv \
 rstmgr_reg_top.sv \
+prim_flop.sv \
+prim_generic_flop.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -306,10 +308,13 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PICacheECC=0 \
 			-PDbgTriggerEn=1 \
 			-PSecureIbex=0 \
+			-PWidth=2 \
+			-PResetValue=0 \
 			-top ibex_core \
 			-top tlul_adapter_host \
 			-top rstmgr_por \
 			-top rstmgr_reg_top \
+			-top prim_flop_2sync \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
