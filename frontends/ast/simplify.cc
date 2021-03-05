@@ -307,8 +307,7 @@ static int size_packed_struct(AstNode *snode, int base_offset)
 		if (node->type == AST_STRUCT || node->type == AST_UNION) {
 			// embedded struct or union
 			width = size_packed_struct(node, base_offset + offset);
-			// and change type to AST_STRUCT_ITEM
-			node->type = AST_STRUCT_ITEM;
+			// set range of struct
 			node->range_right = base_offset + offset;
 			node->range_left = base_offset + offset + width - 1;
 			node->range_valid = true;
@@ -2179,7 +2178,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			if (current_scope.count(look_str) > 0) {
 				log_warning("Found\n");
 				auto item_node = current_scope[look_str];
-				if (item_node->type == AST_STRUCT_ITEM) {
+				if (item_node->type == AST_STRUCT_ITEM || item_node->type == AST_STRUCT) {
 					// structure member, rewrite this node to reference the packed struct wire
 					auto range = make_struct_member_range(this, item_node);
 					newNode = new AstNode(AST_IDENTIFIER, range);
