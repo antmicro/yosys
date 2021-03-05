@@ -196,7 +196,6 @@ clkmgr_reg_top.sv \
 clkmgr.sv \
 rv_plic_reg_top.sv \
 rv_plic.sv \
-rstmgr_reg_top.sv \
 rstmgr_ctrl.sv \
 rstmgr_info.sv \
 rstmgr.sv \
@@ -227,6 +226,7 @@ prim_pkg.sv \
 top_pkg.sv \
 tlul_pkg.sv \
 prim_util_pkg.sv \
+rstmgr_reg_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -249,6 +249,10 @@ tlul_adapter_host.sv \
 prim_generic_flop_2sync.sv \
 prim_flop_2sync.sv \
 rstmgr_por.sv \
+tlul_adapter_reg.sv \
+prim_subreg.sv \
+prim_subreg_ext.sv \
+rstmgr_reg_top.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -305,6 +309,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top ibex_core \
 			-top tlul_adapter_host \
 			-top rstmgr_por \
+			-top rstmgr_reg_top \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
