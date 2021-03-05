@@ -718,6 +718,10 @@ void UhdmAst::process_custom_var() {
 							 current_node->type = node->type;
 							 current_node->children = std::move(node->children);
 						 } else {
+						 	 // custom var in gen scope have definition with declaration
+						 	 if (shared.type_names.count(node) == 0 && node->children.size() > 0) {
+							     add_typedef(find_ancestor({AST::AST_GENBLOCK, AST::AST_BLOCK}), node);
+							 }
 							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
 							 wiretype_node->str = shared.type_names[node];
 							 current_node->children.push_back(wiretype_node);
@@ -1585,7 +1589,8 @@ void UhdmAst::process_gen_scope_array() {
 					  obj_h,
 					  [&](AST::AstNode* genscope_node) {
 						  for (auto* child : genscope_node->children) {
-							  if (child->type == AST::AST_PARAMETER) {
+							  if (child->type == AST::AST_PARAMETER ||
+									  child->type == AST::AST_LOCALPARAM) {
 								  auto prev_name = child->str;
 								  child->str = current_node->str + "::" + child->str.substr(1);
 								  genscope_node->visitEachDescendant([&](AST::AstNode* node) {
@@ -1610,17 +1615,24 @@ void UhdmAst::process_gen_scope_array() {
 
 void UhdmAst::process_gen_scope() {
 	current_node = make_ast_node(AST::AST_GENBLOCK);
-	visit_one_to_many({vpiParameter,
+	visit_one_to_many({
+					   vpiParamAssign,
+					   vpiParameter,
 					   vpiNet,
 					   vpiArrayNet,
+					   vpiVariables,
 					   vpiProcess,
 					   vpiContAssign,
-					   vpiParamAssign,
 					   vpiModule,
 					   vpiGenScopeArray},
 					   obj_h,
 					   [&](AST::AstNode* node) {
 						   if (node) {
+						   	   if ((node->type == AST::AST_PARAMETER || node->type == AST::AST_LOCALPARAM) &&
+									   node->children.size() == 0) {
+
+							   	return; //skip parameters without any children
+								}
 							   current_node->children.push_back(node);
 						   }
 					   });

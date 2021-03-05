@@ -17,7 +17,7 @@ index 962d3b559..d6430bc5a 100644
      // different driver types
      assign (strong0, strong1) inout_io = (oe && drv != DRIVE_00) ? out : 1'bz;
 diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_core.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_core.sv
-index 61469937f..54e9f7ec1 100644
+index 61469937f..12f0a2bcd 100644
 --- a/hw/vendor/lowrisc_ibex/rtl/ibex_core.sv
 +++ b/hw/vendor/lowrisc_ibex/rtl/ibex_core.sv
 @@ -133,8 +133,8 @@ module ibex_core #(
@@ -40,13 +40,9 @@ index 61469937f..54e9f7ec1 100644
    pmp_cfg_t    csr_pmp_cfg  [PMPNumRegions];
    logic        pmp_req_err  [PMP_NUM_CHAN];
    logic        instr_req_out;
-@@ -931,17 +931,17 @@ module ibex_core #(
-       })
+@@ -932,16 +932,16 @@ module ibex_core #(
    `ASSERT_KNOWN_IF(IbexCsrWdataIntKnown, cs_registers_i.csr_wdata_int, csr_op_en)
  
-+  logic [PMP_NUM_CHAN-1:0][1:0]    pmp_req_type;
-+  logic [PMP_NUM_CHAN-1:0][1:0]    pmp_priv_lvl;
-+  logic [PMP_NUM_CHAN-1:0][33:0] pmp_req_addr;
    if (PMPEnable) begin : g_pmp
 -    logic [33:0] pmp_req_addr [PMP_NUM_CHAN];
 -    pmp_req_e    pmp_req_type [PMP_NUM_CHAN];
@@ -58,6 +54,9 @@ index 61469937f..54e9f7ec1 100644
 -    assign pmp_req_addr[PMP_D] = {2'b00,data_addr_o[31:0]};
 -    assign pmp_req_type[PMP_D] = data_we_o ? PMP_ACC_WRITE : PMP_ACC_READ;
 -    assign pmp_priv_lvl[PMP_D] = priv_mode_lsu;
++    logic [PMP_NUM_CHAN-1:0][1:0]    pmp_req_type;
++    logic [PMP_NUM_CHAN-1:0][1:0]    pmp_priv_lvl;
++    logic [PMP_NUM_CHAN-1:0][33:0] pmp_req_addr;
 +
 +    assign pmp_req_addr[PMP_D] = {2'b00,instr_addr_o[31:0]};
 +    assign pmp_req_type[PMP_D] = PMP_ACC_EXEC;
@@ -69,7 +68,7 @@ index 61469937f..54e9f7ec1 100644
      ibex_pmp #(
          .PMPGranularity        ( PMPGranularity ),
 diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_cs_registers.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_cs_registers.sv
-index 6e5eaf4dc..63a0dacca 100644
+index 6e5eaf4dc..d99e087d6 100644
 --- a/hw/vendor/lowrisc_ibex/rtl/ibex_cs_registers.sv
 +++ b/hw/vendor/lowrisc_ibex/rtl/ibex_cs_registers.sv
 @@ -64,7 +64,7 @@ module ibex_cs_registers #(
@@ -81,26 +80,6 @@ index 6e5eaf4dc..63a0dacca 100644
  
      // debug
      input  logic                 debug_mode_i,
-@@ -117,8 +117,8 @@ module ibex_cs_registers #(
-   import ibex_pkg::*;
- 
-   // misa
--  localparam logic [31:0] MISA_VALUE =
--      (0                 <<  0)  // A - Atomic Instructions extension
-+  localparam logic [31:0] MISA_VALUE = 32'd1074794756;
-+/*      (0                 <<  0)  // A - Atomic Instructions extension
-     | (1                 <<  2)  // C - Compressed extension
-     | (0                 <<  3)  // D - Double precision floating-point extension
-     | (32'(RV32E)        <<  4)  // E - RV32E base ISA
-@@ -129,7 +129,7 @@ module ibex_cs_registers #(
-     | (0                 << 18)  // S - Supervisor mode implemented
-     | (1                 << 20)  // U - User mode implemented
-     | (0                 << 23)  // X - Non-standard extensions present
--    | (32'(CSR_MISA_MXL) << 30); // M-XLEN
-+    | (32'(CSR_MISA_MXL) << 30); // M-XLEN*/
- 
-   typedef struct packed {
-     logic      mie;
 @@ -196,8 +196,8 @@ module ibex_cs_registers #(
    logic  [5:0] mstack_cause_q, mstack_cause_d;
  
@@ -211,7 +190,7 @@ index bba4c2af8..a4fbb8da6 100644
    op_a_sel_e   bt_a_mux_sel;
    imm_b_sel_e  bt_b_mux_sel;
 diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_multdiv_fast.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_multdiv_fast.sv
-index 617bb5162..a60816d59 100644
+index 617bb5162..e1890da38 100644
 --- a/hw/vendor/lowrisc_ibex/rtl/ibex_multdiv_fast.sv
 +++ b/hw/vendor/lowrisc_ibex/rtl/ibex_multdiv_fast.sv
 @@ -35,8 +35,8 @@ module ibex_multdiv_fast #(
@@ -225,44 +204,16 @@ index 617bb5162..a60816d59 100644
      output logic [1:0]       imd_val_we_o,
  
      input  logic             multdiv_ready_id_i,
-@@ -132,13 +132,11 @@ module ibex_multdiv_fast #(
- 
-   // The single cycle multiplier uses three 17 bit multipliers to compute MUL instructions in a
-   // single cycle and MULH instructions in two cycles.
-+  typedef enum logic {
-+    MULL, MULH
-+  } mult_fsm_e;
-+  mult_fsm_e mult_state_q, mult_state_d;
-   if (SingleCycleMultiply) begin : gen_multiv_single_cycle
--
--    typedef enum logic {
--      MULL, MULH
--    } mult_fsm_e;
--    mult_fsm_e mult_state_q, mult_state_d;
--
-     logic signed [33:0] mult1_res, mult2_res, mult3_res;
-     logic [15:0]        mult1_op_a, mult1_op_b;
-     logic [15:0]        mult2_op_a, mult2_op_b;
 diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_wb_stage.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_wb_stage.sv
-index ffe380ff4..07f267017 100644
+index ffe380ff4..6f518796f 100644
 --- a/hw/vendor/lowrisc_ibex/rtl/ibex_wb_stage.sv
 +++ b/hw/vendor/lowrisc_ibex/rtl/ibex_wb_stage.sv
-@@ -51,8 +51,9 @@ module ibex_wb_stage #(
+@@ -51,7 +51,7 @@ module ibex_wb_stage #(
  
    // 0 == RF write from ID
    // 1 == RF write from LSU
 -  logic [31:0] rf_wdata_wb_mux    [2];
 +  logic [1:0][31:0] rf_wdata_wb_mux;
    logic [1:0]  rf_wdata_wb_mux_we;
-+  wb_instr_type_e wb_instr_type_q;
  
    if(WritebackStage) begin : g_writeback_stage
-     logic [31:0]    rf_wdata_wb_q;
-@@ -63,7 +64,6 @@ module ibex_wb_stage #(
- 
-     logic           wb_valid_q;
-     logic [31:0]    wb_pc_q;
--    wb_instr_type_e wb_instr_type_q;
- 
-     logic           wb_valid_d;
- 

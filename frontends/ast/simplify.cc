@@ -297,6 +297,11 @@ static int size_packed_struct(AstNode *snode, int base_offset)
 		if (node->type == AST_STRUCT || node->type == AST_UNION) {
 			// embedded struct or union
 			width = size_packed_struct(node, base_offset + offset);
+			// and change type to AST_STRUCT_ITEM
+			node->type = AST_STRUCT_ITEM;
+			node->range_right = base_offset + offset;
+			node->range_left = base_offset + offset + width - 1;
+			node->range_valid = true;
 		}
 		else {
 			log_assert(node->type == AST_STRUCT_ITEM);
@@ -453,10 +458,8 @@ static void add_members_to_scope(AstNode *snode, std::string name)
 			// embedded struct or union
 			add_members_to_scope(node, name + "." + node->str);
 		}
-		else {
-			auto member_name = name + "." + node->str;
-			current_scope[member_name] = node;
-		}
+		auto member_name = name + "." + node->str;
+		current_scope[member_name] = node;
 	}
 }
 
@@ -2418,6 +2421,14 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		}
 
 		for (size_t i = 0; i < children.size(); i++) {
+			if (children[i]->type == AST_WIRE || children[i]->type == AST_MEMORY || children[i]->type == AST_PARAMETER || children[i]->type == AST_LOCALPARAM || children[i]->type == AST_TYPEDEF || children[i]->type == AST_ENUM) {
+				current_scope[children[i]->str] = children[i];
+				for(auto *c : children[i]->children) {
+					if (c->type == AST_ENUM_ITEM) {
+						current_scope[c->str] = c;
+					}
+				}
+			}
 			children[i]->simplify(false, false, false, stage, -1, false, false);
 			current_ast_mod->children.push_back(children[i]->clone());
 		}
