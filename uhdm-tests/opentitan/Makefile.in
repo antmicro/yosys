@@ -72,7 +72,6 @@ prim_filter_ctr.sv \
 prim_subreg_arb.sv \
 prim_subreg.sv \
 prim_subreg_ext.sv \
-prim_subreg_shadow.sv \
 prim_intr_hw.sv \
 prim_generic_clock_inv.sv \
 prim_generic_flash.sv \
@@ -266,6 +265,8 @@ tlul_fifo_sync.sv \
 rv_core_ibex.sv \
 prim_diff_decode.sv \
 prim_alert_sender.sv \
+prim_subreg_arb.sv \
+prim_subreg_shadow.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -330,6 +331,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top prim_flop_2sync \
 			-top rstmgr \
 			-top prim_alert_sender \
+			-top prim_subreg_shadow \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
