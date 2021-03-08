@@ -79,6 +79,7 @@ prim_generic_flash.sv \
 prim_ram_1p_adv.sv \
 prim_ram_2p_async_adv.sv \
 prim_rom_adv.sv \
+tlul_adapter_host.sv \
 ibex_dummy_instr.sv \
 usb_fs_nb_in_pe.sv \
 usb_fs_nb_out_pe.sv \
@@ -162,7 +163,6 @@ padring.sv \
 padctrl.sv \
 pinmux_wkup.sv \
 pinmux.sv \
-rv_core_ibex.sv \
 rv_dm.sv \
 rv_plic_gateway.sv \
 rv_plic_target.sv \
@@ -196,9 +196,6 @@ clkmgr_reg_top.sv \
 clkmgr.sv \
 rv_plic_reg_top.sv \
 rv_plic.sv \
-rstmgr_ctrl.sv \
-rstmgr_info.sv \
-rstmgr.sv \
 prim_alert_pkg.sv \
 prim_secded_28_22_dec.sv \
 prim_secded_28_22_enc.sv \
@@ -227,6 +224,9 @@ top_pkg.sv \
 tlul_pkg.sv \
 prim_util_pkg.sv \
 rstmgr_reg_pkg.sv \
+pwrmgr_reg_pkg.sv \
+pwrmgr_pkg.sv \
+rstmgr_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -246,6 +246,7 @@ ibex_ex_block.sv \
 ibex_cs_registers.sv \
 ibex_core.sv \
 tlul_adapter_host.sv \
+tlul_err.sv \
 prim_generic_flop_2sync.sv \
 prim_flop_2sync.sv \
 rstmgr_por.sv \
@@ -255,6 +256,14 @@ prim_subreg_ext.sv \
 rstmgr_reg_top.sv \
 prim_flop.sv \
 prim_generic_flop.sv \
+prim_clock_mux2.sv \
+prim_generic_clock_mux2.sv \
+rstmgr_ctrl.sv \
+rstmgr_info.sv \
+rstmgr.sv \
+prim_fifo_sync.sv \
+tlul_fifo_sync.sv \
+rv_core_ibex.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -310,11 +319,13 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PSecureIbex=0 \
 			-PWidth=2 \
 			-PResetValue=0 \
-			-top ibex_core \
+			-PPipeLine=1 \
+			-top rv_core_ibex \
 			-top tlul_adapter_host \
 			-top rstmgr_por \
 			-top rstmgr_reg_top \
 			-top prim_flop_2sync \
+			-top rstmgr \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})

@@ -16,6 +16,47 @@ index 962d3b559..d6430bc5a 100644
  `else
      // different driver types
      assign (strong0, strong1) inout_io = (oe && drv != DRIVE_00) ? out : 1'bz;
+diff --git a/hw/ip/pwrmgr/rtl/pwrmgr_reg_pkg.sv b/hw/ip/pwrmgr/rtl/pwrmgr_reg_pkg.sv
+index 4a6a9d709..3c755c66f 100644
+--- a/hw/ip/pwrmgr/rtl/pwrmgr_reg_pkg.sv
++++ b/hw/ip/pwrmgr/rtl/pwrmgr_reg_pkg.sv
+@@ -116,7 +116,7 @@ package pwrmgr_reg_pkg;
+     pwrmgr_reg2hw_intr_test_reg_t intr_test; // [47:46]
+     pwrmgr_reg2hw_control_reg_t control; // [45:42]
+     pwrmgr_reg2hw_cfg_cdc_sync_reg_t cfg_cdc_sync; // [41:40]
+-    pwrmgr_reg2hw_wakeup_en_mreg_t [15:0] wakeup_en; // [39:24]
++    logic [15:0] wakeup_en; // [39:24]
+     pwrmgr_reg2hw_reset_en_reg_t reset_en; // [23:22]
+     pwrmgr_reg2hw_wake_info_capture_dis_reg_t wake_info_capture_dis; // [21:21]
+     pwrmgr_reg2hw_wake_info_reg_t wake_info; // [20:0]
+diff --git a/hw/ip/tlul/rtl/tlul_fifo_sync.sv b/hw/ip/tlul/rtl/tlul_fifo_sync.sv
+index 59fe3ffd4..071a30b94 100644
+--- a/hw/ip/tlul/rtl/tlul_fifo_sync.sv
++++ b/hw/ip/tlul/rtl/tlul_fifo_sync.sv
+@@ -7,8 +7,8 @@
+ // and one for the response side.
+ 
+ module tlul_fifo_sync #(
+-  parameter int unsigned ReqPass  = 1'b1,
+-  parameter int unsigned RspPass  = 1'b1,
++  parameter int unsigned ReqPass  = 0,
++  parameter int unsigned RspPass  = 0,
+   parameter int unsigned ReqDepth = 2,
+   parameter int unsigned RspDepth = 2,
+   parameter int unsigned SpareReqW = 1,
+diff --git a/hw/top_earlgrey/ip/pwrmgr/rtl/autogen/pwrmgr_reg_pkg.sv b/hw/top_earlgrey/ip/pwrmgr/rtl/autogen/pwrmgr_reg_pkg.sv
+index f771dd35a..88c1de4a4 100644
+--- a/hw/top_earlgrey/ip/pwrmgr/rtl/autogen/pwrmgr_reg_pkg.sv
++++ b/hw/top_earlgrey/ip/pwrmgr/rtl/autogen/pwrmgr_reg_pkg.sv
+@@ -116,7 +116,7 @@ package pwrmgr_reg_pkg;
+     pwrmgr_reg2hw_intr_test_reg_t intr_test; // [17:16]
+     pwrmgr_reg2hw_control_reg_t control; // [15:12]
+     pwrmgr_reg2hw_cfg_cdc_sync_reg_t cfg_cdc_sync; // [11:10]
+-    pwrmgr_reg2hw_wakeup_en_mreg_t [0:0] wakeup_en; // [9:9]
++    logic [0:0] wakeup_en; // [9:9]
+     pwrmgr_reg2hw_reset_en_reg_t reset_en; // [8:7]
+     pwrmgr_reg2hw_wake_info_capture_dis_reg_t wake_info_capture_dis; // [6:6]
+     pwrmgr_reg2hw_wake_info_reg_t wake_info; // [5:0]
 diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_core.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_core.sv
 index 61469937f..12f0a2bcd 100644
 --- a/hw/vendor/lowrisc_ibex/rtl/ibex_core.sv
@@ -204,6 +245,21 @@ index 617bb5162..e1890da38 100644
      output logic [1:0]       imd_val_we_o,
  
      input  logic             multdiv_ready_id_i,
+diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_pmp.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_pmp.sv
+index 1b48693a0..b51c400ef 100644
+--- a/hw/vendor/lowrisc_ibex/rtl/ibex_pmp.sv
++++ b/hw/vendor/lowrisc_ibex/rtl/ibex_pmp.sv
+@@ -30,8 +30,8 @@ module ibex_pmp #(
+   import ibex_pkg::*;
+ 
+   // Access Checking Signals
+-  logic [33:0]                                region_start_addr [PMPNumRegions];
+-  logic [33:PMPGranularity+2]                 region_addr_mask  [PMPNumRegions];
++  logic [PMPNumRegions-1:0][33:0]                                region_start_addr;
++  logic [PMPNumRegions-1:0][33:PMPGranularity+2]                 region_addr_mask;
+   logic [PMPNumChan-1:0][PMPNumRegions-1:0]   region_match_gt;
+   logic [PMPNumChan-1:0][PMPNumRegions-1:0]   region_match_lt;
+   logic [PMPNumChan-1:0][PMPNumRegions-1:0]   region_match_eq;
 diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_wb_stage.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_wb_stage.sv
 index ffe380ff4..6f518796f 100644
 --- a/hw/vendor/lowrisc_ibex/rtl/ibex_wb_stage.sv
