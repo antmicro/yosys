@@ -79,6 +79,7 @@ prim_generic_flash.sv \
 prim_ram_1p_adv.sv \
 prim_ram_2p_async_adv.sv \
 prim_rom_adv.sv \
+tlul_adapter_host.sv \
 ibex_dummy_instr.sv \
 usb_fs_nb_in_pe.sv \
 usb_fs_nb_out_pe.sv \
@@ -162,7 +163,6 @@ padring.sv \
 padctrl.sv \
 pinmux_wkup.sv \
 pinmux.sv \
-rv_core_ibex.sv \
 rv_dm.sv \
 rv_plic_gateway.sv \
 rv_plic_target.sv \
@@ -261,6 +261,9 @@ prim_generic_clock_mux2.sv \
 rstmgr_ctrl.sv \
 rstmgr_info.sv \
 rstmgr.sv \
+prim_fifo_sync.sv \
+tlul_fifo_sync.sv \
+rv_core_ibex.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -316,9 +319,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PSecureIbex=0 \
 			-PWidth=2 \
 			-PResetValue=0 \
-			-PReqPass=0 \
-			-PRspPass=0 \
-			-top ibex_core \
+			-PPipeLine=1 \
+			-top rv_core_ibex \
 			-top tlul_adapter_host \
 			-top rstmgr_por \
 			-top rstmgr_reg_top \
