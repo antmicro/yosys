@@ -268,6 +268,8 @@ aes_control.sv \
 prim_subreg_arb.sv \
 prim_subreg_shadow.sv \
 aes_ctr.sv \
+aes_reg_status.sv \
+aes_control.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -335,6 +337,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top aes_control \
 			-top prim_subreg_shadow \
 			-top aes_ctr \
+			-top aes_control \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
