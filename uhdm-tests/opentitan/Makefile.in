@@ -111,7 +111,6 @@ dmi_jtag_tap.sv \
 aes_reg_top.sv \
 aes_core.sv \
 aes_prng.sv \
-aes_ctr.sv \
 aes_control.sv \
 aes_reg_status.sv \
 aes_cipher_core.sv \
@@ -267,6 +266,7 @@ prim_diff_decode.sv \
 prim_alert_sender.sv \
 prim_subreg_arb.sv \
 prim_subreg_shadow.sv \
+aes_ctr.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -332,6 +332,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top rstmgr \
 			-top prim_alert_sender \
 			-top prim_subreg_shadow \
+			-top aes_ctr \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
