@@ -204,7 +204,6 @@ prim_secded_39_32_enc.sv \
 prim_secded_72_64_dec.sv \
 prim_secded_72_64_enc.sv \
 prim_alert_receiver.sv \
-prim_alert_sender.sv \
 prim_lfsr.sv \
 top_earlgrey.sv \
 clkgen_xil7series.sv \
@@ -227,6 +226,7 @@ rstmgr_reg_pkg.sv \
 pwrmgr_reg_pkg.sv \
 pwrmgr_pkg.sv \
 rstmgr_pkg.sv \
+prim_alert_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -264,6 +264,8 @@ rstmgr.sv \
 prim_fifo_sync.sv \
 tlul_fifo_sync.sv \
 rv_core_ibex.sv \
+prim_diff_decode.sv \
+prim_alert_sender.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -320,12 +322,14 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PWidth=2 \
 			-PResetValue=0 \
 			-PPipeLine=1 \
+			-PAsyncOn=1 \
 			-top rv_core_ibex \
 			-top tlul_adapter_host \
 			-top rstmgr_por \
 			-top rstmgr_reg_top \
 			-top prim_flop_2sync \
 			-top rstmgr \
+			-top prim_alert_sender \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
