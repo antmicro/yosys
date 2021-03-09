@@ -113,8 +113,6 @@ aes_reg_top.sv \
 aes_core.sv \
 aes_prng.sv \
 aes_ctr.sv \
-aes_control.sv \
-aes_reg_status.sv \
 aes_cipher_core.sv \
 aes_cipher_control.sv \
 aes_sub_bytes.sv \
@@ -227,6 +225,7 @@ pwrmgr_reg_pkg.sv \
 pwrmgr_pkg.sv \
 rstmgr_pkg.sv \
 prim_alert_pkg.sv \
+aes_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -266,6 +265,8 @@ tlul_fifo_sync.sv \
 rv_core_ibex.sv \
 prim_diff_decode.sv \
 prim_alert_sender.sv \
+aes_reg_status.sv \
+aes_control.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -330,6 +331,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top prim_flop_2sync \
 			-top rstmgr \
 			-top prim_alert_sender \
+			-top aes_control \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
