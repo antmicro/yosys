@@ -188,7 +188,6 @@ pwrmgr_cdc.sv \
 pwrmgr_slow_fsm.sv \
 pwrmgr_fsm.sv \
 pwrmgr_wake_info.sv \
-clkmgr_reg_top.sv \
 clkmgr.sv \
 rv_plic_reg_top.sv \
 rv_plic.sv \
@@ -224,6 +223,7 @@ pwrmgr_pkg.sv \
 rstmgr_pkg.sv \
 prim_alert_pkg.sv \
 aes_pkg.sv \
+clkmgr_reg_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -270,6 +270,7 @@ prim_subreg_shadow.sv \
 aes_ctr.sv \
 aes_reg_status.sv \
 aes_control.sv \
+clkmgr_reg_top.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -338,6 +339,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top prim_subreg_shadow \
 			-top aes_ctr \
 			-top aes_control \
+			-top clkmgr_reg_top \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
