@@ -95,7 +95,6 @@ tlul_err.sv \
 tlul_assert_multiple.sv \
 tlul_adapter_reg.sv \
 tlul_adapter_sram.sv \
-tlul_err_resp.sv \
 tlul_socket_1n.sv \
 tlul_socket_m1.sv \
 sram2tlul.sv \
@@ -271,6 +270,7 @@ aes_reg_status.sv \
 aes_control.sv \
 clkmgr_reg_top.sv \
 prim_gf_mult.sv \
+tlul_err_resp.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -337,6 +337,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top aes_control \
 			-top clkmgr_reg_top \
 			-top prim_gf_mult \
+			-top tlul_err_resp \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -367,6 +368,7 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top prim_gf_mult when flash_phy_scramble will be added to uhdm
 		# -PWidth=64 \ 
 		# -PStagesPerCycle=64 \
+	# Delete -top tlul_err_resp when tlul_socket_1n will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
