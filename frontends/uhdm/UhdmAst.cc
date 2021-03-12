@@ -120,11 +120,14 @@ AST::AstNode* UhdmAst::process_value(vpiHandle obj_h) {
 				strValType = "'h";
 				break;
 			}
-			case vpiIntVal: {
-				auto size = vpi_get(vpiSize, obj_h);
-				if (size == 0) size = 32;
-				return AST::AstNode::mkconst_int(val.value.integer, true, size);
-			}
+                        // Surelog reports constant integers as a unsigned, but by default int is signed
+                        // so we are treating here UInt in the same way as if they would be Int
+                        case vpiUIntVal:
+                        case vpiIntVal: {
+                                auto size = vpi_get(vpiSize, obj_h);
+                                if (size == 0) size = 64;
+                                return AST::AstNode::mkconst_int(val.value.integer, true, size);
+                        }
 			case vpiRealVal: return AST::AstNode::mkconst_real(val.value.real);
 			case vpiStringVal: return AST::AstNode::mkconst_str(val.value.str);
 			default: {
