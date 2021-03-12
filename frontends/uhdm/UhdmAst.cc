@@ -1147,7 +1147,13 @@ void UhdmAst::process_operation() {
 				}
 				case vpiMultiConcatOp: current_node->type = AST::AST_REPLICATE; break;
 				case vpiAssignmentOp: current_node->type = AST::AST_ASSIGN_EQ; break;
-				case vpiStreamLROp: current_node->type = AST::AST_CONCAT; break;
+				case vpiStreamLROp: {
+					auto concat_node = current_node->children.back();
+					current_node->children.pop_back();
+					delete current_node;
+					current_node = concat_node;
+					break;
+				}
 				default: {
 					const uhdm_handle* const handle = (const uhdm_handle*) obj_h;
 					const UHDM::BaseClass* const object = (const UHDM::BaseClass*) handle->object;
@@ -1194,13 +1200,15 @@ void UhdmAst::process_stream_op()  {
 	// Temp var to allow concatenation
 	auto temp_var = make_ast_node(AST::AST_WIRE,
 								  {make_ast_node(AST::AST_RANGE,
-												 {bits_call, AST::AstNode::mkconst_int(0, false)})});
+												 {make_ast_node(AST::AST_SUB,
+																{bits_call,
+																 AST::AstNode::mkconst_int(1, false)}),
+												  AST::AstNode::mkconst_int(0, false)})});
 	temp_var->str = "\\loop" + std::to_string(loop_id) + "::temp";
 	module_node->children.push_back(temp_var);
 	auto temp_var_ident = make_ast_node(AST::AST_IDENTIFIER);
 	temp_var_ident->str = temp_var->str;
-	auto concat_node = make_ast_node(AST::AST_CONCAT);
-	auto temp_assign = make_ast_node(AST::AST_ASSIGN_EQ, {temp_var_ident, concat_node});
+	auto temp_assign = make_ast_node(AST::AST_ASSIGN_EQ, {temp_var_ident});
 	block_node->children.push_back(temp_assign);
 
 	// Assignment in the loop's block
@@ -1212,7 +1220,7 @@ void UhdmAst::process_stream_op()  {
 						  if (!slice_size && node->type == AST::AST_CONSTANT) {
 							  slice_size = node;
 						  } else {
-							  concat_node->children.push_back(node);
+							  temp_assign->children.push_back(node);
 						  }
 						});
 	if (!slice_size) {
