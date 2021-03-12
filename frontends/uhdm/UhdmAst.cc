@@ -139,8 +139,14 @@ AST::AstNode* UhdmAst::process_value(vpiHandle obj_h) {
 			return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
 		} else {
 			auto size = vpi_get(vpiSize, obj_h);
-			if (size == 0) size = 32;
-			auto str = std::to_string(size) + strValType + val.value.str;
+			if(size == 0 && strlen(val.value.str) == 1) {
+				return AST::AstNode::mkconst_int(atoi(val.value.str), true, 1);
+			}
+			std::string size_str = "";
+			if (size != 0) {
+				size_str = std::to_string(size);
+			}
+			auto str = size_str + strValType + val.value.str;
 			return VERILOG_FRONTEND::const2ast(str, 0, false);
 		}
 	}
