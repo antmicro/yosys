@@ -36,7 +36,6 @@ prim_generic_rom.sv \
 prim_clock_gating.sv \
 prim_generic_clock_gating.sv \
 prim_xilinx_clock_gating.sv \
-prim_gf_mult.sv \
 prim_clock_mux2.sv \
 prim_flop.sv \
 prim_flop_2sync.sv \
@@ -271,6 +270,7 @@ aes_ctr.sv \
 aes_reg_status.sv \
 aes_control.sv \
 clkmgr_reg_top.sv \
+prim_gf_mult.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -324,15 +324,11 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PICacheECC=0 \
 			-PDbgTriggerEn=1 \
 			-PSecureIbex=0 \
-			-PWidth=2 \
-			-PResetValue=0 \
 			-PPipeLine=1 \
 			-PAsyncOn=1 \
+			-PWidth=64 \
+			-PStagesPerCycle=32 \
 			-top rv_core_ibex \
-			-top tlul_adapter_host \
-			-top rstmgr_por \
-			-top rstmgr_reg_top \
-			-top prim_flop_2sync \
 			-top rstmgr \
 			-top prim_alert_sender \
 			-top aes_control \
@@ -340,10 +336,37 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top aes_ctr \
 			-top aes_control \
 			-top clkmgr_reg_top \
+			-top prim_gf_mult \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
 
+	# Delete -top rv_core_ibex when top_earlgrey will be added to uhdm
+		#-PPMPEnable=1 \
+		#-PPMPGranularity=0 \
+		#-PPMPNumRegions=16 \
+		#-PMHPMCounterNum=8 \
+		#-PMHPMCounterWidth=40 \
+		#-PRV32E=0 \
+		#-PRV32M=1 \
+		#-PBranchTargetALU=1 \
+		#-PWritebackStage=1 \
+		#-PMultiplierImplementation="single-cycle" \
+		#-PICache=0 \
+		#-PICacheECC=0 \
+		#-PDbgTriggerEn=1 \
+		#-PSecureIbex=0 \
+		#-PPipeLine=1 \
+	# Delete -top rstmgr when top_earlgrey will be added to uhdm
+	# Delete -top prim_alert_sender when aes.sv, hmac.sv, otp_ctrl.sv, otbn.sv will be added to uhdm
+		# -PAsyncOn=1
+	# Delete -top prim_subreg_shadow when aes_core.sv will be added to uhdm
+	# Delete -top prim_ctr when aes_core.sv will be added to uhdm
+	# Delete -top prim_control when aes_core.sv will be added to uhdm
+	# Delete -top clkmgr_reg_top when clkmgr_reg.sv will be added to uhdm
+	# Delete -top prim_gf_mult when flash_phy_scramble will be added to uhdm
+		# -PWidth=64 \ 
+		# -PStagesPerCycle=64 \
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
