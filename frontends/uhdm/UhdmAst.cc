@@ -325,6 +325,7 @@ void UhdmAst::process_parameter() {
 	auto type = vpi_get(vpiLocalParam, obj_h) == 1 ? AST::AST_LOCALPARAM : AST::AST_PARAMETER;
 	current_node = make_ast_node(type);
 	//if (vpi_get_str(vpiImported, obj_h) != "") { } //currently unused
+	std::vector<AST::AstNode*> range_nodes;
 	vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
 	if (typespec_h) {
 		int typespec_type = vpi_get(vpiType, typespec_h);
@@ -334,7 +335,7 @@ void UhdmAst::process_parameter() {
 				current_node->is_logic = true;
 				visit_range(typespec_h,
 							[&](AST::AstNode* node) {
-								current_node->children.push_back(node);
+								range_nodes.push_back(node);
 							});
 				shared.report.mark_handled(typespec_h);
 				break;
@@ -369,6 +370,19 @@ void UhdmAst::process_parameter() {
 			constant_node->location = current_node->location;
 			current_node->children.push_back(constant_node);
 		}
+	}
+	visit_range(obj_h,
+			[&](AST::AstNode* node) {
+				if (node)
+					range_nodes.push_back(node);
+			});
+	if (range_nodes.size() > 1) {
+		auto multirange_node = new AST::AstNode(AST::AST_MULTIRANGE);
+		multirange_node->is_packed = true;
+		multirange_node->children = range_nodes;
+		current_node->children.push_back(multirange_node);
+	} else if (range_nodes.size() == 1) {
+		current_node->children.push_back(range_nodes[0]);
 	}
 }
 
@@ -776,20 +790,21 @@ void UhdmAst::process_array_var() {
 	}
 	vpi_free_object(itr);
 	visit_one_to_many({vpiRange},
-					  obj_h,
-					  [&](AST::AstNode* node) {
-						  current_node->children.push_back(node);
-					  });
+					obj_h,
+					[&](AST::AstNode* node) {
+						current_node->children.push_back(node);
+					});
 }
 
 void UhdmAst::process_param_assign() {
-	auto type = vpi_get(vpiLocalParam, obj_h) == 1 ? AST::AST_LOCALPARAM : AST::AST_PARAMETER;
-	current_node = make_ast_node(type);
+	current_node = make_ast_node(AST::AST_PARAMETER);
 	visit_one_to_one({vpiLhs},
 					 obj_h,
 					 [&](AST::AstNode* node) {
 						 if (node) {
 							 current_node->str = node->str;
+							 current_node->type = node->type;
+							 current_node->children = node->children;
 							 shared.param_types[current_node] = shared.param_types[node];
 						 }
 					 });
@@ -1828,6 +1843,9 @@ AST::AstNode* UhdmAst::process_object(vpiHandle obj_handle) {
 	}
 
 	if (shared.visited.find(object) != shared.visited.end()) {
+		if (shared.visited[object]->type == AST::AST_FUNCTION) {
+			return shared.visited[object]->clone();
+		}
 		return shared.visited[object];
 	}
 	switch(object_type) {
