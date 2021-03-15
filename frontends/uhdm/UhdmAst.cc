@@ -84,7 +84,7 @@ void UhdmAst::visit_default_expr(vpiHandle obj_h)  {
 		auto block_node = new AST::AstNode(AST::AST_BLOCK);
 		auto assign_node = new AST::AstNode(AST::AST_ASSIGN_EQ);
 		auto id_node = new AST::AstNode(AST::AST_IDENTIFIER);
-		id_node->str = parent->current_node->str;
+		id_node->str = current_node->str;
 		initial_node->children.push_back(block_node);
 		block_node->children.push_back(assign_node);
 		assign_node->children.push_back(id_node);
