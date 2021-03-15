@@ -69,6 +69,7 @@ void UhdmAst::visit_range(vpiHandle obj_h,
 					  });
 	if (range_nodes.size() > 1) {
 		auto multirange_node = new AST::AstNode(AST::AST_MULTIRANGE);
+		multirange_node->is_packed = true;
 		multirange_node->children = range_nodes;
 		f(multirange_node);
 	} else if (!range_nodes.empty()) {
@@ -119,11 +120,14 @@ AST::AstNode* UhdmAst::process_value(vpiHandle obj_h) {
 				strValType = "'h";
 				break;
 			}
-			case vpiIntVal: {
-				auto size = vpi_get(vpiSize, obj_h);
-				if (size == 0) size = 32;
-				return AST::AstNode::mkconst_int(val.value.integer, true, size);
-			}
+                        // Surelog reports constant integers as a unsigned, but by default int is signed
+                        // so we are treating here UInt in the same way as if they would be Int
+                        case vpiUIntVal:
+                        case vpiIntVal: {
+                                auto size = vpi_get(vpiSize, obj_h);
+                                if (size == 0) size = 64;
+                                return AST::AstNode::mkconst_int(val.value.integer, true, size);
+                        }
 			case vpiRealVal: return AST::AstNode::mkconst_real(val.value.real);
 			case vpiStringVal: return AST::AstNode::mkconst_str(val.value.str);
 			default: {
@@ -138,8 +142,14 @@ AST::AstNode* UhdmAst::process_value(vpiHandle obj_h) {
 			return VERILOG_FRONTEND::const2ast(val.value.str, 0, false);
 		} else {
 			auto size = vpi_get(vpiSize, obj_h);
-			if (size == 0) size = 32;
-			auto str = std::to_string(size) + strValType + val.value.str;
+			if(size == 0 && strlen(val.value.str) == 1) {
+				return AST::AstNode::mkconst_int(atoi(val.value.str), true, 1);
+			}
+			std::string size_str = "";
+			if (size != 0) {
+				size_str = std::to_string(size);
+			}
+			auto str = size_str + strValType + val.value.str;
 			return VERILOG_FRONTEND::const2ast(str, 0, false);
 		}
 	}
@@ -151,6 +161,8 @@ AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, std::vector<AST::Ast
 	if (auto name = vpi_get_str(vpiName, obj_h)) {
 		node->str = name;
 	} else if (auto name = vpi_get_str(vpiDefName, obj_h)) {
+		node->str = name;
+	} else if (auto name = vpi_get_str(vpiFullName, obj_h)) {
 		node->str = name;
 	}
 	sanitize_symbol_name(node->str);
@@ -961,8 +973,13 @@ void UhdmAst::process_io_decl() {
 					 [&](AST::AstNode* node) {
 						 current_node = node;
 					 });
-	if (current_node) return;
-	current_node = make_ast_node(AST::AST_MODPORTMEMBER);
+	if (current_node == nullptr) {
+		current_node = make_ast_node(AST::AST_MODPORTMEMBER);
+		visit_range(obj_h,
+					[&](AST::AstNode* node) {
+						current_node->children.push_back(node);
+					});
+	}
 	if (const int n = vpi_get(vpiDirection, obj_h)) {
 		if (n == vpiInput) {
 			current_node->is_input = true;
@@ -973,10 +990,6 @@ void UhdmAst::process_io_decl() {
 			current_node->is_output = true;
 		}
 	}
-	visit_range(obj_h,
-				[&](AST::AstNode* node) {
-					current_node->children.push_back(node);
-				});
 }
 
 void UhdmAst::process_always() {
@@ -1507,6 +1520,7 @@ void UhdmAst::process_var_select() {
 					  });
 	if (current_node->children.size() > 1) {
 		auto multirange_node = new AST::AstNode(AST::AST_MULTIRANGE);
+		multirange_node->is_packed = true;
 		multirange_node->children = current_node->children;
 		current_node->children.clear();
 		current_node->children.push_back(multirange_node);
@@ -1719,6 +1733,17 @@ void UhdmAst::process_function() {
 							 node->str = current_node->str;
 						 }
 					 });
+	visit_one_to_many({vpiIODecl},
+					  obj_h,
+					  [&](AST::AstNode* node) {
+						  node->type = AST::AST_WIRE;
+						  current_node->children.push_back(node);
+					  });
+	visit_one_to_many({vpiVariables},
+					  obj_h,
+					  [&](AST::AstNode* node) {
+						  current_node->children.push_back(node);
+					  });
 	visit_one_to_one({vpiStmt},
 					 obj_h,
 					 [&](AST::AstNode* node) {
@@ -1726,12 +1751,6 @@ void UhdmAst::process_function() {
 							 current_node->children.push_back(node);
 						 }
 					 });
-	visit_one_to_many({vpiIODecl},
-					  obj_h,
-					  [&](AST::AstNode* node) {
-						  node->type = AST::AST_WIRE;
-						  current_node->children.push_back(node);
-					  });
 }
 
 void UhdmAst::process_logic_var() {

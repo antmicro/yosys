@@ -36,7 +36,6 @@ prim_generic_rom.sv \
 prim_clock_gating.sv \
 prim_generic_clock_gating.sv \
 prim_xilinx_clock_gating.sv \
-prim_gf_mult.sv \
 prim_clock_mux2.sv \
 prim_flop.sv \
 prim_flop_2sync.sv \
@@ -72,7 +71,6 @@ prim_filter_ctr.sv \
 prim_subreg_arb.sv \
 prim_subreg.sv \
 prim_subreg_ext.sv \
-prim_subreg_shadow.sv \
 prim_intr_hw.sv \
 prim_generic_clock_inv.sv \
 prim_generic_flash.sv \
@@ -97,7 +95,6 @@ tlul_err.sv \
 tlul_assert_multiple.sv \
 tlul_adapter_reg.sv \
 tlul_adapter_sram.sv \
-tlul_err_resp.sv \
 tlul_socket_1n.sv \
 tlul_socket_m1.sv \
 sram2tlul.sv \
@@ -112,7 +109,6 @@ dmi_jtag_tap.sv \
 aes_reg_top.sv \
 aes_core.sv \
 aes_prng.sv \
-aes_ctr.sv \
 aes_cipher_core.sv \
 aes_cipher_control.sv \
 aes_sub_bytes.sv \
@@ -190,7 +186,6 @@ pwrmgr_cdc.sv \
 pwrmgr_slow_fsm.sv \
 pwrmgr_fsm.sv \
 pwrmgr_wake_info.sv \
-clkmgr_reg_top.sv \
 clkmgr.sv \
 rv_plic_reg_top.sv \
 rv_plic.sv \
@@ -226,6 +221,7 @@ pwrmgr_pkg.sv \
 rstmgr_pkg.sv \
 prim_alert_pkg.sv \
 aes_pkg.sv \
+clkmgr_reg_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -267,6 +263,14 @@ prim_diff_decode.sv \
 prim_alert_sender.sv \
 aes_reg_status.sv \
 aes_control.sv \
+prim_subreg_arb.sv \
+prim_subreg_shadow.sv \
+aes_ctr.sv \
+aes_reg_status.sv \
+aes_control.sv \
+clkmgr_reg_top.sv \
+prim_gf_mult.sv \
+tlul_err_resp.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -320,22 +324,51 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PICacheECC=0 \
 			-PDbgTriggerEn=1 \
 			-PSecureIbex=0 \
-			-PWidth=2 \
-			-PResetValue=0 \
 			-PPipeLine=1 \
 			-PAsyncOn=1 \
+			-PWidth=64 \
+			-PStagesPerCycle=32 \
 			-top rv_core_ibex \
-			-top tlul_adapter_host \
-			-top rstmgr_por \
-			-top rstmgr_reg_top \
-			-top prim_flop_2sync \
 			-top rstmgr \
 			-top prim_alert_sender \
 			-top aes_control \
+			-top prim_subreg_shadow \
+			-top aes_ctr \
+			-top aes_control \
+			-top clkmgr_reg_top \
+			-top prim_gf_mult \
+			-top tlul_err_resp \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
 
+	# Delete -top rv_core_ibex when top_earlgrey will be added to uhdm
+		#-PPMPEnable=1 \
+		#-PPMPGranularity=0 \
+		#-PPMPNumRegions=16 \
+		#-PMHPMCounterNum=8 \
+		#-PMHPMCounterWidth=40 \
+		#-PRV32E=0 \
+		#-PRV32M=1 \
+		#-PBranchTargetALU=1 \
+		#-PWritebackStage=1 \
+		#-PMultiplierImplementation="single-cycle" \
+		#-PICache=0 \
+		#-PICacheECC=0 \
+		#-PDbgTriggerEn=1 \
+		#-PSecureIbex=0 \
+		#-PPipeLine=1 \
+	# Delete -top rstmgr when top_earlgrey will be added to uhdm
+	# Delete -top prim_alert_sender when aes.sv, hmac.sv, otp_ctrl.sv, otbn.sv will be added to uhdm
+		# -PAsyncOn=1
+	# Delete -top prim_subreg_shadow when aes_core.sv will be added to uhdm
+	# Delete -top prim_ctr when aes_core.sv will be added to uhdm
+	# Delete -top prim_control when aes_core.sv will be added to uhdm
+	# Delete -top clkmgr_reg_top when clkmgr_reg.sv will be added to uhdm
+	# Delete -top prim_gf_mult when flash_phy_scramble will be added to uhdm
+		# -PWidth=64 \ 
+		# -PStagesPerCycle=64 \
+	# Delete -top tlul_err_resp when tlul_socket_1n will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
