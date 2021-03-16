@@ -326,6 +326,11 @@ void UhdmAst::process_parameter() {
 	current_node = make_ast_node(type);
 	//if (vpi_get_str(vpiImported, obj_h) != "") { } //currently unused
 	std::vector<AST::AstNode*> range_nodes;
+	visit_range(obj_h,
+			[&](AST::AstNode* node) {
+				if (node)
+					range_nodes.push_back(node);
+			});
 	vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
 	if (typespec_h) {
 		int typespec_type = vpi_get(vpiType, typespec_h);
@@ -371,11 +376,6 @@ void UhdmAst::process_parameter() {
 			current_node->children.push_back(constant_node);
 		}
 	}
-	visit_range(obj_h,
-			[&](AST::AstNode* node) {
-				if (node)
-					range_nodes.push_back(node);
-			});
 	if (range_nodes.size() > 1) {
 		auto multirange_node = new AST::AstNode(AST::AST_MULTIRANGE);
 		multirange_node->is_packed = true;
@@ -803,7 +803,6 @@ void UhdmAst::process_param_assign() {
 					 [&](AST::AstNode* node) {
 						 if (node) {
 							 current_node->str = node->str;
-							 current_node->type = node->type;
 							 current_node->children = node->children;
 							 shared.param_types[current_node] = shared.param_types[node];
 						 }
