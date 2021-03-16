@@ -111,7 +111,15 @@ void UhdmAst::visit_default_expr(vpiHandle obj_h)  {
 		id_node->str = current_node->str;
 		if (push_block)
 			initial_node->children.push_back(block_node);
-		block_node->children.push_back(assign_node);
+
+		auto child = block_node->children.begin();
+		for (;child != block_node->children.end(); child++) {
+			if ((*child)->type == AST::AST_ASSIGN_EQ) {
+				break;
+			}
+		}
+		block_node->children.insert(child, 1, assign_node);
+
 		assign_node->children.push_back(id_node);
 		if (push_initial)
 			mod->children.push_back(initial_node);
