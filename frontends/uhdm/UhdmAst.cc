@@ -79,16 +79,42 @@ void UhdmAst::visit_range(vpiHandle obj_h,
 
 void UhdmAst::visit_default_expr(vpiHandle obj_h)  {
 	if (vpi_handle(vpiExpr, obj_h)) {
+		bool push_initial = false;
+		bool push_block = false;
 		auto mod = find_ancestor({AST::AST_MODULE});
-		auto initial_node = new AST::AstNode(AST::AST_INITIAL);
-		auto block_node = new AST::AstNode(AST::AST_BLOCK);
+		AST::AstNode* initial_node = nullptr;
+		AST::AstNode* block_node = nullptr;
+		for (auto child : mod->children) {
+			if (child->type == AST::AST_INITIAL) {
+				initial_node = child;
+				push_initial = false;
+				break;
+			}
+		}
+		if (initial_node == nullptr) {
+			initial_node = new AST::AstNode(AST::AST_INITIAL);
+			push_initial = true;
+		}
+		for (auto child : initial_node->children) {
+			if (child->type == AST::AST_BLOCK) {
+				block_node = child;
+				push_block = false;
+				break;
+			}
+		}
+		if (block_node == nullptr) {
+			block_node = new AST::AstNode(AST::AST_BLOCK);
+			push_block = true;
+		}
 		auto assign_node = new AST::AstNode(AST::AST_ASSIGN_EQ);
 		auto id_node = new AST::AstNode(AST::AST_IDENTIFIER);
 		id_node->str = current_node->str;
-		initial_node->children.push_back(block_node);
+		if (push_block)
+			initial_node->children.push_back(block_node);
 		block_node->children.push_back(assign_node);
 		assign_node->children.push_back(id_node);
-		mod->children.push_back(initial_node);
+		if (push_initial)
+			mod->children.push_back(initial_node);
 		UhdmAst initial_ast(parent, shared, indent);
 		initial_ast.current_node = initial_node;
 		UhdmAst block_ast(&initial_ast, shared, indent);
