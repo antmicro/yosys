@@ -4800,6 +4800,7 @@ AstNode *AstNode::eval_const_function(AstNode *fcall, bool must_succeed)
 {
 	std::map<std::string, AstNode*> backup_scope = current_scope;
 	std::map<std::string, AstNode::varinfo_t> variables;
+	std::vector<AstNode*> to_delete;
 	AstNode *block = new AstNode(AST_BLOCK);
 	AstNode *result = nullptr;
 
@@ -4857,6 +4858,7 @@ AstNode *AstNode::eval_const_function(AstNode *fcall, bool must_succeed)
 			current_scope[stmt->str] = stmt;
 
 			block->children.erase(block->children.begin());
+			to_delete.push_back(stmt);
 			continue;
 		}
 
@@ -4869,6 +4871,7 @@ AstNode *AstNode::eval_const_function(AstNode *fcall, bool must_succeed)
 			current_scope[stmt->str] = stmt;
 
 			block->children.erase(block->children.begin());
+			to_delete.push_back(stmt);
 			continue;
 		}
 
@@ -5063,6 +5066,11 @@ AstNode *AstNode::eval_const_function(AstNode *fcall, bool must_succeed)
 finished:
 	delete block;
 	current_scope = backup_scope;
+
+	for (auto it : to_delete) {
+		delete it;
+	}
+	to_delete.clear();
 
 	return result;
 }
