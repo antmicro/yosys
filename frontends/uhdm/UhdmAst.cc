@@ -79,50 +79,41 @@ void UhdmAst::visit_range(vpiHandle obj_h,
 
 void UhdmAst::visit_default_expr(vpiHandle obj_h)  {
 	if (vpi_handle(vpiExpr, obj_h)) {
-		bool push_initial = false;
-		bool push_block = false;
 		auto mod = find_ancestor({AST::AST_MODULE});
 		AST::AstNode* initial_node = nullptr;
 		AST::AstNode* block_node = nullptr;
-		for (auto child : mod->children) {
-			if (child->type == AST::AST_INITIAL) {
-				initial_node = child;
-				push_initial = false;
-				break;
-			}
-		}
-		if (initial_node == nullptr) {
-			initial_node = new AST::AstNode(AST::AST_INITIAL);
-			push_initial = true;
-		}
-		for (auto child : initial_node->children) {
-			if (child->type == AST::AST_BLOCK) {
-				block_node = child;
-				push_block = false;
-				break;
-			}
-		}
-		if (block_node == nullptr) {
-			block_node = new AST::AstNode(AST::AST_BLOCK);
-			push_block = true;
-		}
 		auto assign_node = new AST::AstNode(AST::AST_ASSIGN_EQ);
 		auto id_node = new AST::AstNode(AST::AST_IDENTIFIER);
 		id_node->str = current_node->str;
-		if (push_block)
-			initial_node->children.push_back(block_node);
-
-		auto child = block_node->children.begin();
-		for (;child != block_node->children.end(); child++) {
-			if ((*child)->type == AST::AST_ASSIGN_EQ) {
+		for (auto child : mod->children) {
+			if (child->type == AST::AST_INITIAL) {
+				initial_node = child;
 				break;
 			}
 		}
-		block_node->children.insert(child, 1, assign_node);
-
-		assign_node->children.push_back(id_node);
-		if (push_initial)
+		// Ensure single AST_INITIAL node in AST_MODULE
+		if (initial_node == nullptr) {
+			initial_node = new AST::AstNode(AST::AST_INITIAL);
 			mod->children.push_back(initial_node);
+		}
+		// Ensure single AST_BLOCK node in AST_INITIAL
+		if (initial_node->children[0]) {
+			block_node = initial_node->children[0];
+		} else {
+			block_node = new AST::AstNode(AST::AST_BLOCK);
+			initial_node->children.push_back(block_node);
+		}
+		auto block_child = block_node->children.begin();
+		for (;block_child != block_node->children.end(); block_child++) {
+			if ((*block_child)->type == AST::AST_ASSIGN_EQ) {
+				break;
+			}
+		}
+		// Insert AST_ASSIGN_EQ nodes that came from
+		// custom_var or int_var before any other AST_ASSIGN_EQ
+		// Especially before ones explicitly placed in initial block in source code
+		block_node->children.insert(block_child, 1, assign_node);
+		assign_node->children.push_back(id_node);
 		UhdmAst initial_ast(parent, shared, indent);
 		initial_ast.current_node = initial_node;
 		UhdmAst block_ast(&initial_ast, shared, indent);
