@@ -112,7 +112,6 @@ aes_prng.sv \
 aes_cipher_core.sv \
 aes_sbox.sv \
 aes_sbox_lut.sv \
-aes_sub_bytes.sv \
 aes_sbox_canright.sv \
 aes_sbox_canright_masked_noreuse.sv \
 aes_sbox_canright_masked.sv \
@@ -273,6 +272,7 @@ aes_cipher_control.sv \
 aes_mix_single_column.sv \
 aes_mix_columns.sv \
 aes_shift_rows.sv \
+aes_sub_bytes.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -344,6 +344,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top aes_cipher_control \
 			-top aes_mix_columns \
 			-top aes_shift_rows \
+			-top aes_sub_bytes \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -379,6 +380,7 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top aes_cipher_control when aes_cipher_core will be added to uhdm
 	# Delete -top aes_mix_columns when aes_cipher_core will be added to uhdm
 	# Delete -top aes_shift_rows when aes_cipher_core will be added to uhdm
+	# Delete -top aes_sub_bytes when aes_cipher_core will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
