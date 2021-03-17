@@ -11,6 +11,50 @@ index c030089b7..65f0bdc94 100644
      unique case (key_len_i)
  
        /////////////
+diff --git a/hw/ip/aes/rtl/aes_mix_columns.sv b/hw/ip/aes/rtl/aes_mix_columns.sv
+index 3aee014a2..222464474 100644
+--- a/hw/ip/aes/rtl/aes_mix_columns.sv
++++ b/hw/ip/aes/rtl/aes_mix_columns.sv
+@@ -6,15 +6,15 @@
+ 
+ module aes_mix_columns (
+   input  aes_pkg::ciph_op_e    op_i,
+-  input  logic [3:0][3:0][7:0] data_i,
+-  output logic [3:0][3:0][7:0] data_o
++  input  logic [127:0] data_i,
++  output logic [127:0] data_o
+ );
+ 
+   import aes_pkg::*;
+ 
+   // Transpose to operate on columns
+-  logic [3:0][3:0][7:0] data_i_transposed;
+-  logic [3:0][3:0][7:0] data_o_transposed;
++  logic [127:0] data_i_transposed;
++  logic [127:0] data_o_transposed;
+ 
+   assign data_i_transposed = aes_transpose(data_i);
+ 
+diff --git a/hw/ip/aes/rtl/aes_pkg.sv b/hw/ip/aes/rtl/aes_pkg.sv
+index ddc3b7992..6d4e2a759 100644
+--- a/hw/ip/aes/rtl/aes_pkg.sv
++++ b/hw/ip/aes/rtl/aes_pkg.sv
+@@ -165,12 +165,12 @@ function automatic logic [31:0] aes_circ_byte_shift(logic [31:0] in, logic [1:0]
+ endfunction
+ 
+ // Transpose state matrix
+-function automatic logic [3:0][3:0][7:0] aes_transpose(logic [3:0][3:0][7:0] in);
+-  logic [3:0][3:0][7:0] transpose;
++function automatic logic [127:0] aes_transpose(logic [127:0] in);
++  logic [127:0] transpose;
+   transpose = '0;
+   for (int j=0; j<4; j++) begin
+     for (int i=0; i<4; i++) begin
+-      transpose[i][j] = in[j][i];
++      transpose[((i * 4) + j) * 8+:8] = in[((j * 4) + i) * 8+:8];
+     end
+   end
+   return transpose;
 diff --git a/hw/ip/prim_generic/rtl/prim_generic_pad_wrapper.sv b/hw/ip/prim_generic/rtl/prim_generic_pad_wrapper.sv
 index 962d3b559..d6430bc5a 100644
 --- a/hw/ip/prim_generic/rtl/prim_generic_pad_wrapper.sv
