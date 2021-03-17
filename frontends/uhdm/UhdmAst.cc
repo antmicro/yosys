@@ -1627,26 +1627,20 @@ void UhdmAst::process_gen_scope_array() {
 						  for (auto* child : genscope_node->children) {
 							  if (child->type == AST::AST_PARAMETER ||
 									  child->type == AST::AST_LOCALPARAM) {
-								  auto prev_name = child->str;
-								  child->str = current_node->str + "::" + child->str.substr(1);
+							  	  auto param_str = child->str.substr(1);
+							  	  auto array_str = "[" + param_str + "]";
 								  genscope_node->visitEachDescendant([&](AST::AstNode* node) {
-									  auto pos = node->str.find("[" + prev_name.substr(1) + "]");
-									  if (node->str == prev_name) {
-										  node->str = child->str;
-									  } else if (pos != std::string::npos) {
-									  	  node->str.replace(pos + 1, prev_name.size() - 1, child->str.substr(1));
+									  auto pos = node->str.find(array_str);
+									  if (pos != std::string::npos) {
+									  	  node->str.replace(pos + 1, param_str.size(), (current_node->str + "." + param_str).substr(1));
 									  }
 								  });
-							  } else if (child->type == AST::AST_CELL) {
-							  	child->str = current_node->str + "." + child->str.substr(1);
 							  }
 						  }
 						  current_node->children.insert(current_node->children.end(),
 														genscope_node->children.begin(),
 														genscope_node->children.end());
 					  });
-	// clear AST_GENBLOCK str field, to make yosys do not rename variables again
-	current_node->str = "";
 }
 
 void UhdmAst::process_gen_scope() {
