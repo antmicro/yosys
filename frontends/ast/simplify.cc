@@ -231,7 +231,12 @@ static bool name_has_dot(const std::string &name, std::string &struct_name, std:
 {
 	// check if plausible struct member name \sss.mmm
 	std::string::size_type pos;
-	if (name.substr(0, 1) == "\\" && (pos = name.find('.', 0)) != std::string::npos) {
+	if (name.find("[", 0) != std::string::npos) {
+		pos = name.rfind('.');
+	} else {
+		pos = name.find('.');
+	}
+	if (name.substr(0, 1) == "\\" && (pos != std::string::npos)) {
 		struct_name = name.substr(0, pos);
 		struct_field = name.substr(pos); // return str with . at begining
 		return true;
