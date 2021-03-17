@@ -190,7 +190,6 @@ prim_secded_39_32_enc.sv \
 prim_secded_72_64_dec.sv \
 prim_secded_72_64_enc.sv \
 prim_alert_receiver.sv \
-prim_lfsr.sv \
 top_earlgrey.sv \
 clkgen_xil7series.sv \
 top_earlgrey_nexysvideo.sv
@@ -272,6 +271,7 @@ aes_mix_columns.sv \
 aes_shift_rows.sv \
 aes_sub_bytes.sv \
 aes_cipher_core.sv \
+prim_lfsr.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -340,6 +340,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top tlul_err_resp \
 			-top aes_sub_bytes \
 			-top aes_cipher_core \
+			-top prim_lfsr \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -372,6 +373,7 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PStagesPerCycle=64 \
 	# Delete -top tlul_err_resp when tlul_socket_1n will be added to uhdm
 	# Delete -top aes_cipher_core when aes_core will be added to uhdm
+	# Delete -top prim_lfsr when aes_prng will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
