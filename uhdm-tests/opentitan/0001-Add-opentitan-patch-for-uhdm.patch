@@ -92,6 +92,32 @@ index b33b570a0..ef9eea32b 100644
 +                                        : aes_circ_byte_shift(data_i[96+:32], 2'h3);
  
  endmodule
+diff --git a/hw/ip/aes/rtl/aes_sub_bytes.sv b/hw/ip/aes/rtl/aes_sub_bytes.sv
+index 1d3e5c3a9..081c718f9 100644
+--- a/hw/ip/aes/rtl/aes_sub_bytes.sv
++++ b/hw/ip/aes/rtl/aes_sub_bytes.sv
+@@ -8,8 +8,8 @@ module aes_sub_bytes #(
+   parameter SBoxImpl = "lut"
+ ) (
+   input  aes_pkg::ciph_op_e    op_i,
+-  input  logic [3:0][3:0][7:0] data_i,
+-  output logic [3:0][3:0][7:0] data_o
++  input  logic [127:0] data_i,
++  output logic [127:0] data_o
+ );
+ 
+   // Individually substitute bytes
+@@ -19,8 +19,8 @@ module aes_sub_bytes #(
+         .SBoxImpl ( SBoxImpl )
+       ) aes_sbox_ij (
+         .op_i   ( op_i         ),
+-        .data_i ( data_i[i][j] ),
+-        .data_o ( data_o[i][j] )
++        .data_i ( data_i[((i * 4) + j) * 8+:8] ),
++        .data_o ( data_o[((i * 4) + j) * 8+:8] )
+       );
+     end
+   end
 diff --git a/hw/ip/prim_generic/rtl/prim_generic_pad_wrapper.sv b/hw/ip/prim_generic/rtl/prim_generic_pad_wrapper.sv
 index 962d3b559..d6430bc5a 100644
 --- a/hw/ip/prim_generic/rtl/prim_generic_pad_wrapper.sv
