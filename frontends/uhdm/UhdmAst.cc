@@ -1653,6 +1653,8 @@ void UhdmAst::process_for() {
 
 void UhdmAst::process_gen_scope_array() {
 	current_node = make_ast_node(AST::AST_GENBLOCK);
+	std::string full_name = vpi_get_str(vpiFullName, obj_h) ? vpi_get_str(vpiFullName, obj_h) : current_node->str;
+	full_name = full_name.substr(full_name.find("."));
 	visit_one_to_many({vpiGenScope},
 					  obj_h,
 					  [&](AST::AstNode* genscope_node) {
@@ -1664,7 +1666,7 @@ void UhdmAst::process_gen_scope_array() {
 								  genscope_node->visitEachDescendant([&](AST::AstNode* node) {
 									  auto pos = node->str.find(array_str);
 									  if (pos != std::string::npos) {
-									  	  node->str.replace(pos + 1, param_str.size(), (current_node->str + "." + param_str).substr(1));
+									  	  node->str.replace(pos + 1, param_str.size(), (full_name + "." + param_str).substr(1));
 									  }
 								  });
 							  }
