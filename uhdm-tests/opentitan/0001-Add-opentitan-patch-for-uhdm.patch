@@ -55,6 +55,43 @@ index ddc3b7992..6d4e2a759 100644
      end
    end
    return transpose;
+diff --git a/hw/ip/aes/rtl/aes_shift_rows.sv b/hw/ip/aes/rtl/aes_shift_rows.sv
+index b33b570a0..ef9eea32b 100644
+--- a/hw/ip/aes/rtl/aes_shift_rows.sv
++++ b/hw/ip/aes/rtl/aes_shift_rows.sv
+@@ -6,24 +6,24 @@
+ 
+ module aes_shift_rows (
+   input  aes_pkg::ciph_op_e    op_i,
+-  input  logic [3:0][3:0][7:0] data_i,
+-  output logic [3:0][3:0][7:0] data_o
++  input  logic [127:0] data_i,
++  output logic [127:0] data_o
+ );
+ 
+   import aes_pkg::*;
+ 
+   // Row 0 is left untouched
+-  assign data_o[0] = data_i[0];
++  assign data_o[0] = data_i[0+:32];
+ 
+   // Row 2 does not depend on op_i
+-  assign data_o[2] = aes_circ_byte_shift(data_i[2], 2'h2);
++  assign data_o[2] = aes_circ_byte_shift(data_i[64+:32], 2'h2);
+ 
+   // Row 1
+-  assign data_o[1] = (op_i == CIPH_FWD) ? aes_circ_byte_shift(data_i[1], 2'h3)
+-                                        : aes_circ_byte_shift(data_i[1], 2'h1);
++  assign data_o[1] = (op_i == CIPH_FWD) ? aes_circ_byte_shift(data_i[32+:32], 2'h3)
++                                        : aes_circ_byte_shift(data_i[32+:32], 2'h1);
+ 
+   // Row 3
+-  assign data_o[3] = (op_i == CIPH_FWD) ? aes_circ_byte_shift(data_i[3], 2'h1)
+-                                        : aes_circ_byte_shift(data_i[3], 2'h3);
++  assign data_o[3] = (op_i == CIPH_FWD) ? aes_circ_byte_shift(data_i[96+:32], 2'h1)
++                                        : aes_circ_byte_shift(data_i[96+:32], 2'h3);
+ 
+ endmodule
 diff --git a/hw/ip/prim_generic/rtl/prim_generic_pad_wrapper.sv b/hw/ip/prim_generic/rtl/prim_generic_pad_wrapper.sv
 index 962d3b559..d6430bc5a 100644
 --- a/hw/ip/prim_generic/rtl/prim_generic_pad_wrapper.sv
