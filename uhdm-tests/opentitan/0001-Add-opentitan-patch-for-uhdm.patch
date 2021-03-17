@@ -1,3 +1,16 @@
+diff --git a/hw/ip/aes/rtl/aes_key_expand.sv b/hw/ip/aes/rtl/aes_key_expand.sv
+index c030089b7..65f0bdc94 100644
+--- a/hw/ip/aes/rtl/aes_key_expand.sv
++++ b/hw/ip/aes/rtl/aes_key_expand.sv
+@@ -191,7 +191,7 @@ module aes_key_expand #(
+ 
+   // To reduce muxing resources, we re-use existing
+   // connections for unused words and default cases.
+-  always_comb begin : drive_regular
++  always begin : drive_regular
+     unique case (key_len_i)
+ 
+       /////////////
 diff --git a/hw/ip/prim_generic/rtl/prim_generic_pad_wrapper.sv b/hw/ip/prim_generic/rtl/prim_generic_pad_wrapper.sv
 index 962d3b559..d6430bc5a 100644
 --- a/hw/ip/prim_generic/rtl/prim_generic_pad_wrapper.sv
