@@ -111,16 +111,15 @@ aes_core.sv \
 aes_prng.sv \
 aes_cipher_core.sv \
 aes_cipher_control.sv \
-aes_sub_bytes.sv \
 aes_sbox.sv \
 aes_sbox_lut.sv \
+aes_sub_bytes.sv \
 aes_sbox_canright.sv \
 aes_sbox_canright_masked_noreuse.sv \
 aes_sbox_canright_masked.sv \
 aes_shift_rows.sv \
 aes_mix_columns.sv \
 aes_mix_single_column.sv \
-aes_key_expand.sv \
 aes.sv \
 alert_handler_reg_wrap.sv \
 alert_handler_class.sv \
@@ -271,6 +270,9 @@ aes_control.sv \
 clkmgr_reg_top.sv \
 prim_gf_mult.sv \
 tlul_err_resp.sv \
+aes_sbox_lut.sv \
+aes_sbox.sv \
+aes_key_expand.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -338,6 +340,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top clkmgr_reg_top \
 			-top prim_gf_mult \
 			-top tlul_err_resp \
+			-top aes_key_expand \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -369,6 +372,7 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PWidth=64 \ 
 		# -PStagesPerCycle=64 \
 	# Delete -top tlul_err_resp when tlul_socket_1n will be added to uhdm
+	# Delete -top aes_key_expand when aes_cipher_core will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \

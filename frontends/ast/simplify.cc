@@ -1176,6 +1176,10 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		detectSignWidth(width_hint, sign_hint);
 
 	if (type == AST_TERNARY) {
+		while (!children[1]->basic_prep && children[1]->simplify(false, false, true, stage, -1, false, in_param) == true)
+			did_something = true;
+		while (!children[2]->basic_prep && children[2]->simplify(false, false, false, stage, -1, false, in_param) == true)
+			did_something = true;
 		int width_hint_left, width_hint_right;
 		bool sign_hint_left, sign_hint_right;
 		bool found_real_left, found_real_right;
