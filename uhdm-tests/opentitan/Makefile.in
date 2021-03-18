@@ -71,7 +71,6 @@ prim_filter_ctr.sv \
 prim_subreg_arb.sv \
 prim_subreg.sv \
 prim_subreg_ext.sv \
-prim_intr_hw.sv \
 prim_generic_clock_inv.sv \
 prim_generic_flash.sv \
 prim_ram_1p_adv.sv \
@@ -272,6 +271,7 @@ aes_shift_rows.sv \
 aes_sub_bytes.sv \
 aes_cipher_core.sv \
 prim_lfsr.sv \
+prim_intr_hw.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -341,6 +341,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top aes_sub_bytes \
 			-top aes_cipher_core \
 			-top prim_lfsr \
+			-top prim_intr_hw \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -374,6 +375,7 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top tlul_err_resp when tlul_socket_1n will be added to uhdm
 	# Delete -top aes_cipher_core when aes_core will be added to uhdm
 	# Delete -top prim_lfsr when aes_prng will be added to uhdm
+	# Delete -top prim_intr_hw when alert_handler_reg_wrap will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
