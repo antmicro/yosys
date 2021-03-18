@@ -55,7 +55,6 @@ prim_arbiter_tree.sv \
 prim_dom_and_2share.sv \
 prim_arbiter_fixed.sv \
 prim_esc_receiver.sv \
-prim_esc_sender.sv \
 prim_sram_arbiter.sv \
 prim_fifo_async.sv \
 prim_fifo_sync.sv \
@@ -214,6 +213,7 @@ prim_alert_pkg.sv \
 aes_pkg.sv \
 clkmgr_reg_pkg.sv \
 alert_pkg.sv \
+prim_esc_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -274,6 +274,7 @@ aes_cipher_core.sv \
 prim_lfsr.sv \
 prim_intr_hw.sv \
 alert_handler_ping_timer.sv \
+prim_esc_sender.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -345,6 +346,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top prim_lfsr \
 			-top prim_intr_hw \
 			-top alert_handler_ping_timer \
+			-top prim_esc_sender \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -380,6 +382,7 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top prim_lfsr when aes_prng will be added to uhdm
 	# Delete -top prim_intr_hw when alert_handler_reg_wrap will be added to uhdm
 	# Delete -top alert_handler_ping_timer when alert_handler will be added to uhdm
+	# Delete -top prim_esc_sender when alert_handler will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
