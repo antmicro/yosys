@@ -502,18 +502,12 @@ void UhdmAst::process_port() {
 void UhdmAst::process_module() {
 	std::string type = vpi_get_str(vpiDefName, obj_h);
 	std::string name = vpi_get_str(vpiName, obj_h) ? vpi_get_str(vpiName, obj_h) : type;
+	auto cell_instance = name == type;
 	sanitize_symbol_name(type);
 	sanitize_symbol_name(name);
 	type = strip_package_name(type);
 	name = strip_package_name(name);
-	//All used cells should have vpiInstance object set
-	//but it is not the case for cells generated in genscope
-	//change this, when https://github.com/alainmarcel/Surelog/issues/1129
-	//will be resolved, for now, cell name can't be the same as module name
-	//
-	//auto cell_instance = vpi_handle(vpiInstance, obj_h);
-	//if (!cell_instance) {
-	if (name == type) {
+	if (cell_instance) {
 		if (shared.top_nodes.find(type) != shared.top_nodes.end()) {
 			current_node = shared.top_nodes[type];
 			visit_one_to_many({vpiModule,
