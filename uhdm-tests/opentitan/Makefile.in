@@ -274,6 +274,11 @@ prim_alert_receiver.sv \
 alert_handler_accu.sv \
 alert_handler_esc_timer.sv \
 alert_handler_class.sv \
+prim_clock_inv.sv \
+prim_generic_clock_inv.sv \
+prim_clock_mux2.sv \
+prim_xilinx_clock_mux2.sv \
+prim_generic_clock_mux2.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -331,6 +336,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PAsyncOn=1 \
 			-PWidth=64 \
 			-PStagesPerCycle=32 \
+			-PHasScanMode=1 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -350,6 +356,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top alert_handler_accu \
 			-top alert_handler_esc_timer \
 			-top alert_handler_class \
+			-top prim_clock_inv \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -390,6 +397,8 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top alert_handler_accu when alert_handler will be added to uhdm
 	# Delete -top alert_handler_esc_timer when alert_handler will be added to uhdm
 	# Delete -top alert_handler_class when alert_handler will be added to uhdm
+	# Delete -top prim_clock_inv when dmi_jtag_tap will be added to uhdm
+		# -PHasScanMode=1
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
