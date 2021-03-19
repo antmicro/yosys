@@ -241,8 +241,12 @@ void AstNode::annotateTypedEnums(AstNode *template_node)
 static bool name_has_dot(const std::string &name, std::string &struct_name)
 {
 	// check if plausible struct member name \sss.mmm
-	std::string::size_type pos;
-	if (name.substr(0, 1) == "\\" && (pos = name.find('.', 0)) != std::string::npos) {
+	std::string::size_type start_pos = name.rfind(']');
+	if(start_pos == std::string::npos)
+		start_pos = 0;
+
+	std::string::size_type pos = name.find('.', start_pos);
+	if (name.substr(0, 1) == "\\" && (pos != std::string::npos)) {
 		struct_name = name.substr(0, pos);
 		return true;
 	}
