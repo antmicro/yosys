@@ -97,7 +97,7 @@ void UhdmAst::visit_default_expr(vpiHandle obj_h)  {
 			mod->children.push_back(initial_node);
 		}
 		// Ensure single AST_BLOCK node in AST_INITIAL
-		if (initial_node->children[0]) {
+		if (initial_node->children.size() && initial_node->children[0]) {
 			block_node = initial_node->children[0];
 		} else {
 			block_node = new AST::AstNode(AST::AST_BLOCK);
@@ -1791,10 +1791,14 @@ void UhdmAst::process_function() {
 
 void UhdmAst::process_logic_var() {
 	current_node = make_ast_node(AST::AST_WIRE);
+	//TODO: add const attribute, but it seems it is little more
+	//then just setting boolean value
+	//current_node->is_const = vpi_get(vpiConstantVariable, obj_h);
 	visit_range(obj_h,
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
 				});
+	visit_default_expr(obj_h);
 }
 
 void UhdmAst::process_sys_func_call() {
