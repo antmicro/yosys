@@ -506,6 +506,13 @@ void UhdmAst::process_module() {
 	sanitize_symbol_name(name);
 	type = strip_package_name(type);
 	name = strip_package_name(name);
+	//All used cells should have vpiInstance object set
+	//but it is not the case for cells generated in genscope
+	//change this, when https://github.com/alainmarcel/Surelog/issues/1129
+	//will be resolved, for now, cell name can't be the same as module name
+	//
+	//auto cell_instance = vpi_handle(vpiInstance, obj_h);
+	//if (!cell_instance) {
 	if (name == type) {
 		if (shared.top_nodes.find(type) != shared.top_nodes.end()) {
 			current_node = shared.top_nodes[type];
@@ -1646,32 +1653,28 @@ void UhdmAst::process_for() {
 
 void UhdmAst::process_gen_scope_array() {
 	current_node = make_ast_node(AST::AST_GENBLOCK);
+	std::string full_name = vpi_get_str(vpiFullName, obj_h) ? vpi_get_str(vpiFullName, obj_h) : current_node->str;
+	full_name = full_name.substr(full_name.find("."));
 	visit_one_to_many({vpiGenScope},
 					  obj_h,
 					  [&](AST::AstNode* genscope_node) {
 						  for (auto* child : genscope_node->children) {
 							  if (child->type == AST::AST_PARAMETER ||
 									  child->type == AST::AST_LOCALPARAM) {
-								  auto prev_name = child->str;
-								  child->str = current_node->str + "::" + child->str.substr(1);
+							  	  auto param_str = child->str.substr(1);
+							  	  auto array_str = "[" + param_str + "]";
 								  genscope_node->visitEachDescendant([&](AST::AstNode* node) {
-									  auto pos = node->str.find("[" + prev_name.substr(1) + "]");
-									  if (node->str == prev_name) {
-										  node->str = child->str;
-									  } else if (pos != std::string::npos) {
-									  	  node->str.replace(pos + 1, prev_name.size() - 1, child->str.substr(1));
+									  auto pos = node->str.find(array_str);
+									  if (pos != std::string::npos) {
+									  	  node->str.replace(pos + 1, param_str.size(), (full_name + "." + param_str).substr(1));
 									  }
 								  });
-							  } else if (child->type == AST::AST_CELL) {
-							  	child->str = current_node->str + "." + child->str.substr(1);
 							  }
 						  }
 						  current_node->children.insert(current_node->children.end(),
 														genscope_node->children.begin(),
 														genscope_node->children.end());
 					  });
-	// clear AST_GENBLOCK str field, to make yosys do not rename variables again
-	current_node->str = "";
 }
 
 void UhdmAst::process_gen_scope() {

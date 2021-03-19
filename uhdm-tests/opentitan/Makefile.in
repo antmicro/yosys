@@ -109,10 +109,8 @@ dmi_jtag_tap.sv \
 aes_reg_top.sv \
 aes_core.sv \
 aes_prng.sv \
-aes_cipher_core.sv \
 aes_sbox.sv \
 aes_sbox_lut.sv \
-aes_sub_bytes.sv \
 aes_sbox_canright.sv \
 aes_sbox_canright_masked_noreuse.sv \
 aes_sbox_canright_masked.sv \
@@ -192,7 +190,6 @@ prim_secded_39_32_enc.sv \
 prim_secded_72_64_dec.sv \
 prim_secded_72_64_enc.sv \
 prim_alert_receiver.sv \
-prim_lfsr.sv \
 top_earlgrey.sv \
 clkgen_xil7series.sv \
 top_earlgrey_nexysvideo.sv
@@ -262,7 +259,6 @@ prim_subreg_arb.sv \
 prim_subreg_shadow.sv \
 aes_ctr.sv \
 aes_reg_status.sv \
-aes_control.sv \
 clkmgr_reg_top.sv \
 prim_gf_mult.sv \
 tlul_err_resp.sv \
@@ -273,6 +269,9 @@ aes_cipher_control.sv \
 aes_mix_single_column.sv \
 aes_mix_columns.sv \
 aes_shift_rows.sv \
+aes_sub_bytes.sv \
+aes_cipher_core.sv \
+prim_lfsr.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -333,17 +332,15 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
-			-top aes_control \
 			-top prim_subreg_shadow \
 			-top aes_ctr \
 			-top aes_control \
 			-top clkmgr_reg_top \
 			-top prim_gf_mult \
 			-top tlul_err_resp \
-			-top aes_key_expand \
-			-top aes_cipher_control \
-			-top aes_mix_columns \
-			-top aes_shift_rows \
+			-top aes_sub_bytes \
+			-top aes_cipher_core \
+			-top prim_lfsr \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -368,17 +365,15 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top prim_alert_sender when aes.sv, hmac.sv, otp_ctrl.sv, otbn.sv will be added to uhdm
 		# -PAsyncOn=1
 	# Delete -top prim_subreg_shadow when aes_core.sv will be added to uhdm
-	# Delete -top prim_ctr when aes_core.sv will be added to uhdm
-	# Delete -top prim_control when aes_core.sv will be added to uhdm
+	# Delete -top aes_ctr when aes_core.sv will be added to uhdm
+	# Delete -top aes_control when aes_core.sv will be added to uhdm
 	# Delete -top clkmgr_reg_top when clkmgr_reg.sv will be added to uhdm
 	# Delete -top prim_gf_mult when flash_phy_scramble will be added to uhdm
 		# -PWidth=64 \ 
 		# -PStagesPerCycle=64 \
 	# Delete -top tlul_err_resp when tlul_socket_1n will be added to uhdm
-	# Delete -top aes_key_expand when aes_cipher_core will be added to uhdm
-	# Delete -top aes_cipher_control when aes_cipher_core will be added to uhdm
-	# Delete -top aes_mix_columns when aes_cipher_core will be added to uhdm
-	# Delete -top aes_shift_rows when aes_cipher_core will be added to uhdm
+	# Delete -top aes_cipher_core when aes_core will be added to uhdm
+	# Delete -top prim_lfsr when aes_prng will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
