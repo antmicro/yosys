@@ -282,7 +282,6 @@ void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
 	typedef_node->filename = type_node->filename;
 	typedef_node->str = strip_package_name(type_node->str);
 	shared.type_names.push_back(std::make_pair(type_node->str, current_node->str));
-	typedef_node->dumpAst(NULL, "add typedef> ");
 	type_node = type_node->clone();
 	if (type_node->type == AST::AST_STRUCT) {
 		type_node->str.clear();
@@ -663,7 +662,6 @@ void UhdmAst::process_struct_typespec() {
 					  [&](AST::AstNode* node) {
 						  current_node->children.push_back(node);
 					  });
-	current_node->dumpAst(NULL, "typespec >");
 }
 
 void UhdmAst::process_typespec_member() {
