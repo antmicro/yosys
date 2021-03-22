@@ -43,6 +43,7 @@ prim_pad_wrapper.sv \
 prim_ram_1p.sv \
 prim_ram_2p.sv \
 prim_rom.sv \
+prim_lfsr.sv \
 alert_handler_reg_top.sv \
 padctrl_reg_top.sv \
 pinmux_reg_top.sv \
@@ -54,7 +55,6 @@ prim_arbiter_tree.sv \
 prim_dom_and_2share.sv \
 prim_arbiter_fixed.sv \
 prim_esc_receiver.sv \
-prim_esc_sender.sv \
 prim_sram_arbiter.sv \
 prim_fifo_async.sv \
 prim_fifo_sync.sv \
@@ -71,7 +71,6 @@ prim_filter_ctr.sv \
 prim_subreg_arb.sv \
 prim_subreg.sv \
 prim_subreg_ext.sv \
-prim_intr_hw.sv \
 prim_generic_clock_inv.sv \
 prim_generic_flash.sv \
 prim_ram_1p_adv.sv \
@@ -116,10 +115,6 @@ aes_sbox_canright_masked_noreuse.sv \
 aes_sbox_canright_masked.sv \
 aes.sv \
 alert_handler_reg_wrap.sv \
-alert_handler_class.sv \
-alert_handler_ping_timer.sv \
-alert_handler_esc_timer.sv \
-alert_handler_accu.sv \
 alert_handler.sv \
 flash_ctrl_reg_top.sv \
 flash_ctrl.sv \
@@ -182,14 +177,12 @@ pwrmgr_wake_info.sv \
 clkmgr.sv \
 rv_plic_reg_top.sv \
 rv_plic.sv \
-prim_alert_pkg.sv \
 prim_secded_28_22_dec.sv \
 prim_secded_28_22_enc.sv \
 prim_secded_39_32_dec.sv \
 prim_secded_39_32_enc.sv \
 prim_secded_72_64_dec.sv \
 prim_secded_72_64_enc.sv \
-prim_alert_receiver.sv \
 top_earlgrey.sv \
 clkgen_xil7series.sv \
 top_earlgrey_nexysvideo.sv
@@ -214,6 +207,8 @@ rstmgr_pkg.sv \
 prim_alert_pkg.sv \
 aes_pkg.sv \
 clkmgr_reg_pkg.sv \
+alert_pkg.sv \
+prim_esc_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -272,6 +267,18 @@ aes_shift_rows.sv \
 aes_sub_bytes.sv \
 aes_cipher_core.sv \
 prim_lfsr.sv \
+prim_intr_hw.sv \
+alert_handler_ping_timer.sv \
+prim_esc_sender.sv \
+prim_alert_receiver.sv \
+alert_handler_accu.sv \
+alert_handler_esc_timer.sv \
+alert_handler_class.sv \
+prim_clock_inv.sv \
+prim_generic_clock_inv.sv \
+prim_clock_mux2.sv \
+prim_xilinx_clock_mux2.sv \
+prim_generic_clock_mux2.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -329,6 +336,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PAsyncOn=1 \
 			-PWidth=64 \
 			-PStagesPerCycle=32 \
+			-PHasScanMode=1 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -341,6 +349,14 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top aes_sub_bytes \
 			-top aes_cipher_core \
 			-top prim_lfsr \
+			-top prim_intr_hw \
+			-top alert_handler_ping_timer \
+			-top prim_esc_sender \
+			-top prim_alert_receiver \
+			-top alert_handler_accu \
+			-top alert_handler_esc_timer \
+			-top alert_handler_class \
+			-top prim_clock_inv \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -374,6 +390,15 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top tlul_err_resp when tlul_socket_1n will be added to uhdm
 	# Delete -top aes_cipher_core when aes_core will be added to uhdm
 	# Delete -top prim_lfsr when aes_prng will be added to uhdm
+	# Delete -top prim_intr_hw when alert_handler_reg_wrap will be added to uhdm
+	# Delete -top alert_handler_ping_timer when alert_handler will be added to uhdm
+	# Delete -top prim_esc_sender when alert_handler will be added to uhdm
+	# Delete -top prim_alert_receiver when alert_handler will be added to uhdm
+	# Delete -top alert_handler_accu when alert_handler will be added to uhdm
+	# Delete -top alert_handler_esc_timer when alert_handler will be added to uhdm
+	# Delete -top alert_handler_class when alert_handler will be added to uhdm
+	# Delete -top prim_clock_inv when dmi_jtag_tap will be added to uhdm
+		# -PHasScanMode=1
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \

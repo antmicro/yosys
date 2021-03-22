@@ -97,7 +97,7 @@ void UhdmAst::visit_default_expr(vpiHandle obj_h)  {
 			mod->children.push_back(initial_node);
 		}
 		// Ensure single AST_BLOCK node in AST_INITIAL
-		if (initial_node->children[0]) {
+		if (initial_node->children.size() && initial_node->children[0]) {
 			block_node = initial_node->children[0];
 		} else {
 			block_node = new AST::AstNode(AST::AST_BLOCK);
@@ -502,18 +502,12 @@ void UhdmAst::process_port() {
 void UhdmAst::process_module() {
 	std::string type = vpi_get_str(vpiDefName, obj_h);
 	std::string name = vpi_get_str(vpiName, obj_h) ? vpi_get_str(vpiName, obj_h) : type;
+	auto cell_instance = name == type;
 	sanitize_symbol_name(type);
 	sanitize_symbol_name(name);
 	type = strip_package_name(type);
 	name = strip_package_name(name);
-	//All used cells should have vpiInstance object set
-	//but it is not the case for cells generated in genscope
-	//change this, when https://github.com/alainmarcel/Surelog/issues/1129
-	//will be resolved, for now, cell name can't be the same as module name
-	//
-	//auto cell_instance = vpi_handle(vpiInstance, obj_h);
-	//if (!cell_instance) {
-	if (name == type) {
+	if (cell_instance) {
 		if (shared.top_nodes.find(type) != shared.top_nodes.end()) {
 			current_node = shared.top_nodes[type];
 			visit_one_to_many({vpiModule,
@@ -1797,10 +1791,14 @@ void UhdmAst::process_function() {
 
 void UhdmAst::process_logic_var() {
 	current_node = make_ast_node(AST::AST_WIRE);
+	//TODO: add const attribute, but it seems it is little more
+	//then just setting boolean value
+	//current_node->is_const = vpi_get(vpiConstantVariable, obj_h);
 	visit_range(obj_h,
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
 				});
+	visit_default_expr(obj_h);
 }
 
 void UhdmAst::process_sys_func_call() {
