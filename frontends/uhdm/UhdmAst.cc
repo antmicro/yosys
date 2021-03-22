@@ -544,8 +544,8 @@ void UhdmAst::process_module() {
 							   vpiArrayNet,
 							   vpiPort,
 							   vpiGenScopeArray,
-							   vpiContAssign,
 							   vpiProcess,
+							   vpiContAssign,
 							   vpiTaskFunc},
 							  obj_h,
 							  [&](AST::AstNode* node) {
