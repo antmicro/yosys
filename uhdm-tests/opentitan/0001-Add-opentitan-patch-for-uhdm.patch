@@ -156,6 +156,29 @@ index ddc3b7992..6d4e2a759 100644
      end
    end
    return transpose;
+diff --git a/hw/ip/aes/rtl/aes_prng.sv b/hw/ip/aes/rtl/aes_prng.sv
+index 08e2a94e6..a94dbdd43 100644
+--- a/hw/ip/aes/rtl/aes_prng.sv
++++ b/hw/ip/aes/rtl/aes_prng.sv
+@@ -23,7 +23,7 @@ module aes_prng (
+   input  logic        entropy_ack_i,
+   input  logic [63:0] entropy_i
+ );
+-
++  import prim_cipher_pkg::*;
+   localparam int unsigned DATA_WIDTH = 64;
+ 
+   logic                  seed_en;
+@@ -58,7 +58,7 @@ module aes_prng (
+   );
+ 
+   // "Scramble" the LFSR state.
+-  assign scrambled = prim_cipher_pkg::sbox4_64bit(lfsr_state, prim_cipher_pkg::PRINCE_SBOX4);
+-  assign data_o    = prim_cipher_pkg::perm_64bit(scrambled, prim_cipher_pkg::PRESENT_PERM64);
++  assign scrambled = sbox4_64bit(lfsr_state, PRINCE_SBOX4);
++  assign data_o    = perm_64bit(scrambled, PRESENT_PERM64);
+ 
+ endmodule
 diff --git a/hw/ip/aes/rtl/aes_shift_rows.sv b/hw/ip/aes/rtl/aes_shift_rows.sv
 index b33b570a0..ef9eea32b 100644
 --- a/hw/ip/aes/rtl/aes_shift_rows.sv

@@ -107,7 +107,6 @@ dmi_jtag.sv \
 dmi_jtag_tap.sv \
 aes_reg_top.sv \
 aes_core.sv \
-aes_prng.sv \
 aes_sbox.sv \
 aes_sbox_lut.sv \
 aes_sbox_canright.sv \
@@ -209,6 +208,7 @@ aes_pkg.sv \
 clkmgr_reg_pkg.sv \
 alert_pkg.sv \
 prim_esc_pkg.sv \
+prim_cipher_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -279,6 +279,7 @@ prim_generic_clock_inv.sv \
 prim_clock_mux2.sv \
 prim_xilinx_clock_mux2.sv \
 prim_generic_clock_mux2.sv \
+aes_prng.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -357,6 +358,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top alert_handler_esc_timer \
 			-top alert_handler_class \
 			-top prim_clock_inv \
+			-top aes_prng \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -399,6 +401,7 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top alert_handler_class when alert_handler will be added to uhdm
 	# Delete -top prim_clock_inv when dmi_jtag_tap will be added to uhdm
 		# -PHasScanMode=1
+	# Delete -top aes_prng when aes will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
