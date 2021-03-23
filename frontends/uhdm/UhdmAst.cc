@@ -767,8 +767,8 @@ void UhdmAst::process_custom_var() {
 							 current_node->children = std::move(node->children);
 						 } else {
 						 	 // custom var in gen scope have definition with declaration
-							 auto *parent = find_ancestor({AST::AST_GENBLOCK, AST::AST_BLOCK, AST::AST_MODULE, AST::AST_PACKAGE});
-						 	 if (std::find(shared.type_names.begin(), shared.type_names.end(), std::make_pair(node->str, parent->str)) == shared.type_names.end() && node->children.size() > 0) {
+							 auto *parent = find_ancestor({AST::AST_GENBLOCK, AST::AST_BLOCK});
+						 	 if (parent && std::find(shared.type_names.begin(), shared.type_names.end(), std::make_pair(node->str, parent->str)) == shared.type_names.end() && node->children.size() > 0) {
 							     add_typedef(parent, node);
 							 }
 							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
