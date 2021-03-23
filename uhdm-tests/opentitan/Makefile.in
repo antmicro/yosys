@@ -97,7 +97,6 @@ debug_rom_one_scratch.sv \
 dm_sba.sv \
 dm_csrs.sv \
 dm_mem.sv \
-dmi_cdc.sv \
 dmi_jtag.sv \
 dmi_jtag_tap.sv \
 aes_reg_top.sv \
@@ -204,6 +203,7 @@ alert_pkg.sv \
 prim_esc_pkg.sv \
 prim_cipher_pkg.sv \
 clkmgr_pkg.sv \
+dm_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -281,6 +281,8 @@ prim_generic_clock_gating.sv \
 prim_xilinx_clock_gating.sv \
 clkmgr.sv \
 debug_rom.sv \
+prim_fifo_async.sv \
+dmi_cdc.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -362,6 +364,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top aes_prng \
 			-top clkmgr \
 			-top debug_rom \
+			-top dmi_cdc \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -406,6 +409,7 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PHasScanMode=1
 	# Delete -top aes_prng when aes will be added to uhdm
 	# Delete -top debug_rom when dm_mem will be added to uhdm
+	# Delete -top dmi_cdc when dmi_jtag will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
