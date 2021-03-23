@@ -98,7 +98,6 @@ dm_sba.sv \
 dm_csrs.sv \
 dm_mem.sv \
 dmi_jtag.sv \
-dmi_jtag_tap.sv \
 aes_reg_top.sv \
 aes_core.sv \
 aes_sbox.sv \
@@ -283,6 +282,7 @@ clkmgr.sv \
 debug_rom.sv \
 prim_fifo_async.sv \
 dmi_cdc.sv \
+dmi_jtag_tap.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -340,7 +340,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PAsyncOn=1 \
 			-PWidth=64 \
 			-PStagesPerCycle=32 \
-			-PHasScanMode=1 \
+			-PIrLength=5 \
+			-PIdcodeValue=83183693 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -360,11 +361,11 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top alert_handler_accu \
 			-top alert_handler_esc_timer \
 			-top alert_handler_class \
-			-top prim_clock_inv \
 			-top aes_prng \
 			-top clkmgr \
 			-top debug_rom \
 			-top dmi_cdc \
+			-top dmi_jtag_tap \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -405,8 +406,9 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top alert_handler_accu when alert_handler will be added to uhdm
 	# Delete -top alert_handler_esc_timer when alert_handler will be added to uhdm
 	# Delete -top alert_handler_class when alert_handler will be added to uhdm
-	# Delete -top prim_clock_inv when dmi_jtag_tap will be added to uhdm
-		# -PHasScanMode=1
+	# Delete -top dmi_jtag_tap when dmi_jtag will be added to uhdm
+		# -PIrLength=5 \
+		# -PIdcodeValue=83183693 \
 	# Delete -top aes_prng when aes will be added to uhdm
 	# Delete -top debug_rom when dm_mem will be added to uhdm
 	# Delete -top dmi_cdc when dmi_jtag will be added to uhdm
