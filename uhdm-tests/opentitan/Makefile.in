@@ -93,7 +93,6 @@ tlul_adapter_sram.sv \
 tlul_socket_1n.sv \
 tlul_socket_m1.sv \
 sram2tlul.sv \
-debug_rom.sv \
 debug_rom_one_scratch.sv \
 dm_sba.sv \
 dm_csrs.sv \
@@ -281,6 +280,7 @@ prim_clock_gating.sv \
 prim_generic_clock_gating.sv \
 prim_xilinx_clock_gating.sv \
 clkmgr.sv \
+debug_rom.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -361,6 +361,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top prim_clock_inv \
 			-top aes_prng \
 			-top clkmgr \
+			-top debug_rom \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -404,6 +405,7 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top prim_clock_inv when dmi_jtag_tap will be added to uhdm
 		# -PHasScanMode=1
 	# Delete -top aes_prng when aes will be added to uhdm
+	# Delete -top debug_rom when dm_mem will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
