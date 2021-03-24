@@ -1905,7 +1905,6 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 							multi = children[0];
 							log_assert(multi->children.size() == 1);
-							log_assert(multi->children[0]->children[0]->type == AST_CONSTANT);
 						}
 					} else if (children.size() == 1 && children[0]->type == AST_MULTIRANGE) {
 						multi = children[0];
@@ -1913,18 +1912,30 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					}
 
 					if (multi) {
+						AstNode* simple_range = new AstNode(AST_RANGE);
 						for (size_t idx = 0 ; idx < multi->children.size() ; ++idx) {
-							const size_t r_idx = idx;//ranges->children.size() - idx - 1;
+							if (multi->children[0]->children[0]->type != AST_CONSTANT) {
+								AstNode *mul = new AstNode(AST_MUL);
+								mul->children.push_back(multi->children[idx]->children[0]->clone());
+								const auto* r = ranges->children[1]; // r as (orig) Range
+								const size_t r_width = r->range_left - r->range_right + 1;
+								AstNode *width = new AstNode(AST_CONSTANT);
+								width->integer = r_width;
+								mul->children.push_back(width);
+								simple_range->children.push_back(mul);
+							} else {
+								const size_t r_idx = idx;//ranges->children.size() - idx - 1;
 
-							const auto* s = multi->children[idx]; // s as Selected range
+								const auto* s = multi->children[idx]; // s as Selected range
 
-							const auto* r = ranges->children[r_idx]; // r as (orig) Range
-							const size_t r_width = r->range_left - r->range_right + 1;
+								const auto* r = ranges->children[r_idx]; // r as (orig) Range
+								const size_t r_width = r->range_left - r->range_right + 1;
 
-							_width /= r_width;
-							_range_left  = (s->range_left)  * _width + (_width - 1) + _offset;
-							_range_right = (s->range_right) * _width                + _offset;
-							_offset = _range_right;
+								_width /= r_width;
+								_range_left  = (s->range_left)  * _width + (_width - 1) + _offset;
+								_range_right = (s->range_right) * _width                + _offset;
+								_offset = _range_right;
+							}
 
 							//log("idx: %ld, s->range_left: %d, s->range_right: %d\n",
 							//	idx, s->range_left, s->range_right);
@@ -1942,9 +1953,10 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 						//log("replaced_range: [%ld:%ld]\n", _range_left, _range_right);
 						//if (_range_left < 0)  _range_left = 0;
 						//if (_range_right < 0) _range_right = 0;
-						AstNode* simple_range = new AstNode(AST_RANGE);
-						simple_range->children.push_back(mkconst_int(_range_left,  false, 32));
-						simple_range->children.push_back(mkconst_int(_range_right, false, 32));
+						if (simple_range->children.size() == 0) {
+							simple_range->children.push_back(mkconst_int(_range_left,  false, 32));
+							simple_range->children.push_back(mkconst_int(_range_right, false, 32));
+						}
 						children.insert(children.begin(), simple_range);
 					}
 				}
