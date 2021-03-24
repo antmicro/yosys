@@ -572,3 +572,16 @@ index ffe380ff4..6f518796f 100644
    logic [1:0]  rf_wdata_wb_mux_we;
  
    if(WritebackStage) begin : g_writeback_stage
+diff --git a/hw/vendor/pulp_riscv_dbg/src/dm_mem.sv b/hw/vendor/pulp_riscv_dbg/src/dm_mem.sv
+index 550b7cc36..c65fe30c4 100755
+--- a/hw/vendor/pulp_riscv_dbg/src/dm_mem.sv
++++ b/hw/vendor/pulp_riscv_dbg/src/dm_mem.sv
+@@ -216,7 +216,7 @@ module dm_mem #(
+   // read/write logic
+   logic [63:0] data_bits;
+   logic [7:0][7:0] rdata;
+-  always_comb begin : p_rw_logic
++  always begin : p_rw_logic
+ 
+     halted_d_aligned   = NrHartsAligned'(halted_q);
+     resuming_d_aligned = NrHartsAligned'(resuming_q);

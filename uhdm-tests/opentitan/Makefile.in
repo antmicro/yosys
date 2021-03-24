@@ -95,7 +95,6 @@ tlul_socket_m1.sv \
 sram2tlul.sv \
 debug_rom_one_scratch.sv \
 dm_sba.sv \
-dm_mem.sv \
 aes_reg_top.sv \
 aes_core.sv \
 aes_sbox.sv \
@@ -283,6 +282,7 @@ dmi_cdc.sv \
 dmi_jtag_tap.sv \
 dmi_jtag.sv \
 dm_csrs.sv \
+dm_mem.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -344,6 +344,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PNrHarts=1 \
 			-PBusWidth=32 \
 			-PSelectableHarts=1 \
+			-PDmBaseAddress=1 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -367,6 +368,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top debug_rom \
 			-top dmi_jtag \
 			-top dm_csrs \
+			-top dm_mem \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -411,10 +413,12 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top aes_prng when aes will be added to uhdm
 	# Delete -top debug_rom when dm_mem will be added to uhdm
 	# Delete -top dmi_cdc when dmi_jtag will be added to uhdm
-	# Delete -top dm_csrs when dm_csrs will be added to uhdm
+	# Delete -top dm_csrs when rv_dm will be added to uhdm
 		# -PNrHarts=1 \
 		# -PBusWidth=32 \
 		# -PSelectableHarts=1 \
+	# Delete -top dm_mem when rv_dm will be added to uhdm
+		# -PDmBaseAddress=1 \
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
