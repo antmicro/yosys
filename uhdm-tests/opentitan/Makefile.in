@@ -107,7 +107,6 @@ alert_handler.sv \
 flash_ctrl_reg_top.sv \
 flash_ctrl.sv \
 flash_erase_ctrl.sv \
-flash_prog_ctrl.sv \
 flash_mp.sv \
 flash_phy.sv \
 flash_phy_core.sv \
@@ -284,6 +283,7 @@ dm_sba.sv \
 tlul_adapter_sram.sv \
 rv_dm.sv \
 flash_rd_ctrl.sv \
+flash_prog_ctrl.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -367,6 +367,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top clkmgr \
 			-top rv_dm \
 			-top flash_rd_ctrl \
+			-top flash_prog_ctrl \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -411,6 +412,7 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top flash_rd_ctrl when flash_ctrl will be added to uhdm
 		# -PAddrW=17 \
 		# -PDataW=32 \
+	# Delete -top flash_prog_ctrl when flash_ctrl will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
