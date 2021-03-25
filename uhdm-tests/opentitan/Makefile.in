@@ -106,7 +106,6 @@ alert_handler_reg_wrap.sv \
 alert_handler.sv \
 flash_ctrl_reg_top.sv \
 flash_ctrl.sv \
-flash_erase_ctrl.sv \
 flash_mp.sv \
 flash_phy.sv \
 flash_phy_core.sv \
@@ -284,6 +283,7 @@ tlul_adapter_sram.sv \
 rv_dm.sv \
 flash_rd_ctrl.sv \
 flash_prog_ctrl.sv \
+flash_erase_ctrl.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -345,6 +345,9 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PNrHarts=1 \
 			-PAddrW=17 \
 			-PDataW=32 \
+			-PWordsPerPage=256 \
+			-PPagesPerBank=256 \
+			-PEraseBitWidth=1 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -368,6 +371,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top rv_dm \
 			-top flash_rd_ctrl \
 			-top flash_prog_ctrl \
+			-top flash_erase_ctrl \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -413,6 +417,10 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PAddrW=17 \
 		# -PDataW=32 \
 	# Delete -top flash_prog_ctrl when flash_ctrl will be added to uhdm
+	# Delete -top flash_erase_ctrl when flash_ctrl will be added to uhdm
+		# -PWordsPerPage=256 \
+		# -PPagesPerBank=256 \
+		# -PEraseBitWidth=1 \
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
