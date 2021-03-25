@@ -328,6 +328,19 @@ index 4a6a9d709..3c755c66f 100644
      pwrmgr_reg2hw_reset_en_reg_t reset_en; // [23:22]
      pwrmgr_reg2hw_wake_info_capture_dis_reg_t wake_info_capture_dis; // [21:21]
      pwrmgr_reg2hw_wake_info_reg_t wake_info; // [20:0]
+diff --git a/hw/ip/tlul/rtl/tlul_adapter_sram.sv b/hw/ip/tlul/rtl/tlul_adapter_sram.sv
+index 6e2f33191..cb3e9088c 100644
+--- a/hw/ip/tlul/rtl/tlul_adapter_sram.sv
++++ b/hw/ip/tlul/rtl/tlul_adapter_sram.sv
+@@ -174,7 +174,7 @@ module tlul_adapter_sram #(
+   logic [WidthMult-1:0][top_pkg::TL_DW-1:0] wmask_int;
+   logic [WidthMult-1:0][top_pkg::TL_DW-1:0] wdata_int;
+ 
+-  always_comb begin
++  always begin
+     wmask_int = '0;
+     wdata_int = '0;
+ 
 diff --git a/hw/ip/tlul/rtl/tlul_fifo_sync.sv b/hw/ip/tlul/rtl/tlul_fifo_sync.sv
 index 59fe3ffd4..071a30b94 100644
 --- a/hw/ip/tlul/rtl/tlul_fifo_sync.sv
