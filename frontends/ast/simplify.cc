@@ -3446,13 +3446,14 @@ skip_dynamic_range_lvalue_expansion:;
 					if (buf->children.size() > 0) {
 						// we give up here because when we try to support thing such as $size(a[1][1]) the AST at this point doesn't contain
 						// the information how many indexes were given. The array is already flattened and a composite index is given in the AST instead.
-						log_file_error(filename, location.first_line, "%s() only supported for pure identifiers (no further indexing)!\n", str.c_str());
 						// something is hanging below this identifier
 						if (buf->children[0]->type == AST_RANGE)
 							dim++;
 						// more than one range, e.g. $size(a[3][2])
-						else if (buf->children[0]->type == AST_MULTIRANGE)
+						else if (buf->children[0]->type == AST_MULTIRANGE) {
+							log_file_error(filename, location.first_line, "%s() only supported for pure identifiers (no further indexing)!\n", str.c_str());
 							dim += buf->children[0]->children.size(); // increment by multirange size
+						}
 					}
 					// We have 4 cases:
 					// AST_WIRE, no AST_RANGE children
