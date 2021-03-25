@@ -94,7 +94,6 @@ tlul_socket_1n.sv \
 tlul_socket_m1.sv \
 sram2tlul.sv \
 debug_rom_one_scratch.sv \
-dm_sba.sv \
 aes_reg_top.sv \
 aes_core.sv \
 aes_sbox.sv \
@@ -283,6 +282,7 @@ dmi_jtag_tap.sv \
 dmi_jtag.sv \
 dm_csrs.sv \
 dm_mem.sv \
+dm_sba.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -369,6 +369,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top dmi_jtag \
 			-top dm_csrs \
 			-top dm_mem \
+			-top dm_sba \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -419,6 +420,7 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PSelectableHarts=1 \
 	# Delete -top dm_mem when rv_dm will be added to uhdm
 		# -PDmBaseAddress=1 \
+	# Delete -top dm_sba when rv_dm will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \

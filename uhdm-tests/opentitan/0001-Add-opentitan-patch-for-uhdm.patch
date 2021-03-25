@@ -585,3 +585,29 @@ index 550b7cc36..c65fe30c4 100755
  
      halted_d_aligned   = NrHartsAligned'(halted_q);
      resuming_d_aligned = NrHartsAligned'(resuming_q);
+diff --git a/hw/vendor/pulp_riscv_dbg/src/dm_sba.sv b/hw/vendor/pulp_riscv_dbg/src/dm_sba.sv
+index c97f9565a..4aa3646f4 100644
+--- a/hw/vendor/pulp_riscv_dbg/src/dm_sba.sv
++++ b/hw/vendor/pulp_riscv_dbg/src/dm_sba.sv
+@@ -98,16 +98,16 @@ module dm_sba #(
+         // generate byte enable mask
+         unique case (sbaccess_i)
+           3'b000: begin
+-            be[be_idx] = '1;
++            be[be_idx] = 4'b1111;
+           end
+           3'b001: begin
+-            be[int'({be_idx[$high(be_idx):1], 1'b0}) +: 2] = '1;
++            be[int'({be_idx[$high(be_idx):1], 1'b0}) +: 2] = 2'b11;
+           end
+           3'b010: begin
+-            if (BusWidth == 32'd64) be[int'({be_idx[$high(be_idx)], 2'h0}) +: 4] = '1;
+-            else                    be = '1;
++            if (BusWidth == 32'd64) be[int'({be_idx[$high(be_idx)], 2'h0}) +: 4] = 2'b11;
++            else                    be = 4'b1111;
+           end
+-          3'b011: be = '1;
++          3'b011: be = 4'b1111;
+           default: ;
+         endcase
+         if (gnt) state_d = WaitWrite;
