@@ -58,7 +58,6 @@ prim_sync_reqack.sv \
 prim_keccak.sv \
 prim_packer.sv \
 prim_present.sv \
-prim_prince.sv \
 prim_subst_perm.sv \
 prim_gate_gen.sv \
 prim_pulse_sync.sv \
@@ -68,7 +67,6 @@ prim_subreg_arb.sv \
 prim_subreg.sv \
 prim_subreg_ext.sv \
 prim_generic_clock_inv.sv \
-prim_generic_flash.sv \
 prim_ram_1p_adv.sv \
 prim_ram_2p_async_adv.sv \
 prim_rom_adv.sv \
@@ -81,7 +79,6 @@ usb_fs_rx.sv \
 usb_fs_tx.sv \
 usb_fs_tx_mux.sv \
 prim_clock_inv.sv \
-prim_flash.sv \
 prim_ram_2p_adv.sv \
 tlul_fifo_sync.sv \
 tlul_fifo_async.sv \
@@ -112,7 +109,6 @@ flash_phy_core.sv \
 flash_phy_rd.sv \
 flash_phy_prog.sv \
 flash_phy_rd_buffers.sv \
-flash_phy_scramble.sv \
 gpio.sv \
 gpio_reg_top.sv \
 sha2.sv \
@@ -195,6 +191,8 @@ prim_esc_pkg.sv \
 prim_cipher_pkg.sv \
 clkmgr_pkg.sv \
 dm_pkg.sv \
+flash_ctrl_pkg.sv \
+flash_phy_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -284,6 +282,12 @@ rv_dm.sv \
 flash_rd_ctrl.sv \
 flash_prog_ctrl.sv \
 flash_erase_ctrl.sv \
+prim_generic_ram_1p.sv \
+prim_ram_1p.sv \
+prim_generic_flash.sv \
+prim_flash.sv \
+prim_prince.sv \
+flash_phy_scramble.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -339,22 +343,16 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PSecureIbex=0 \
 			-PPipeLine=1 \
 			-PAsyncOn=1 \
-			-PWidth=64 \
-			-PStagesPerCycle=32 \
 			-PIdcodeValue=83183693 \
 			-PNrHarts=1 \
 			-PAddrW=17 \
 			-PDataW=32 \
-			-PWordsPerPage=256 \
-			-PPagesPerBank=256 \
-			-PEraseBitWidth=1 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
 			-top prim_subreg_shadow \
 			-top aes_ctr \
 			-top aes_control \
-			-top prim_gf_mult \
 			-top tlul_err_resp \
 			-top aes_sub_bytes \
 			-top aes_cipher_core \
@@ -372,6 +370,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top flash_rd_ctrl \
 			-top flash_prog_ctrl \
 			-top flash_erase_ctrl \
+			-top prim_flash \
+			-top flash_phy_scramble \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -421,6 +421,8 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PWordsPerPage=256 \
 		# -PPagesPerBank=256 \
 		# -PEraseBitWidth=1 \
+	# Delete -top prim_flash when flash_phy_core will be added to uhdm
+	# Delete -top flash_phy_scramble when flash_phy_core will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
