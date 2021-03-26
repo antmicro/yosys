@@ -103,7 +103,6 @@ alert_handler.sv \
 flash_ctrl_reg_top.sv \
 flash_ctrl.sv \
 flash_mp.sv \
-flash_phy.sv \
 gpio.sv \
 gpio_reg_top.sv \
 sha2.sv \
@@ -288,6 +287,7 @@ flash_phy_rd_buffers.sv \
 flash_phy_rd.sv \
 flash_phy_prog.sv \
 flash_phy_core.sv \
+flash_phy.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -370,7 +370,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top flash_rd_ctrl \
 			-top flash_prog_ctrl \
 			-top flash_erase_ctrl \
-			-top flash_phy_core \
+			-top flash_phy \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -420,6 +420,7 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PWordsPerPage=256 \
 		# -PPagesPerBank=256 \
 		# -PEraseBitWidth=1 \
+	# Delete -top flash_phy when top_earlgrey will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
