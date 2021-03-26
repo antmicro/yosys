@@ -297,6 +297,19 @@ index 5324b4978..fb9e8de6c 100644
    } reg2hw_wrap_t;
  
  endpackage : alert_pkg
+diff --git a/hw/ip/flash_ctrl/rtl/flash_phy.sv b/hw/ip/flash_ctrl/rtl/flash_phy.sv
+index 28ad2a12a..ecbac1432 100644
+--- a/hw/ip/flash_ctrl/rtl/flash_phy.sv
++++ b/hw/ip/flash_ctrl/rtl/flash_phy.sv
+@@ -21,7 +21,7 @@ module flash_phy import flash_ctrl_pkg::*; (
+   input flash_req_t flash_ctrl_i,
+   output flash_rsp_t flash_ctrl_o
+ );
+-
++  import flash_phy_pkg::*;
+   // Flash macro outstanding refers to how many reads we allow a macro to move ahead of an
+   // in order blocking read. Since the data cannot be returned out of order, this simply
+   // does the reads in advance and store them in a FIFO
 diff --git a/hw/ip/prim/rtl/prim_prince.sv b/hw/ip/prim/rtl/prim_prince.sv
 index 423a7ca21..cb790a861 100644
 --- a/hw/ip/prim/rtl/prim_prince.sv
