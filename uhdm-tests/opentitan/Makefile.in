@@ -47,7 +47,6 @@ pinmux_reg_top.sv \
 pwrmgr_reg_top.sv \
 ibex_icache.sv \
 prim_arbiter_ppc.sv \
-prim_arbiter_tree.sv \
 prim_dom_and_2share.sv \
 prim_arbiter_fixed.sv \
 prim_esc_receiver.sv \
@@ -106,9 +105,7 @@ flash_ctrl.sv \
 flash_mp.sv \
 flash_phy.sv \
 flash_phy_core.sv \
-flash_phy_rd.sv \
 flash_phy_prog.sv \
-flash_phy_rd_buffers.sv \
 gpio.sv \
 gpio_reg_top.sv \
 sha2.sv \
@@ -288,6 +285,9 @@ prim_generic_flash.sv \
 prim_flash.sv \
 prim_prince.sv \
 flash_phy_scramble.sv \
+prim_arbiter_tree.sv \
+flash_phy_rd_buffers.sv \
+flash_phy_rd.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -372,6 +372,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top flash_erase_ctrl \
 			-top prim_flash \
 			-top flash_phy_scramble \
+			-top flash_phy_rd \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -423,6 +424,7 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PEraseBitWidth=1 \
 	# Delete -top prim_flash when flash_phy_core will be added to uhdm
 	# Delete -top flash_phy_scramble when flash_phy_core will be added to uhdm
+	# Delete -top flash_phy_rd when flash_phy_core will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
