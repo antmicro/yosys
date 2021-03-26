@@ -94,8 +94,6 @@ tlul_socket_1n.sv \
 tlul_socket_m1.sv \
 sram2tlul.sv \
 debug_rom_one_scratch.sv \
-dm_sba.sv \
-dm_mem.sv \
 aes_reg_top.sv \
 aes_core.sv \
 aes_sbox.sv \
@@ -135,7 +133,6 @@ padring.sv \
 padctrl.sv \
 pinmux_wkup.sv \
 pinmux.sv \
-rv_dm.sv \
 rv_plic_gateway.sv \
 rv_plic_target.sv \
 rv_timer_reg_top.sv \
@@ -283,6 +280,10 @@ dmi_cdc.sv \
 dmi_jtag_tap.sv \
 dmi_jtag.sv \
 dm_csrs.sv \
+dm_mem.sv \
+dm_sba.sv \
+tlul_adapter_sram.sv \
+rv_dm.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -342,8 +343,6 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PStagesPerCycle=32 \
 			-PIdcodeValue=83183693 \
 			-PNrHarts=1 \
-			-PBusWidth=32 \
-			-PSelectableHarts=1 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -364,9 +363,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top alert_handler_class \
 			-top aes_prng \
 			-top clkmgr \
-			-top debug_rom \
-			-top dmi_jtag \
-			-top dm_csrs \
+			-top rv_dm \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -406,15 +403,8 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top alert_handler_accu when alert_handler will be added to uhdm
 	# Delete -top alert_handler_esc_timer when alert_handler will be added to uhdm
 	# Delete -top alert_handler_class when alert_handler will be added to uhdm
-	# Delete -top dmi_jtag when rv_dm will be added to uhdm
-		# -PIdcodeValue=83183693 \
 	# Delete -top aes_prng when aes will be added to uhdm
-	# Delete -top debug_rom when dm_mem will be added to uhdm
-	# Delete -top dmi_cdc when dmi_jtag will be added to uhdm
-	# Delete -top dm_csrs when dm_csrs will be added to uhdm
-		# -PNrHarts=1 \
-		# -PBusWidth=32 \
-		# -PSelectableHarts=1 \
+	# Delete -top dm_dm when top_earlgrey will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
