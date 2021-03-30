@@ -1204,6 +1204,7 @@ void UhdmAst::process_operation() {
 					current_node = concat_node;
 					break;
 				}
+				case vpiNullOp: current_node = nullptr; break; //do nothing
 				default: {
 					const uhdm_handle* const handle = (const uhdm_handle*) obj_h;
 					const UHDM::BaseClass* const object = (const UHDM::BaseClass*) handle->object;
