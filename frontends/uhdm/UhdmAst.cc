@@ -717,31 +717,33 @@ void UhdmAst::process_enum_typespec() {
 						  current_node->children.push_back(node);
 					  });
 	vpiHandle typespec_h = vpi_handle(vpiBaseTypespec, obj_h);
-	int typespec_type = vpi_get(vpiType, typespec_h);
-	switch (typespec_type) {
-		case vpiLogicTypespec: {
-			current_node->is_logic = true;
-			visit_range(typespec_h,
-						[&](AST::AstNode* node) {
-							for (auto child : current_node->children) {
-								child->children.push_back(node->clone());
-							}
-						});
-			shared.report.mark_handled(typespec_h);
-			break;
-		}
-		case vpiIntTypespec: {
-			current_node->is_signed = true;
-			shared.report.mark_handled(typespec_h);
-			break;
-		}
-		default: {
-			const uhdm_handle* const handle = (const uhdm_handle*) typespec_h;
-			const UHDM::BaseClass* const object = (const UHDM::BaseClass*) handle->object;
-			report_error("Encountered unhandled typespec in process_enum_typespec: '%s' of type '%s' at %s:%d\n",
-						 object->VpiName().c_str(), UHDM::VpiTypeName(typespec_h).c_str(), object->VpiFile().c_str(),
-						 object->VpiLineNo());
-			break;
+	if (typespec_h) {
+		int typespec_type = vpi_get(vpiType, typespec_h);
+		switch (typespec_type) {
+			case vpiLogicTypespec: {
+				current_node->is_logic = true;
+				visit_range(typespec_h,
+							[&](AST::AstNode* node) {
+								for (auto child : current_node->children) {
+									child->children.push_back(node->clone());
+								}
+							});
+				shared.report.mark_handled(typespec_h);
+				break;
+			}
+			case vpiIntTypespec: {
+				current_node->is_signed = true;
+				shared.report.mark_handled(typespec_h);
+				break;
+			}
+			default: {
+				const uhdm_handle* const handle = (const uhdm_handle*) typespec_h;
+				const UHDM::BaseClass* const object = (const UHDM::BaseClass*) handle->object;
+				report_error("Encountered unhandled typespec in process_enum_typespec: '%s' of type '%s' at %s:%d\n",
+							 object->VpiName().c_str(), UHDM::VpiTypeName(typespec_h).c_str(), object->VpiFile().c_str(),
+							 object->VpiLineNo());
+				break;
+			}
 		}
 	}
 }
@@ -1092,12 +1094,13 @@ void UhdmAst::process_begin() {
 					  obj_h,
 					  [&](AST::AstNode* node) {
 						  if (node) {
-							  if (node->type == AST::AST_ASSIGN_EQ && node->children.size() == 1) {
-								  auto func_node = find_ancestor({AST::AST_FUNCTION, AST::AST_TASK});
+							  if ((node->type == AST::AST_ASSIGN_EQ || node->type == AST::AST_ASSIGN_LE) && node->children.size() == 1) {
+								  auto func_node = find_ancestor({AST::AST_FUNCTION, AST::AST_TASK, AST::AST_MODULE});
 								  if (!func_node) return;
 								  auto wire_node = new AST::AstNode(AST::AST_WIRE);
 								  wire_node->type = AST::AST_WIRE;
 								  wire_node->str = node->children[0]->str;
+								  wire_node->children = node->children[0]->children;
 								  func_node->children.push_back(wire_node);
 							  } else {
 								  current_node->children.push_back(node);
