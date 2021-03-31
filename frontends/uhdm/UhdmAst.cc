@@ -1037,7 +1037,13 @@ void UhdmAst::process_always() {
 		obj_h,
 		[&](AST::AstNode* node) {
 			if (node) {
-				current_node->children.push_back(node);
+				AST::AstNode* block = nullptr;
+				if (node->type != AST::AST_BLOCK) {
+					block = new AST::AstNode(AST::AST_BLOCK, node);
+				} else {
+					block = node;
+				}
+				current_node->children.push_back(block);
 			}
 		});
 	switch (vpi_get(vpiAlwaysType, obj_h)) {
