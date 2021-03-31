@@ -478,10 +478,12 @@ void UhdmAst::process_port() {
 	visit_one_to_one({vpiTypedef},
 					 obj_h,
 					 [&](AST::AstNode* node) {
-						 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
-						 wiretype_node->str = node->str;
-						 current_node->children.push_back(wiretype_node);
-						 current_node->is_custom_type=true;
+					 	 if (node) {
+							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+							 wiretype_node->str = node->str;
+							 current_node->children.push_back(wiretype_node);
+							 current_node->is_custom_type=true;
+						 }
 					 });
 	if (const int n = vpi_get(vpiDirection, obj_h)) {
 		if (n == vpiInput) {
@@ -869,6 +871,12 @@ void UhdmAst::process_assignment() {
 							 current_node->children.push_back(node);
 						 }
 					 });
+	if (current_node->children.size() == 1 && current_node->children[0]->type == AST::AST_WIRE) {
+		  auto top_node = find_ancestor({AST::AST_MODULE});
+		  if (!top_node) return;
+		  top_node->children.push_back(current_node->children[0]->clone());
+		  current_node = nullptr;
+	}
 }
 
 void UhdmAst::process_net() {
@@ -1101,12 +1109,11 @@ void UhdmAst::process_begin() {
 					  [&](AST::AstNode* node) {
 						  if (node) {
 							  if ((node->type == AST::AST_ASSIGN_EQ || node->type == AST::AST_ASSIGN_LE) && node->children.size() == 1) {
-								  auto func_node = find_ancestor({AST::AST_FUNCTION, AST::AST_TASK, AST::AST_MODULE});
+								  auto func_node = find_ancestor({AST::AST_FUNCTION, AST::AST_TASK});
 								  if (!func_node) return;
 								  auto wire_node = new AST::AstNode(AST::AST_WIRE);
 								  wire_node->type = AST::AST_WIRE;
 								  wire_node->str = node->children[0]->str;
-								  wire_node->children = node->children[0]->children;
 								  func_node->children.push_back(wire_node);
 							  } else {
 								  current_node->children.push_back(node);
