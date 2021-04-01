@@ -1236,7 +1236,7 @@ void UhdmAst::process_stream_op()  {
 	// Create a for loop that does what a streaming operator would do
 	auto block_node = find_ancestor({AST::AST_BLOCK, AST::AST_ALWAYS, AST::AST_INITIAL});
 	auto process_node = find_ancestor({AST::AST_ALWAYS, AST::AST_INITIAL});
-	auto module_node = find_ancestor({AST::AST_MODULE});
+	auto module_node = find_ancestor({AST::AST_MODULE, AST::AST_FUNCTION, AST::AST_PACKAGE});
 	if (!process_node) {
 		// Create a @* always block
 		process_node = make_ast_node(AST::AST_ALWAYS);
@@ -1257,7 +1257,7 @@ void UhdmAst::process_stream_op()  {
 	auto loop_counter_ident = make_ast_node(AST::AST_IDENTIFIER);
 	loop_counter_ident->str = loop_counter->str;
 
-	auto lhs_node = find_ancestor({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ})->children[0];
+	auto lhs_node = find_ancestor({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ, AST::AST_ASSIGN_LE})->children[0];
 
 	// Width of LHS
 	auto bits_call = make_ast_node(AST::AST_FCALL,
