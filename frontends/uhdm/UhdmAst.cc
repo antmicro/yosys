@@ -486,7 +486,8 @@ void UhdmAst::process_port() {
 					 	 if (node) {
 							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
 							 wiretype_node->str = node->str;
-							 current_node->children.push_back(wiretype_node);
+							 // wiretype needs to be 1st node (if port have also another range nodes)
+							 current_node->children.insert(current_node->children.begin(), wiretype_node);
 							 current_node->is_custom_type=true;
 						 }
 					 });
@@ -1023,7 +1024,7 @@ void UhdmAst::process_io_decl() {
 	visit_one_to_one({vpiExpr},
 					 obj_h,
 					 [&](AST::AstNode* node) {
-						 current_node = node;
+					 	 current_node = node;
 					 });
 	if (current_node == nullptr) {
 		current_node = make_ast_node(AST::AST_MODPORTMEMBER);
@@ -1813,6 +1814,17 @@ void UhdmAst::process_logic_var() {
 	//TODO: add const attribute, but it seems it is little more
 	//then just setting boolean value
 	//current_node->is_const = vpi_get(vpiConstantVariable, obj_h);
+	visit_one_to_one({vpiTypespec},
+					 obj_h,
+					 [&](AST::AstNode* node) {
+					 	 if (node) {
+							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+							 wiretype_node->str = node->str;
+							 // wiretype needs to be 1st node (if port have also another range nodes)
+							 current_node->children.insert(current_node->children.begin(), wiretype_node);
+							 current_node->is_custom_type=true;
+						 }
+					 });
 	visit_range(obj_h,
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
