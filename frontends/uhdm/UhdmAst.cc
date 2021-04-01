@@ -464,6 +464,20 @@ void UhdmAst::process_port() {
 				shared.report.mark_handled(actual_h);
 				break;
 			}
+			case vpiPackedArrayVar:
+				visit_one_to_many({vpiElement},
+								  actual_h,
+								  [&](AST::AstNode* node) {
+									  if (node && GetSize(node->children) == 1)
+										  current_node->children.push_back(node->children[0]);
+								  });
+				visit_one_to_many({vpiRange},
+								  actual_h,
+								  [&](AST::AstNode* node) {
+									  current_node->children.push_back(node);
+								  });
+				shared.report.mark_handled(actual_h);
+				break;
 			case vpiEnumNet:
 			case vpiStructNet:
 			case vpiArrayNet:
@@ -667,6 +681,17 @@ void UhdmAst::process_struct_typespec() {
 					  obj_h,
 					  [&](AST::AstNode* node) {
 						  current_node->children.push_back(node);
+					  });
+}
+
+void UhdmAst::process_packed_array_typespec() {
+	current_node = make_ast_node(AST::AST_WIRE);
+	visit_one_to_one({vpiElemTypespec},
+					  obj_h,
+					  [&](AST::AstNode* node) {
+					  	if (node) {
+							current_node->str = node->str;
+						}
 					  });
 }
 
@@ -1919,6 +1944,7 @@ AST::AstNode* UhdmAst::process_object(vpiHandle obj_handle) {
 		case vpiPort: process_port(); break;
 		case vpiModule: process_module(); break;
 		case vpiStructTypespec: process_struct_typespec(); break;
+		case vpiPackedArrayTypespec: process_packed_array_typespec(); break;
 		case vpiTypespecMember: process_typespec_member(); break;
 		case vpiEnumTypespec: process_enum_typespec(); break;
 		case vpiEnumConst: process_enum_const(); break;
