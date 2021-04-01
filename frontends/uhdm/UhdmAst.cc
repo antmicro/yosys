@@ -281,6 +281,7 @@ void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
 	typedef_node->location = type_node->location;
 	typedef_node->filename = type_node->filename;
 	typedef_node->str = strip_package_name(type_node->str);
+	if (std::find(shared.type_names.begin(), shared.type_names.end(), std::make_pair(type_node->str, current_node->str)) != shared.type_names.end()) return;
 	shared.type_names.push_back(std::make_pair(type_node->str, current_node->str));
 	type_node = type_node->clone();
 	if (type_node->type == AST::AST_STRUCT) {
@@ -299,6 +300,10 @@ void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
 		}
 		typedef_node->children.push_back(wire_node);
 		current_node->children.push_back(type_node);
+		current_node->children.push_back(typedef_node);
+	} else {
+		type_node->str.clear();
+		typedef_node->children.push_back(type_node);
 		current_node->children.push_back(typedef_node);
 	}
 }
@@ -1959,7 +1964,16 @@ AST::AstNode* UhdmAst::process_object(vpiHandle obj_handle) {
 				  break;
 		case vpiHierPath: process_hier_path(); break;
 		case UHDM::uhdmimport: break;
-		case vpiLogicTypespec: break; // Probably a typedef; ignore
+		case vpiLogicTypespec:
+				current_node = make_ast_node(AST::AST_WIRE);
+				current_node->is_logic = true;
+				visit_range(obj_h,
+							[&](AST::AstNode* node) {
+								if (node) {
+									current_node->children.push_back(node);
+								}
+							});
+				add_typedef(find_ancestor({AST::AST_MODULE, AST::AST_PACKAGE}), current_node); break;
 		case vpiProgram:
 		default: report_error("Encountered unhandled object '%s' of type '%s' at %s:%d\n", object->VpiName().c_str(),
 							  UHDM::VpiTypeName(obj_h).c_str(), object->VpiFile().c_str(), object->VpiLineNo()); break;
