@@ -344,6 +344,30 @@ index 5ee90881c..2667008be 100644
      end else if (inc_txcount) begin
        tx_count[63:5] <= tx_count[63:5] + 1'b1;
      end
+diff --git a/hw/ip/otbn/rtl/otbn_reg_top.sv b/hw/ip/otbn/rtl/otbn_reg_top.sv
+index 052cb2f5a..b62227975 100644
+--- a/hw/ip/otbn/rtl/otbn_reg_top.sv
++++ b/hw/ip/otbn/rtl/otbn_reg_top.sv
+@@ -54,13 +54,13 @@ module otbn_reg_top (
+   logic [1:0] reg_steer;
+ 
+   // socket_1n connection
+-  assign tl_reg_h2d = tl_socket_h2d[2];
+-  assign tl_socket_d2h[2] = tl_reg_d2h;
++  assign tl_reg_h2d = tl_socket_h2d[0];
+ 
+-  assign tl_win_o[0] = tl_socket_h2d[0];
+-  assign tl_socket_d2h[0] = tl_win_i[0];
+-  assign tl_win_o[1] = tl_socket_h2d[1];
+-  assign tl_socket_d2h[1] = tl_win_i[1];
++  assign tl_win_o[0] = tl_socket_h2d[1];
++  assign tl_win_o[1] = tl_socket_h2d[2];
++  assign tl_socket_d2h[0] = tl_reg_d2h;
++  assign tl_socket_d2h[1] = tl_win_i[0];
++  assign tl_socket_d2h[2] = tl_win_i[1];
+ 
+   // Create Socket_1n
+   tlul_socket_1n #(
 diff --git a/hw/ip/prim/rtl/prim_prince.sv b/hw/ip/prim/rtl/prim_prince.sv
 index 423a7ca21..cb790a861 100644
 --- a/hw/ip/prim/rtl/prim_prince.sv
