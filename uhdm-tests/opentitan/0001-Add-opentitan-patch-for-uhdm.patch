@@ -344,6 +344,31 @@ index 5ee90881c..2667008be 100644
      end else if (inc_txcount) begin
        tx_count[63:5] <= tx_count[63:5] + 1'b1;
      end
+diff --git a/hw/ip/otbn/rtl/otbn_core.sv b/hw/ip/otbn/rtl/otbn_core.sv
+index 8b13db4f5..312277b5f 100644
+--- a/hw/ip/otbn/rtl/otbn_core.sv
++++ b/hw/ip/otbn/rtl/otbn_core.sv
+@@ -10,7 +10,6 @@
+  * This module is the top-level of the OTBN processing core.
+  */
+ module otbn_core
+-  import otbn_pkg::*;
+ #(
+   // Size of the instruction memory, in bytes
+   parameter int ImemSizeByte = 4096,
+@@ -40,9 +39,9 @@ module otbn_core
+   output logic                     dmem_req_o,
+   output logic                     dmem_write_o,
+   output logic [DmemAddrWidth-1:0] dmem_addr_o,
+-  output logic [WLEN-1:0]          dmem_wdata_o,
+-  output logic [WLEN-1:0]          dmem_wmask_o,
+-  input  logic [WLEN-1:0]          dmem_rdata_i,
++  output logic [256-1:0]          dmem_wdata_o,
++  output logic [256-1:0]          dmem_wmask_o,
++  input  logic [256-1:0]          dmem_rdata_i,
+   input  logic                     dmem_rvalid_i,
+   input  logic [1:0]               dmem_rerror_i
+ );
 diff --git a/hw/ip/otbn/rtl/otbn_reg_top.sv b/hw/ip/otbn/rtl/otbn_reg_top.sv
 index 052cb2f5a..b62227975 100644
 --- a/hw/ip/otbn/rtl/otbn_reg_top.sv
