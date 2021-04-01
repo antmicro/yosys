@@ -478,10 +478,12 @@ void UhdmAst::process_port() {
 	visit_one_to_one({vpiTypedef},
 					 obj_h,
 					 [&](AST::AstNode* node) {
-						 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
-						 wiretype_node->str = node->str;
-						 current_node->children.push_back(wiretype_node);
-						 current_node->is_custom_type=true;
+					 	 if (node) {
+							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+							 wiretype_node->str = node->str;
+							 current_node->children.push_back(wiretype_node);
+							 current_node->is_custom_type=true;
+						 }
 					 });
 	if (const int n = vpi_get(vpiDirection, obj_h)) {
 		if (n == vpiInput) {
@@ -717,31 +719,33 @@ void UhdmAst::process_enum_typespec() {
 						  current_node->children.push_back(node);
 					  });
 	vpiHandle typespec_h = vpi_handle(vpiBaseTypespec, obj_h);
-	int typespec_type = vpi_get(vpiType, typespec_h);
-	switch (typespec_type) {
-		case vpiLogicTypespec: {
-			current_node->is_logic = true;
-			visit_range(typespec_h,
-						[&](AST::AstNode* node) {
-							for (auto child : current_node->children) {
-								child->children.push_back(node->clone());
-							}
-						});
-			shared.report.mark_handled(typespec_h);
-			break;
-		}
-		case vpiIntTypespec: {
-			current_node->is_signed = true;
-			shared.report.mark_handled(typespec_h);
-			break;
-		}
-		default: {
-			const uhdm_handle* const handle = (const uhdm_handle*) typespec_h;
-			const UHDM::BaseClass* const object = (const UHDM::BaseClass*) handle->object;
-			report_error("Encountered unhandled typespec in process_enum_typespec: '%s' of type '%s' at %s:%d\n",
-						 object->VpiName().c_str(), UHDM::VpiTypeName(typespec_h).c_str(), object->VpiFile().c_str(),
-						 object->VpiLineNo());
-			break;
+	if (typespec_h) {
+		int typespec_type = vpi_get(vpiType, typespec_h);
+		switch (typespec_type) {
+			case vpiLogicTypespec: {
+				current_node->is_logic = true;
+				visit_range(typespec_h,
+							[&](AST::AstNode* node) {
+								for (auto child : current_node->children) {
+									child->children.push_back(node->clone());
+								}
+							});
+				shared.report.mark_handled(typespec_h);
+				break;
+			}
+			case vpiIntTypespec: {
+				current_node->is_signed = true;
+				shared.report.mark_handled(typespec_h);
+				break;
+			}
+			default: {
+				const uhdm_handle* const handle = (const uhdm_handle*) typespec_h;
+				const UHDM::BaseClass* const object = (const UHDM::BaseClass*) handle->object;
+				report_error("Encountered unhandled typespec in process_enum_typespec: '%s' of type '%s' at %s:%d\n",
+							 object->VpiName().c_str(), UHDM::VpiTypeName(typespec_h).c_str(), object->VpiFile().c_str(),
+							 object->VpiLineNo());
+				break;
+			}
 		}
 	}
 }
@@ -867,6 +871,12 @@ void UhdmAst::process_assignment() {
 							 current_node->children.push_back(node);
 						 }
 					 });
+	if (current_node->children.size() == 1 && current_node->children[0]->type == AST::AST_WIRE) {
+		  auto top_node = find_ancestor({AST::AST_MODULE});
+		  if (!top_node) return;
+		  top_node->children.push_back(current_node->children[0]->clone());
+		  current_node = nullptr;
+	}
 }
 
 void UhdmAst::process_net() {
@@ -1035,7 +1045,13 @@ void UhdmAst::process_always() {
 		obj_h,
 		[&](AST::AstNode* node) {
 			if (node) {
-				current_node->children.push_back(node);
+				AST::AstNode* block = nullptr;
+				if (node->type != AST::AST_BLOCK) {
+					block = new AST::AstNode(AST::AST_BLOCK, node);
+				} else {
+					block = node;
+				}
+				current_node->children.push_back(block);
 			}
 		});
 	switch (vpi_get(vpiAlwaysType, obj_h)) {
@@ -1092,7 +1108,7 @@ void UhdmAst::process_begin() {
 					  obj_h,
 					  [&](AST::AstNode* node) {
 						  if (node) {
-							  if (node->type == AST::AST_ASSIGN_EQ && node->children.size() == 1) {
+							  if ((node->type == AST::AST_ASSIGN_EQ || node->type == AST::AST_ASSIGN_LE) && node->children.size() == 1) {
 								  auto func_node = find_ancestor({AST::AST_FUNCTION, AST::AST_TASK});
 								  if (!func_node) return;
 								  auto wire_node = new AST::AstNode(AST::AST_WIRE);
