@@ -1151,13 +1151,13 @@ void UhdmAst::process_operation() {
 				case vpiUnaryXNorOp: current_node->type = AST::AST_REDUCE_XNOR; break;
 				case vpiUnaryNandOp: {
 					current_node->type = AST::AST_REDUCE_AND;
-					auto not_node = new AST::AstNode(AST::AST_BIT_NOT, current_node);
+					auto not_node = new AST::AstNode(AST::AST_LOGIC_NOT, current_node);
 					current_node = not_node;
 					break;
 				}
 				case vpiUnaryNorOp: {
 					current_node->type = AST::AST_REDUCE_OR;
-					auto not_node = new AST::AstNode(AST::AST_BIT_NOT, current_node);
+					auto not_node = new AST::AstNode(AST::AST_LOGIC_NOT, current_node);
 					current_node = not_node;
 					break;
 				}
