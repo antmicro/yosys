@@ -41,6 +41,7 @@ prim_ram_1p.sv \
 prim_ram_2p.sv \
 prim_rom.sv \
 prim_lfsr.sv \
+prim_intr_hw.sv \
 alert_handler_reg_top.sv \
 padctrl_reg_top.sv \
 pinmux_reg_top.sv \
@@ -106,7 +107,6 @@ gpio_reg_top.sv \
 sha2.sv \
 hmac_reg_top.sv \
 hmac.sv \
-nmi_gen.sv \
 otbn_reg_top.sv \
 otbn_core.sv \
 otbn.sv \
@@ -290,6 +290,7 @@ prim_packer.sv \
 hmac_core.sv \
 nmi_gen_reg_top.sv \
 prim_esc_receiver.sv \
+nmi_gen.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -378,8 +379,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top sha2_pad \
 			-top prim_packer \
 			-top hmac_core \
-			-top nmi_gen_reg_top \
-			-top prim_esc_receiver \
+			-top nmi_gen \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -433,8 +433,7 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top sha2_pad when sha2 will be added to uhdm
 	# Delete -top prim_packer when hmac will be added to uhdm
 	# Delete -top hmac_core when hmac will be added to uhdm
-	# Delete -top nmi_gen_reg_top when nmi_gen will be added to uhdm
-	# Delete -top prim_esc_receiver when nmi_gen will be added to uhdm
+	# Delete -top nmi_gen when top_earlgrey will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
