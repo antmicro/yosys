@@ -107,7 +107,6 @@ gpio_reg_top.sv \
 sha2.sv \
 hmac_reg_top.sv \
 hmac.sv \
-otbn_core.sv \
 otbn.sv \
 jtag_mux.sv \
 padring.sv \
@@ -184,6 +183,7 @@ flash_phy_pkg.sv \
 hmac_pkg.sv \
 nmi_gen_reg_pkg.sv \
 otbn_reg_pkg.sv \
+otbn_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -292,6 +292,7 @@ nmi_gen_reg_top.sv \
 prim_esc_receiver.sv \
 nmi_gen.sv \
 otbn_reg_top.sv \
+otbn_core.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -353,6 +354,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PDataW=32 \
 			-PInW=32 \
 			-POutW=32 \
+			-PImemSizeByte=4096 \
+			-PDmemSizeByte=4096 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -382,6 +385,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top hmac_core \
 			-top nmi_gen \
 			-top otbn_reg_top \
+			-top otbn_core \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -437,6 +441,9 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top hmac_core when hmac will be added to uhdm
 	# Delete -top nmi_gen when top_earlgrey will be added to uhdm
 	# Delete -top otbn_reg_top when otbn will be added to uhdm
+	# Delete -top otbn_core when otbn will be added to uhdm
+		# -PImemSizeByte=4096 \
+		# -PDmemSizeByte=4096 \
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
