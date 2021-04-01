@@ -106,7 +106,6 @@ gpio.sv \
 gpio_reg_top.sv \
 sha2.sv \
 hmac_reg_top.sv \
-hmac_core.sv \
 hmac.sv \
 nmi_gen_reg_top.sv \
 nmi_gen.sv \
@@ -289,6 +288,7 @@ flash_phy_core.sv \
 flash_phy.sv \
 sha2_pad.sv \
 prim_packer.sv \
+hmac_core.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -376,6 +376,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top flash_phy \
 			-top sha2_pad \
 			-top prim_packer \
+			-top hmac_core \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -428,6 +429,7 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top flash_phy when top_earlgrey will be added to uhdm
 	# Delete -top sha2_pad when sha2 will be added to uhdm
 	# Delete -top prim_packer when hmac will be added to uhdm
+	# Delete -top hmac_core when hmac will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
