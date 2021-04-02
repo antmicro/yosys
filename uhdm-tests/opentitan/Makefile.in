@@ -41,6 +41,7 @@ prim_ram_1p.sv \
 prim_ram_2p.sv \
 prim_rom.sv \
 prim_lfsr.sv \
+prim_intr_hw.sv \
 alert_handler_reg_top.sv \
 padctrl_reg_top.sv \
 pinmux_reg_top.sv \
@@ -49,7 +50,6 @@ ibex_icache.sv \
 prim_arbiter_ppc.sv \
 prim_dom_and_2share.sv \
 prim_arbiter_fixed.sv \
-prim_esc_receiver.sv \
 prim_sram_arbiter.sv \
 prim_fifo_async.sv \
 prim_fifo_sync.sv \
@@ -107,10 +107,6 @@ gpio_reg_top.sv \
 sha2.sv \
 hmac_reg_top.sv \
 hmac.sv \
-nmi_gen_reg_top.sv \
-nmi_gen.sv \
-otbn_reg_top.sv \
-otbn_core.sv \
 otbn.sv \
 jtag_mux.sv \
 padring.sv \
@@ -185,6 +181,8 @@ dm_pkg.sv \
 flash_ctrl_pkg.sv \
 flash_phy_pkg.sv \
 hmac_pkg.sv \
+nmi_gen_reg_pkg.sv \
+otbn_reg_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -289,6 +287,11 @@ flash_phy.sv \
 sha2_pad.sv \
 prim_packer.sv \
 hmac_core.sv \
+nmi_gen_reg_top.sv \
+prim_esc_receiver.sv \
+nmi_gen.sv \
+otbn_reg_top.sv \
+otbn_core.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -377,6 +380,9 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top sha2_pad \
 			-top prim_packer \
 			-top hmac_core \
+			-top nmi_gen \
+			-top otbn_reg_top \
+			-top otbn_core \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -430,6 +436,11 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top sha2_pad when sha2 will be added to uhdm
 	# Delete -top prim_packer when hmac will be added to uhdm
 	# Delete -top hmac_core when hmac will be added to uhdm
+	# Delete -top nmi_gen when top_earlgrey will be added to uhdm
+	# Delete -top otbn_reg_top when otbn will be added to uhdm
+	# Delete -top otbn_core when otbn will be added to uhdm
+		# -PImemSizeByte=4096 \
+		# -PDmemSizeByte=4096 \
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
