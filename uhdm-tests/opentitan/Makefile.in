@@ -57,7 +57,6 @@ prim_keccak.sv \
 prim_present.sv \
 prim_subst_perm.sv \
 prim_gate_gen.sv \
-prim_pulse_sync.sv \
 prim_filter.sv \
 prim_filter_ctr.sv \
 prim_subreg_arb.sv \
@@ -293,6 +292,7 @@ otbn_reg_top.sv \
 otbn_core.sv \
 prim_generic_pad_wrapper.sv \
 prim_pad_wrapper.sv \
+prim_pulse_sync.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -388,6 +388,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top otbn_core \
 			-top prim_generic_pad_wrapper \
 			-top prim_pad_wrapper \
+			-top prim_pulse_sync \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -448,6 +449,7 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top prim_pad_wrapper when padring will be added to uhdm
 		# -PVariant=0 \
 		# -PAttrDw=10 \
+	# Delete -top prim_pulse_sync when pinmux_wkup will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
