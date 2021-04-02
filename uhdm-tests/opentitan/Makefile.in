@@ -36,7 +36,6 @@ prim_generic_rom.sv \
 prim_clock_mux2.sv \
 prim_flop.sv \
 prim_flop_2sync.sv \
-prim_pad_wrapper.sv \
 prim_ram_1p.sv \
 prim_ram_2p.sv \
 prim_rom.sv \
@@ -292,6 +291,8 @@ prim_esc_receiver.sv \
 nmi_gen.sv \
 otbn_reg_top.sv \
 otbn_core.sv \
+prim_generic_pad_wrapper.sv \
+prim_pad_wrapper.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -353,6 +354,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PDataW=32 \
 			-PInW=32 \
 			-POutW=32 \
+			-PVariant=0 \
+			-PAttrDw=10 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -383,6 +386,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top nmi_gen \
 			-top otbn_reg_top \
 			-top otbn_core \
+			-top prim_generic_pad_wrapper \
+			-top prim_pad_wrapper \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -439,8 +444,10 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top nmi_gen when top_earlgrey will be added to uhdm
 	# Delete -top otbn_reg_top when otbn will be added to uhdm
 	# Delete -top otbn_core when otbn will be added to uhdm
-		# -PImemSizeByte=4096 \
-		# -PDmemSizeByte=4096 \
+	# Delete -top prim_generic_pad_wrapper when padctrl will be added to uhdm
+	# Delete -top prim_pad_wrapper when padring will be added to uhdm
+		# -PVariant=0 \
+		# -PAttrDw=10 \
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
