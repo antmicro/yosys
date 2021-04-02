@@ -310,6 +310,40 @@ index 28ad2a12a..ecbac1432 100644
    // Flash macro outstanding refers to how many reads we allow a macro to move ahead of an
    // in order blocking read. Since the data cannot be returned out of order, this simply
    // does the reads in advance and store them in a FIFO
+diff --git a/hw/ip/hmac/rtl/sha2_pad.sv b/hw/ip/hmac/rtl/sha2_pad.sv
+index 5ee90881c..2667008be 100644
+--- a/hw/ip/hmac/rtl/sha2_pad.sv
++++ b/hw/ip/hmac/rtl/sha2_pad.sv
+@@ -89,7 +89,7 @@ module sha2_pad import hmac_pkg::*; (
+       end
+ 
+       Pad00: begin
+-        shaf_rdata = '0;
++        shaf_rdata = 32'h00000000;
+       end
+ 
+       LenHi: begin
+@@ -101,7 +101,7 @@ module sha2_pad import hmac_pkg::*; (
+       end
+ 
+       default: begin
+-        shaf_rdata = '0;
++        shaf_rdata = 32'h00000000;
+       end
+     endcase
+   end
+@@ -298,9 +298,9 @@ module sha2_pad import hmac_pkg::*; (
+   // tx_count
+   always_ff @(posedge clk_i or negedge rst_ni) begin
+     if (!rst_ni) begin
+-      tx_count <= '0;
++      tx_count <= 64'h0000000000000000;
+     end else if (hash_start) begin
+-      tx_count <= '0;
++      tx_count <= 64'h0000000000000000;
+     end else if (inc_txcount) begin
+       tx_count[63:5] <= tx_count[63:5] + 1'b1;
+     end
 diff --git a/hw/ip/prim/rtl/prim_prince.sv b/hw/ip/prim/rtl/prim_prince.sv
 index 423a7ca21..cb790a861 100644
 --- a/hw/ip/prim/rtl/prim_prince.sv

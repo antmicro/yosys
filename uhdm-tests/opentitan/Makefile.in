@@ -55,7 +55,6 @@ prim_fifo_async.sv \
 prim_fifo_sync.sv \
 prim_sync_reqack.sv \
 prim_keccak.sv \
-prim_packer.sv \
 prim_present.sv \
 prim_subst_perm.sv \
 prim_gate_gen.sv \
@@ -106,9 +105,7 @@ flash_mp.sv \
 gpio.sv \
 gpio_reg_top.sv \
 sha2.sv \
-sha2_pad.sv \
 hmac_reg_top.sv \
-hmac_core.sv \
 hmac.sv \
 nmi_gen_reg_top.sv \
 nmi_gen.sv \
@@ -187,6 +184,7 @@ clkmgr_pkg.sv \
 dm_pkg.sv \
 flash_ctrl_pkg.sv \
 flash_phy_pkg.sv \
+hmac_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -288,6 +286,9 @@ flash_phy_rd.sv \
 flash_phy_prog.sv \
 flash_phy_core.sv \
 flash_phy.sv \
+sha2_pad.sv \
+prim_packer.sv \
+hmac_core.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -347,6 +348,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PNrHarts=1 \
 			-PAddrW=17 \
 			-PDataW=32 \
+			-PInW=32 \
+			-POutW=32 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -371,6 +374,9 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top flash_prog_ctrl \
 			-top flash_erase_ctrl \
 			-top flash_phy \
+			-top sha2_pad \
+			-top prim_packer \
+			-top hmac_core \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -421,6 +427,9 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PPagesPerBank=256 \
 		# -PEraseBitWidth=1 \
 	# Delete -top flash_phy when top_earlgrey will be added to uhdm
+	# Delete -top sha2_pad when sha2 will be added to uhdm
+	# Delete -top prim_packer when hmac will be added to uhdm
+	# Delete -top hmac_core when hmac will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \

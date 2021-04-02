@@ -281,6 +281,7 @@ void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
 	typedef_node->location = type_node->location;
 	typedef_node->filename = type_node->filename;
 	typedef_node->str = strip_package_name(type_node->str);
+	if (std::find(shared.type_names.begin(), shared.type_names.end(), std::make_pair(type_node->str, current_node->str)) != shared.type_names.end()) return;
 	shared.type_names.push_back(std::make_pair(type_node->str, current_node->str));
 	type_node = type_node->clone();
 	if (type_node->type == AST::AST_STRUCT) {
@@ -299,6 +300,10 @@ void UhdmAst::add_typedef(AST::AstNode* current_node, AST::AstNode* type_node) {
 		}
 		typedef_node->children.push_back(wire_node);
 		current_node->children.push_back(type_node);
+		current_node->children.push_back(typedef_node);
+	} else {
+		type_node->str.clear();
+		typedef_node->children.push_back(type_node);
 		current_node->children.push_back(typedef_node);
 	}
 }
@@ -481,7 +486,8 @@ void UhdmAst::process_port() {
 					 	 if (node) {
 							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
 							 wiretype_node->str = node->str;
-							 current_node->children.push_back(wiretype_node);
+							 // wiretype needs to be 1st node (if port have also another range nodes)
+							 current_node->children.insert(current_node->children.begin(), wiretype_node);
 							 current_node->is_custom_type=true;
 						 }
 					 });
@@ -1018,7 +1024,7 @@ void UhdmAst::process_io_decl() {
 	visit_one_to_one({vpiExpr},
 					 obj_h,
 					 [&](AST::AstNode* node) {
-						 current_node = node;
+					 	 current_node = node;
 					 });
 	if (current_node == nullptr) {
 		current_node = make_ast_node(AST::AST_MODPORTMEMBER);
@@ -1151,13 +1157,13 @@ void UhdmAst::process_operation() {
 				case vpiUnaryXNorOp: current_node->type = AST::AST_REDUCE_XNOR; break;
 				case vpiUnaryNandOp: {
 					current_node->type = AST::AST_REDUCE_AND;
-					auto not_node = new AST::AstNode(AST::AST_BIT_NOT, current_node);
+					auto not_node = new AST::AstNode(AST::AST_LOGIC_NOT, current_node);
 					current_node = not_node;
 					break;
 				}
 				case vpiUnaryNorOp: {
 					current_node->type = AST::AST_REDUCE_OR;
-					auto not_node = new AST::AstNode(AST::AST_BIT_NOT, current_node);
+					auto not_node = new AST::AstNode(AST::AST_LOGIC_NOT, current_node);
 					current_node = not_node;
 					break;
 				}
@@ -1236,7 +1242,7 @@ void UhdmAst::process_stream_op()  {
 	// Create a for loop that does what a streaming operator would do
 	auto block_node = find_ancestor({AST::AST_BLOCK, AST::AST_ALWAYS, AST::AST_INITIAL});
 	auto process_node = find_ancestor({AST::AST_ALWAYS, AST::AST_INITIAL});
-	auto module_node = find_ancestor({AST::AST_MODULE});
+	auto module_node = find_ancestor({AST::AST_MODULE, AST::AST_FUNCTION, AST::AST_PACKAGE});
 	if (!process_node) {
 		// Create a @* always block
 		process_node = make_ast_node(AST::AST_ALWAYS);
@@ -1257,7 +1263,7 @@ void UhdmAst::process_stream_op()  {
 	auto loop_counter_ident = make_ast_node(AST::AST_IDENTIFIER);
 	loop_counter_ident->str = loop_counter->str;
 
-	auto lhs_node = find_ancestor({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ})->children[0];
+	auto lhs_node = find_ancestor({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ, AST::AST_ASSIGN_LE})->children[0];
 
 	// Width of LHS
 	auto bits_call = make_ast_node(AST::AST_FCALL,
@@ -1808,6 +1814,17 @@ void UhdmAst::process_logic_var() {
 	//TODO: add const attribute, but it seems it is little more
 	//then just setting boolean value
 	//current_node->is_const = vpi_get(vpiConstantVariable, obj_h);
+	visit_one_to_one({vpiTypespec},
+					 obj_h,
+					 [&](AST::AstNode* node) {
+					 	 if (node) {
+							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+							 wiretype_node->str = node->str;
+							 // wiretype needs to be 1st node (if port have also another range nodes)
+							 current_node->children.insert(current_node->children.begin(), wiretype_node);
+							 current_node->is_custom_type=true;
+						 }
+					 });
 	visit_range(obj_h,
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
@@ -1959,7 +1976,16 @@ AST::AstNode* UhdmAst::process_object(vpiHandle obj_handle) {
 				  break;
 		case vpiHierPath: process_hier_path(); break;
 		case UHDM::uhdmimport: break;
-		case vpiLogicTypespec: break; // Probably a typedef; ignore
+		case vpiLogicTypespec:
+				current_node = make_ast_node(AST::AST_WIRE);
+				current_node->is_logic = true;
+				visit_range(obj_h,
+							[&](AST::AstNode* node) {
+								if (node) {
+									current_node->children.push_back(node);
+								}
+							});
+				add_typedef(find_ancestor({AST::AST_MODULE, AST::AST_PACKAGE}), current_node); break;
 		case vpiProgram:
 		default: report_error("Encountered unhandled object '%s' of type '%s' at %s:%d\n", object->VpiName().c_str(),
 							  UHDM::VpiTypeName(obj_h).c_str(), object->VpiFile().c_str(), object->VpiLineNo()); break;
