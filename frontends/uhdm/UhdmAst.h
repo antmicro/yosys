@@ -119,6 +119,8 @@ class UhdmAst {
 		void process_func_call();
 		void process_immediate_assert();
 		void process_hier_path();
+		void process_logic_typespec();
+		void process_int_typespec();
 
 		UhdmAst(UhdmAst* p, UhdmAstShared& s, const std::string& i) : parent(p), shared(s), indent(i) {}
 

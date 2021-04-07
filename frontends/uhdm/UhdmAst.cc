@@ -478,6 +478,14 @@ void UhdmAst::process_port() {
 								  });
 				shared.report.mark_handled(actual_h);
 				break;
+			case vpiPackedArrayNet:
+				visit_one_to_many({vpiRange},
+								  actual_h,
+								  [&](AST::AstNode* node) {
+									  current_node->children.push_back(node);
+								  });
+				shared.report.mark_handled(actual_h);
+				break;
 			case vpiEnumNet:
 			case vpiStructNet:
 			case vpiArrayNet:
@@ -1058,6 +1066,22 @@ void UhdmAst::process_io_decl() {
 						current_node->children.push_back(node);
 					});
 	}
+	visit_one_to_one({vpiTypedef},
+					 obj_h,
+					 [&](AST::AstNode* node) {
+					 	 if (node && node->str != "") {
+							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+							 wiretype_node->str = node->str;
+							 // wiretype needs to be 1st node (if port have also another range nodes)
+							 current_node->children.insert(current_node->children.begin(), wiretype_node);
+							 current_node->is_custom_type=true;
+						 } else {
+						 	// anonymous typedef, just move childrens
+							for (auto child : node->children) {
+								current_node->children.push_back(child->clone());
+							}
+						 }
+					 });
 	if (const int n = vpi_get(vpiDirection, obj_h)) {
 		if (n == vpiInput) {
 			current_node->is_input = true;
@@ -1925,6 +1949,32 @@ void UhdmAst::process_hier_path() {
 					  });
 }
 
+void UhdmAst::process_logic_typespec() {
+	current_node = make_ast_node(AST::AST_WIRE);
+	current_node->is_logic = true;
+	visit_range(obj_h,
+				[&](AST::AstNode* node) {
+					if (node) {
+						current_node->children.push_back(node);
+					}
+				});
+	if (current_node->str != "") {
+		add_typedef(find_ancestor({AST::AST_MODULE, AST::AST_PACKAGE}), current_node);
+	}
+}
+
+void UhdmAst::process_int_typespec() {
+	current_node = make_ast_node(AST::AST_WIRE);
+	auto left_const = AST::AstNode::mkconst_int(31, true);
+	auto right_const = AST::AstNode::mkconst_int(0, true);
+	auto range = new AST::AstNode(AST::AST_RANGE, left_const, right_const);
+	current_node->children.push_back(range);
+	current_node->is_signed = true;
+	if (current_node->str != "") {
+		add_typedef(find_ancestor({AST::AST_MODULE, AST::AST_PACKAGE}), current_node);
+	}
+}
+
 AST::AstNode* UhdmAst::process_object(vpiHandle obj_handle) {
 	obj_h = obj_handle;
 	const unsigned object_type = vpi_get(vpiType, obj_h);
@@ -2002,16 +2052,8 @@ AST::AstNode* UhdmAst::process_object(vpiHandle obj_handle) {
 				  break;
 		case vpiHierPath: process_hier_path(); break;
 		case UHDM::uhdmimport: break;
-		case vpiLogicTypespec:
-				current_node = make_ast_node(AST::AST_WIRE);
-				current_node->is_logic = true;
-				visit_range(obj_h,
-							[&](AST::AstNode* node) {
-								if (node) {
-									current_node->children.push_back(node);
-								}
-							});
-				add_typedef(find_ancestor({AST::AST_MODULE, AST::AST_PACKAGE}), current_node); break;
+		case vpiLogicTypespec: process_logic_typespec(); break;
+		case vpiIntTypespec: process_int_typespec(); break;
 		case vpiProgram:
 		default: report_error("Encountered unhandled object '%s' of type '%s' at %s:%d\n", object->VpiName().c_str(),
 							  UHDM::VpiTypeName(obj_h).c_str(), object->VpiFile().c_str(), object->VpiLineNo()); break;
