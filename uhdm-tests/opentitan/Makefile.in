@@ -32,13 +32,11 @@ prim_generic_clock_mux2.sv \
 prim_generic_pad_wrapper.sv \
 prim_generic_ram_1p.sv \
 prim_generic_ram_2p.sv \
-prim_generic_rom.sv \
 prim_clock_mux2.sv \
 prim_flop.sv \
 prim_flop_2sync.sv \
 prim_ram_1p.sv \
 prim_ram_2p.sv \
-prim_rom.sv \
 prim_lfsr.sv \
 prim_intr_hw.sv \
 alert_handler_reg_top.sv \
@@ -65,7 +63,6 @@ prim_subreg_ext.sv \
 prim_generic_clock_inv.sv \
 prim_ram_1p_adv.sv \
 prim_ram_2p_async_adv.sv \
-prim_rom_adv.sv \
 tlul_adapter_host.sv \
 ibex_dummy_instr.sv \
 usb_fs_nb_in_pe.sv \
@@ -293,6 +290,9 @@ otbn_core.sv \
 prim_generic_pad_wrapper.sv \
 prim_pad_wrapper.sv \
 prim_pulse_sync.sv \
+prim_generic_rom.sv \
+prim_rom.sv \
+prim_rom_adv.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -332,6 +332,9 @@ ${UHDM_file}: ${SV2V_FILE}
 			-DSYNTHESIS \
 			-DPRIM_DEFAULT_IMPL=prim_pkg::ImplGeneric \
 			-DBootRomInitFile=boot_rom_fpga_nexysvideo.32.vmem \
+			-PMemInitFile=boot_rom_fpga_nexysvideo.32.vmem \
+			-PDepth=4096 \
+			-PWidth=32 \
 			-PPMPEnable=1 \
 			-PPMPGranularity=0 \
 			-PPMPNumRegions=16 \
@@ -389,6 +392,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top prim_generic_pad_wrapper \
 			-top prim_pad_wrapper \
 			-top prim_pulse_sync \
+			-top prim_rom_adv \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -416,7 +420,6 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top aes_ctr when aes_core.sv will be added to uhdm
 	# Delete -top aes_control when aes_core.sv will be added to uhdm
 	# Delete -top prim_gf_mult when flash_phy_scramble will be added to uhdm
-		# -PWidth=64 \ 
 		# -PStagesPerCycle=64 \
 	# Delete -top tlul_err_resp when tlul_socket_1n will be added to uhdm
 	# Delete -top aes_cipher_core when aes_core will be added to uhdm
@@ -450,6 +453,7 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PVariant=0 \
 		# -PAttrDw=10 \
 	# Delete -top prim_pulse_sync when pinmux_wkup will be added to uhdm
+	# Delete -top prim_rom_adv when top_earlgrey will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
