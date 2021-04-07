@@ -1976,6 +1976,19 @@ void UhdmAst::process_int_typespec() {
 	}
 }
 
+void UhdmAst::process_bit_typespec() {
+	current_node = make_ast_node(AST::AST_WIRE);
+	visit_range(obj_h,
+				[&](AST::AstNode* node) {
+					if (node) {
+						current_node->children.push_back(node);
+					}
+				});
+	if (current_node->str != "") {
+		add_typedef(find_ancestor({AST::AST_MODULE, AST::AST_PACKAGE}), current_node);
+	}
+}
+
 AST::AstNode* UhdmAst::process_object(vpiHandle obj_handle) {
 	obj_h = obj_handle;
 	const unsigned object_type = vpi_get(vpiType, obj_h);
@@ -2055,6 +2068,7 @@ AST::AstNode* UhdmAst::process_object(vpiHandle obj_handle) {
 		case UHDM::uhdmimport: break;
 		case vpiLogicTypespec: process_logic_typespec(); break;
 		case vpiIntTypespec: process_int_typespec(); break;
+		case vpiBitTypespec: process_bit_typespec(); break;
 		case vpiProgram:
 		default: report_error("Encountered unhandled object '%s' of type '%s' at %s:%d\n", object->VpiName().c_str(),
 							  UHDM::VpiTypeName(obj_h).c_str(), object->VpiFile().c_str(), object->VpiLineNo()); break;
