@@ -935,7 +935,8 @@ void UhdmAst::process_net() {
 }
 
 void UhdmAst::process_packed_array_net() {
-	current_node = make_ast_node(AST::AST_WIRE);
+	//Uncomment when https://github.com/alainmarcel/Surelog/issues/1168 will be resolved
+	/*current_node = make_ast_node(AST::AST_WIRE);
 	visit_one_to_many({vpiElement},
 					  obj_h,
 					  [&](AST::AstNode* node) {
@@ -946,7 +947,7 @@ void UhdmAst::process_packed_array_net() {
 					  obj_h,
 					  [&](AST::AstNode* node) {
 						  current_node->children.push_back(node);
-					  });
+					  });*/
 }
 void UhdmAst::process_array_net() {
 	current_node = make_ast_node(AST::AST_WIRE);
