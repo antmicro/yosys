@@ -636,10 +636,13 @@ void UhdmAst::process_module() {
 													   });
 								if (it != module_node->children.end() && node->children.size() > 0 && node->children[0]->type == AST::AST_WIRETYPE) {
 									for (auto *c : node->children) {
+										if(node->children.size() > 1 && node->children[1]->type == AST::AST_RANGE && c->type == AST::AST_RANGE)
+											continue;
 										if (c->type != AST::AST_WIRETYPE) { //do not override wiretype
 											(*it)->children.push_back(c);
 										}
 									}
+									(*it)->is_custom_type = true;
 								} else {
 									  add_or_replace_child(module_node, node);
 								}
@@ -935,8 +938,7 @@ void UhdmAst::process_net() {
 }
 
 void UhdmAst::process_packed_array_net() {
-	//Uncomment when https://github.com/alainmarcel/Surelog/issues/1168 will be resolved
-	/*current_node = make_ast_node(AST::AST_WIRE);
+	current_node = make_ast_node(AST::AST_WIRE);
 	visit_one_to_many({vpiElement},
 					  obj_h,
 					  [&](AST::AstNode* node) {
@@ -947,7 +949,7 @@ void UhdmAst::process_packed_array_net() {
 					  obj_h,
 					  [&](AST::AstNode* node) {
 						  current_node->children.push_back(node);
-					  });*/
+					  });
 }
 void UhdmAst::process_array_net() {
 	current_node = make_ast_node(AST::AST_WIRE);
