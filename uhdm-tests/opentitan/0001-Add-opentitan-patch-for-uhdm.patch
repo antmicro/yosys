@@ -553,6 +553,19 @@ index 962d3b559..d6430bc5a 100644
  `else
      // different driver types
      assign (strong0, strong1) inout_io = (oe && drv != DRIVE_00) ? out : 1'bz;
+diff --git a/hw/ip/pwrmgr/rtl/pwrmgr_fsm.sv b/hw/ip/pwrmgr/rtl/pwrmgr_fsm.sv
+index ef4712bf5..336e2ff7d 100644
+--- a/hw/ip/pwrmgr/rtl/pwrmgr_fsm.sv
++++ b/hw/ip/pwrmgr/rtl/pwrmgr_fsm.sv
+@@ -131,7 +131,7 @@ module pwrmgr_fsm import pwrmgr_pkg::*; (
+     end
+   end
+ 
+-  always_comb begin
++  always begin
+     otp_init = 1'b0;
+     lc_init = 1'b0;
+     wkup_o = 1'b0;
 diff --git a/hw/ip/pwrmgr/rtl/pwrmgr_reg_pkg.sv b/hw/ip/pwrmgr/rtl/pwrmgr_reg_pkg.sv
 index 4a6a9d709..3c755c66f 100644
 --- a/hw/ip/pwrmgr/rtl/pwrmgr_reg_pkg.sv
