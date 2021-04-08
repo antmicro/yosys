@@ -132,7 +132,6 @@ xbar_main.sv \
 xbar_peri.sv \
 pwrmgr.sv \
 pwrmgr_cdc.sv \
-pwrmgr_slow_fsm.sv \
 pwrmgr_wake_info.sv \
 rv_plic_reg_top.sv \
 rv_plic.sv \
@@ -293,6 +292,7 @@ prim_rom.sv \
 prim_rom_adv.sv \
 prim_filter_ctr.sv \
 pwrmgr_fsm.sv \
+pwrmgr_slow_fsm.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -396,6 +396,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top prim_rom_adv \
 			-top prim_filter_ctr \
 			-top pwrmgr_fsm \
+			-top pwrmgr_slow_fsm \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -462,6 +463,7 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PWidth=32 \
 	# Delete -top prim_filter_ctr when gpio will be added to uhdm
 	# Delete -top pwrmgr_fsm when pwrmgr will be added to uhdm
+	# Delete -top pwrmgr_slow_fsm when pwrmgr will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
