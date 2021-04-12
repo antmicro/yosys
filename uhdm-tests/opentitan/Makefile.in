@@ -32,6 +32,7 @@ prim_generic_clock_mux2.sv \
 prim_generic_pad_wrapper.sv \
 prim_generic_ram_1p.sv \
 prim_generic_ram_2p.sv \
+prim_clock_inv.sv \
 prim_clock_mux2.sv \
 prim_flop.sv \
 prim_flop_2sync.sv \
@@ -70,7 +71,6 @@ usb_fs_nb_pe.sv \
 usb_fs_rx.sv \
 usb_fs_tx.sv \
 usb_fs_tx_mux.sv \
-prim_clock_inv.sv \
 prim_ram_2p_adv.sv \
 tlul_fifo_sync.sv \
 tlul_fifo_async.sv \
@@ -112,7 +112,6 @@ rv_timer.sv \
 spi_device_reg_top.sv \
 spi_fwm_rxf_ctrl.sv \
 spi_fwm_txf_ctrl.sv \
-spi_fwmode.sv \
 spi_device.sv \
 uart_reg_top.sv \
 uart_rx.sv \
@@ -171,6 +170,7 @@ flash_phy_pkg.sv \
 hmac_pkg.sv \
 nmi_gen_reg_pkg.sv \
 otbn_reg_pkg.sv \
+spi_device_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -293,6 +293,7 @@ pwrmgr_wake_info.sv \
 rv_plic_target.sv \
 rv_plic_gateway.sv \
 timer_core.sv \
+spi_fwmode.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -403,6 +404,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top rv_plic_target \
 			-top rv_plic_gateway \
 			-top timer_core \
+			-top spi_fwmode \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -477,6 +479,7 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PN_SOURCE=83 \
 		# -PMAX_PRIO=3 \  
 	# Delete -top timer_core when rv_timer will be added to uhdm
+	# Delete -top spi_fwmode when spi_device will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
