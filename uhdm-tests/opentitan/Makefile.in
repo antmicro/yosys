@@ -107,8 +107,6 @@ padring.sv \
 padctrl.sv \
 pinmux_wkup.sv \
 pinmux.sv \
-rv_plic_gateway.sv \
-rv_plic_target.sv \
 rv_timer_reg_top.sv \
 timer_core.sv \
 rv_timer.sv \
@@ -293,6 +291,8 @@ prim_filter_ctr.sv \
 pwrmgr_fsm.sv \
 pwrmgr_slow_fsm.sv \
 pwrmgr_wake_info.sv \
+rv_plic_target.sv \
+rv_plic_gateway.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -360,6 +360,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PVariant=0 \
 			-PAttrDw=10 \
 			-PCycles=16 \
+			-PN_SOURCE=83 \
+			-PMAX_PRIO=3 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -398,6 +400,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top pwrmgr_fsm \
 			-top pwrmgr_slow_fsm \
 			-top pwrmgr_wake_info \
+			-top rv_plic_target \
+			-top rv_plic_gateway \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -466,6 +470,11 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top pwrmgr_fsm when pwrmgr will be added to uhdm
 	# Delete -top pwrmgr_slow_fsm when pwrmgr will be added to uhdm
 	# Delete -top pwrmgr_wake_info when pwrmgr will be added to uhdm
+	# Delete -top rv_plic_gateway when rv_plic will be added to uhdm
+		# -PN_SOURCE=83 \
+	# Delete -top rv_plic_target when rv_plic will be added to uhdm
+		# -PN_SOURCE=83 \
+		# -PMAX_PRIO=3 \  
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
