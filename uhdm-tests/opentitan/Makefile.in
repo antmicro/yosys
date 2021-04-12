@@ -108,8 +108,6 @@ pinmux.sv \
 rv_timer_reg_top.sv \
 rv_timer.sv \
 spi_device_reg_top.sv \
-spi_fwm_rxf_ctrl.sv \
-spi_fwm_txf_ctrl.sv \
 spi_device.sv \
 uart_reg_top.sv \
 uart_rx.sv \
@@ -296,6 +294,8 @@ prim_secded_72_64_dec.sv \
 prim_secded_72_64_enc.sv \
 prim_ram_2p_async_adv.sv \
 prim_ram_2p_adv.sv \
+spi_fwm_rxf_ctrl.sv \
+spi_fwm_txf_ctrl.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -370,6 +370,9 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PDataBitsPerMask=1 \
 			-PCfgW=8 \
 			-PEnableECC=1 \
+			-PFifoDw=8 \
+			-PSramAw=9 \
+			-PSramDw=32 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -413,6 +416,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top timer_core \
 			-top spi_fwmode \
 			-top prim_ram_2p_adv \
+			-top spi_fwm_rxf_ctrl \
+			-top spi_fwm_txf_ctrl \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
