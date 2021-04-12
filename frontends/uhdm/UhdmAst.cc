@@ -453,6 +453,7 @@ void UhdmAst::process_port() {
 				shared.report.mark_handled(actual_h);
 				break;
 			}
+			case vpiLogicVar:
 			case vpiLogicNet: {
 				current_node->is_logic = true;
 				current_node->is_signed = vpi_get(vpiSigned, actual_h);
