@@ -505,12 +505,17 @@ void UhdmAst::process_port() {
 	visit_one_to_one({vpiTypedef},
 					 obj_h,
 					 [&](AST::AstNode* node) {
-					 	 if (node) {
+					 	 if (node && node->str != "") {
 							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
 							 wiretype_node->str = node->str;
 							 // wiretype needs to be 1st node (if port have also another range nodes)
 							 current_node->children.insert(current_node->children.begin(), wiretype_node);
 							 current_node->is_custom_type=true;
+						 } else {
+						 	// anonymous typedef, just move childrens
+							for (auto child : node->children) {
+								current_node->children.push_back(child->clone());
+							}
 						 }
 					 });
 	if (const int n = vpi_get(vpiDirection, obj_h)) {
@@ -574,8 +579,8 @@ void UhdmAst::process_module() {
 							   vpiArrayNet,
 							   vpiPort,
 							   vpiGenScopeArray,
-							   vpiProcess,
 							   vpiContAssign,
+							   vpiProcess,
 							   vpiTaskFunc},
 							  obj_h,
 							  [&](AST::AstNode* node) {
@@ -742,6 +747,15 @@ void UhdmAst::process_typespec_member() {
 							 });
 			break;
 		}
+		case vpiPackedArrayTypespec:
+			visit_one_to_one({vpiTypespec},
+							  obj_h,
+							  [&](AST::AstNode* node) {
+								if (node) {
+									current_node->str = node->str;
+								}
+							  });
+			break;
 		default: {
 			const uhdm_handle* const handle = (const uhdm_handle*) typespec_h;
 			const UHDM::BaseClass* const object = (const UHDM::BaseClass*) handle->object;
@@ -1751,8 +1765,8 @@ void UhdmAst::process_gen_scope() {
 					   vpiNet,
 					   vpiArrayNet,
 					   vpiVariables,
-					   vpiProcess,
 					   vpiContAssign,
+					   vpiProcess,
 					   vpiModule,
 					   vpiGenScopeArray},
 					   obj_h,
