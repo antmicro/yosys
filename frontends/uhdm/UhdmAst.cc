@@ -579,8 +579,8 @@ void UhdmAst::process_module() {
 							   vpiArrayNet,
 							   vpiPort,
 							   vpiGenScopeArray,
-							   vpiProcess,
 							   vpiContAssign,
+							   vpiProcess,
 							   vpiTaskFunc},
 							  obj_h,
 							  [&](AST::AstNode* node) {
@@ -747,6 +747,15 @@ void UhdmAst::process_typespec_member() {
 							 });
 			break;
 		}
+		case vpiPackedArrayTypespec:
+			visit_one_to_one({vpiTypespec},
+							  obj_h,
+							  [&](AST::AstNode* node) {
+								if (node) {
+									current_node->str = node->str;
+								}
+							  });
+			break;
 		default: {
 			const uhdm_handle* const handle = (const uhdm_handle*) typespec_h;
 			const UHDM::BaseClass* const object = (const UHDM::BaseClass*) handle->object;
@@ -1756,8 +1765,8 @@ void UhdmAst::process_gen_scope() {
 					   vpiNet,
 					   vpiArrayNet,
 					   vpiVariables,
-					   vpiProcess,
 					   vpiContAssign,
+					   vpiProcess,
 					   vpiModule,
 					   vpiGenScopeArray},
 					   obj_h,
