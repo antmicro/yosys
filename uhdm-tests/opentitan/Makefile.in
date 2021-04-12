@@ -109,9 +109,6 @@ rv_timer_reg_top.sv \
 rv_timer.sv \
 spi_device.sv \
 uart_reg_top.sv \
-uart_rx.sv \
-uart_tx.sv \
-uart_core.sv \
 uart.sv \
 usbdev_reg_top.sv \
 usbdev_usbif.sv \
@@ -163,6 +160,7 @@ nmi_gen_reg_pkg.sv \
 otbn_reg_pkg.sv \
 spi_device_pkg.sv \
 spi_device_reg_pkg.sv \
+uart_reg_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -297,6 +295,9 @@ prim_ram_2p_adv.sv \
 spi_fwm_rxf_ctrl.sv \
 spi_fwm_txf_ctrl.sv \
 spi_device_reg_top.sv \
+uart_rx.sv \
+uart_tx.sv \
+uart_core.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -420,6 +421,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top spi_fwm_rxf_ctrl \
 			-top spi_fwm_txf_ctrl \
 			-top spi_device_reg_top \
+			-top uart_core \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
