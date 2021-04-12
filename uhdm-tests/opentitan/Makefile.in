@@ -37,7 +37,6 @@ prim_clock_mux2.sv \
 prim_flop.sv \
 prim_flop_2sync.sv \
 prim_ram_1p.sv \
-prim_ram_2p.sv \
 prim_lfsr.sv \
 prim_intr_hw.sv \
 alert_handler_reg_top.sv \
@@ -71,7 +70,6 @@ usb_fs_nb_pe.sv \
 usb_fs_rx.sv \
 usb_fs_tx.sv \
 usb_fs_tx_mux.sv \
-prim_ram_2p_adv.sv \
 tlul_fifo_sync.sv \
 tlul_fifo_async.sv \
 tlul_assert.sv \
@@ -296,6 +294,8 @@ prim_secded_39_32_dec.sv \
 prim_secded_39_32_enc.sv \
 prim_secded_72_64_dec.sv \
 prim_secded_72_64_enc.sv \
+prim_ram_2p_async_adv.sv \
+prim_ram_2p_adv.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -365,6 +365,11 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PCycles=16 \
 			-PN_SOURCE=83 \
 			-PMAX_PRIO=3 \
+			-PRamDepth=512 \
+			-PRamWidth=32 \
+			-PDataBitsPerMask=1 \
+			-PCfgW=8 \
+			-PEnableECC=1 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -407,6 +412,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top rv_plic_gateway \
 			-top timer_core \
 			-top spi_fwmode \
+			-top prim_ram_2p_adv \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -482,6 +488,7 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PMAX_PRIO=3 \  
 	# Delete -top timer_core when rv_timer will be added to uhdm
 	# Delete -top spi_fwmode when spi_device will be added to uhdm
+	# Delete -top prim_ram_2p_adv when spi_device will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
