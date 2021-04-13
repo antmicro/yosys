@@ -55,21 +55,15 @@ prim_keccak.sv \
 prim_present.sv \
 prim_subst_perm.sv \
 prim_gate_gen.sv \
-prim_filter.sv \
 prim_subreg_arb.sv \
 prim_subreg.sv \
 prim_subreg_ext.sv \
 prim_generic_clock_inv.sv \
 prim_ram_1p_adv.sv \
 prim_ram_2p_async_adv.sv \
+prim_filter.sv \
 tlul_adapter_host.sv \
 ibex_dummy_instr.sv \
-usb_fs_nb_in_pe.sv \
-usb_fs_nb_out_pe.sv \
-usb_fs_nb_pe.sv \
-usb_fs_rx.sv \
-usb_fs_tx.sv \
-usb_fs_tx_mux.sv \
 tlul_fifo_sync.sv \
 tlul_fifo_async.sv \
 tlul_assert.sv \
@@ -111,9 +105,6 @@ spi_device.sv \
 uart_reg_top.sv \
 uart.sv \
 usbdev_reg_top.sv \
-usbdev_usbif.sv \
-usbdev_flop_2syncpulse.sv \
-usbdev_linkstate.sv \
 usbdev_iomux.sv \
 usbdev.sv \
 xbar_main.sv \
@@ -161,6 +152,7 @@ otbn_reg_pkg.sv \
 spi_device_pkg.sv \
 spi_device_reg_pkg.sv \
 uart_reg_pkg.sv \
+usb_consts_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -298,6 +290,16 @@ spi_device_reg_top.sv \
 uart_rx.sv \
 uart_tx.sv \
 uart_core.sv \
+usb_fs_rx.sv \
+usb_fs_tx.sv \
+usb_fs_tx_mux.sv \
+usb_fs_nb_in_pe.sv \
+usb_fs_nb_out_pe.sv \
+usb_fs_nb_pe.sv \
+prim_filter.sv \
+usbdev_linkstate.sv \
+usbdev_flop_2syncpulse.sv \
+usbdev_usbif.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -375,6 +377,13 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PFifoDw=8 \
 			-PSramAw=9 \
 			-PSramDw=32 \
+			-PUsbWidth=5 \
+			-PNEndpoints=12 \
+			-PAVFifoWidth=5 \
+			-PRXFifoWidth=17 \
+			-PMaxPktSizeByte=64 \
+			-PNBuf=32 \
+			-PSramAw=9 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -422,6 +431,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top spi_fwm_txf_ctrl \
 			-top spi_device_reg_top \
 			-top uart_core \
+			-top usbdev_flop_2syncpulse \
+			-top usbdev_usbif \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -494,10 +505,15 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PN_SOURCE=83 \
 	# Delete -top rv_plic_target when rv_plic will be added to uhdm
 		# -PN_SOURCE=83 \
-		# -PMAX_PRIO=3 \  
+		# -PMAX_PRIO=3 \
 	# Delete -top timer_core when rv_timer will be added to uhdm
 	# Delete -top spi_fwmode when spi_device will be added to uhdm
 	# Delete -top prim_ram_2p_adv when spi_device will be added to uhdm
+	# Delete -top spi_fwm_rxf_ctrl when spi_device will be added to uhdm
+	# Delete -top spi_fwm_txf_ctrl when spi_device will be added to uhdm
+	# Delete -top spi_device_reg_top when spi_device will be added to uhdm
+	# Delete -top uart_core when uart will be added to uhdm
+	# Delete -top usbdev_flop_2syncpulse when usbdev_usbif will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
