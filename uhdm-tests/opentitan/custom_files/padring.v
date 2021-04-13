@@ -54,12 +54,12 @@ module padring (
 	localparam signed [31:0] PADCTRL_MIO_PADS9 = 15;
 	localparam signed [31:0] PADCTRL_MIO_PADS10 = 16;
 	localparam [67:0] PADCTRL_PERMIT = {4'b0001, 4'b1111, 4'b1111, 4'b1111, 4'b1111, 4'b1111, 4'b1111, 4'b1111, 4'b1111, 4'b1111, 4'b1111, 4'b1111, 4'b1111, 4'b1111, 4'b1111, 4'b1111, 4'b0111};
-	parameter [NMioPads - 1:0] ConnectMioIn = 1'sb1;
-	parameter [NMioPads - 1:0] ConnectMioOut = 1'sb1;
-	parameter [NDioPads - 1:0] ConnectDioIn = 1'sb1;
-	parameter [NDioPads - 1:0] ConnectDioOut = 1'sb1;
-	parameter [(NMioPads * 2) - 1:0] MioPadVariant = 1'sb0;
-	parameter [(NDioPads * 2) - 1:0] DioPadVariant = 1'sb0;
+	parameter [NMioPads - 1:0] ConnectMioIn = 1'b1;
+	parameter [NMioPads - 1:0] ConnectMioOut = 1'b1;
+	parameter [NDioPads - 1:0] ConnectDioIn = 1'b1;
+	parameter [NDioPads - 1:0] ConnectDioOut = 1'b1;
+	parameter [(NMioPads * 2) - 1:0] MioPadVariant = 1'b0;
+	parameter [(NDioPads * 2) - 1:0] DioPadVariant = 1'b0;
 	input wire clk_pad_i;
 	input wire clk_usb_48mhz_pad_i;
 	input wire rst_pad_ni;
