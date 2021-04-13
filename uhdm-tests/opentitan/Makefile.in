@@ -105,8 +105,6 @@ spi_device.sv \
 uart_reg_top.sv \
 uart.sv \
 usbdev_reg_top.sv \
-usbdev_usbif.sv \
-usbdev_flop_2syncpulse.sv \
 usbdev_iomux.sv \
 usbdev.sv \
 xbar_main.sv \
@@ -300,6 +298,8 @@ usb_fs_nb_out_pe.sv \
 usb_fs_nb_pe.sv \
 prim_filter.sv \
 usbdev_linkstate.sv \
+usbdev_flop_2syncpulse.sv \
+usbdev_usbif.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -377,9 +377,13 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PFifoDw=8 \
 			-PSramAw=9 \
 			-PSramDw=32 \
-			-PNumOutEps=12 \
-			-PNumInEps=12 \
+			-PUsbWidth=5 \
+			-PNEndpoints=12 \
+			-PAVFifoWidth=5 \
+			-PRXFifoWidth=17 \
 			-PMaxPktSizeByte=64 \
+			-PNBuf=32 \
+			-PSramAw=9 \
 			-top rv_core_ibex \
 			-top rstmgr \
 			-top prim_alert_sender \
@@ -427,8 +431,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top spi_fwm_txf_ctrl \
 			-top spi_device_reg_top \
 			-top uart_core \
-			-top usb_fs_nb_pe \
-			-top usbdev_linkstate \
+			-top usbdev_flop_2syncpulse \
+			-top usbdev_usbif \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -509,14 +513,7 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top spi_fwm_txf_ctrl when spi_device will be added to uhdm
 	# Delete -top spi_device_reg_top when spi_device will be added to uhdm
 	# Delete -top uart_core when uart will be added to uhdm
-	# Delete -top usb_fs_rx when usb_fs_nb_pe will be added to uhdm
-	# Delete -top usb_fs_tx when usb_fs_nb_pe will be added to uhdm
-	# Delete -top usb_fs_tx_mux when usb_fs_nb_pe will be added to uhdm
-	# Delete -top usb_fs_nb_pe when usbdev_usbif will be added to uhdm
-		# -PNumOutEps=12 \
-		# -PNumInEps=12 \
-		# -PMaxPktSizeByte=64 \
-	# Delete -top usbdev_linkstate when usbdev_usbif will be added to uhdm
+	# Delete -top usbdev_flop_2syncpulse when usbdev_usbif will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
