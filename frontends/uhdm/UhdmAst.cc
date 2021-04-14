@@ -1064,7 +1064,8 @@ void UhdmAst::process_array_net() {
 	current_node = make_ast_node(AST::AST_WIRE);
 	vpiHandle itr = vpi_iterate(vpiNet, obj_h);
 	while (vpiHandle net_h = vpi_scan(itr)) {
-		if (vpi_get(vpiType, net_h) == vpiLogicNet) {
+		auto net_type = vpi_get(vpiType, net_h);
+		if (net_type == vpiLogicNet) {
 			current_node->is_logic = true;
 			current_node->is_signed = vpi_get(vpiSigned, net_h);
 			visit_range(net_h,
@@ -1072,6 +1073,16 @@ void UhdmAst::process_array_net() {
 							current_node->children.push_back(node);
 						});
 			shared.report.mark_handled(net_h);
+		} else if (net_type == vpiStructNet) {
+                        vpiHandle typespec_h = vpi_handle(vpiTypespec, net_h);
+                        std::string name = vpi_get_str(vpiName, typespec_h);
+                        sanitize_symbol_name(name);
+                        auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+                        wiretype_node->str = name;
+                        current_node->children.push_back(wiretype_node);
+                        current_node->is_custom_type = true;
+                        shared.report.mark_handled(net_h);
+                        shared.report.mark_handled(typespec_h);
 		}
 		vpi_free_object(net_h);
 	}
