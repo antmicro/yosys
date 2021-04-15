@@ -1839,8 +1839,6 @@ void UhdmAst::process_for() {
 
 void UhdmAst::process_gen_scope_array() {
 	current_node = make_ast_node(AST::AST_GENBLOCK);
-	std::string full_name = vpi_get_str(vpiFullName, obj_h) ? vpi_get_str(vpiFullName, obj_h) : current_node->str;
-	full_name = full_name.substr(full_name.find("."));
 	visit_one_to_many({vpiGenScope},
 					  obj_h,
 					  [&](AST::AstNode* genscope_node) {
@@ -1852,7 +1850,14 @@ void UhdmAst::process_gen_scope_array() {
 								  genscope_node->visitEachDescendant([&](AST::AstNode* node) {
 									  auto pos = node->str.find(array_str);
 									  if (pos != std::string::npos) {
-									  	  node->str.replace(pos + 1, param_str.size(), (full_name + "." + param_str).substr(1));
+									  	node->type = AST::AST_PREFIX;
+										auto *param = new AST::AstNode(AST::AST_IDENTIFIER);
+										param->str = child->str;
+										auto *field = new AST::AstNode(AST::AST_IDENTIFIER);
+										field->str = "\\" + node->str.substr(node->str.rfind("]") + 2);
+										node->str = node->str.substr(0, node->str.find("["));
+										node->children.push_back(param);
+										node->children.push_back(field);
 									  }
 								  });
 							  }
@@ -2058,15 +2063,19 @@ void UhdmAst::process_hier_path() {
 	visit_one_to_many({vpiActual},
 					  obj_h,
 					  [&](AST::AstNode* node) {
-					  	  if (current_node->str != "\\") {
-						  	current_node->str += ".";
-						  }
-						  current_node->str += node->str.substr(1);
-						  if (node->children.size() > 0 && node->children[0]->type == AST::AST_RANGE) {
-						  	if (node->children[0]->children[0]->str != "") {
-								current_node->str += "[" + node->children[0]->children[0]->str.substr(1) + "]";
+						  if (current_node->str == "\\" && node->children.size() > 0 && node->children[0]->type == AST::AST_RANGE) {
+						  	current_node->type = AST::AST_PREFIX;
+							current_node->str = node->str;
+							current_node->children.push_back(node->children[0]->children[0]->clone());
+						  } else {
+						  	if (current_node->type == AST::AST_IDENTIFIER) {
+								if (current_node->str != "\\") {
+								      current_node->str += ".";
+								}
+								current_node->str += node->str.substr(1);
+								current_node->children = node->children;
 							} else {
-								current_node->str += "[" + std::to_string(node->children[0]->children[0]->integer) + "]";
+								current_node->children.push_back(node->clone());
 							}
 						  }
 					  });
