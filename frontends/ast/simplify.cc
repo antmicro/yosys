@@ -2072,6 +2072,10 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					}
 				}
 			}
+			if (current_scope.count(look_str) < 1) {
+				look_str = str;
+				sname = str.substr(0, str.rfind("."));
+			}
 			if (current_scope.count(look_str) > 0) {
 				auto item_node = current_scope[look_str];
 				if (item_node->type == AST_STRUCT_ITEM || item_node->type == AST_STRUCT) {
@@ -2082,7 +2086,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					newNode->basic_prep = true;
 					goto apply_newNode;
 				}
-			}
+			} 
 		} else if (children.size() == 1 && children[0]->type == AST_RANGE) {
 			if (current_scope.count(str) > 0) {
 				while(current_scope[str]->simplify(true, false, false, 1, -1, false, false)) { }
@@ -4421,8 +4425,15 @@ void AstNode::expand_genblock(std::string index_var, std::string prefix, std::ma
 		}
 	}
 
-	if ((type == AST_IDENTIFIER || type == AST_FCALL || type == AST_TCALL || type == AST_WIRETYPE) && name_map.count(str) > 0)
-		str = name_map[str];
+
+	if ((type == AST_IDENTIFIER || type == AST_FCALL || type == AST_TCALL || type == AST_WIRETYPE)) {
+		auto dot_pos = str.find(".");
+		if (dot_pos != std::string::npos && name_map.count(str.substr(0, dot_pos)) > 0) {
+			str = name_map[str.substr(0, dot_pos)] + str.substr(dot_pos);
+		} else if (name_map.count(str)) {
+			str = name_map[str];
+		}
+	}
 
 	std::map<std::string, std::string> backup_name_map;
 
