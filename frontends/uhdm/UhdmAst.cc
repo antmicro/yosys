@@ -913,8 +913,31 @@ void UhdmAst::process_param_assign() {
 					 });
 }
 
-void UhdmAst::process_cont_assign() {
+void UhdmAst::process_cont_assign_var_init() {
+	current_node = make_ast_node(AST::AST_INITIAL);
+	auto block_node = make_ast_node(AST::AST_BLOCK);
+	auto assign_node = make_ast_node(AST::AST_ASSIGN_LE);
+	block_node->children.push_back(assign_node);
+	current_node->children.push_back(block_node);
+
+	visit_one_to_one({vpiLhs,
+					  vpiRhs},
+					 obj_h,
+					 [&](AST::AstNode* node) {
+						 if (node) {
+							 if (node->type == AST::AST_WIRE) {
+								 assign_node->children.push_back(new AST::AstNode(AST::AST_IDENTIFIER));
+								 assign_node->children.back()->str = node->str;
+							 } else {
+								 assign_node->children.push_back(node);
+							 }
+						 }
+					 });
+}
+
+void UhdmAst::process_cont_assign_net() {
 	current_node = make_ast_node(AST::AST_ASSIGN);
+
 	visit_one_to_one({vpiLhs,
 					  vpiRhs},
 					 obj_h,
@@ -928,6 +951,24 @@ void UhdmAst::process_cont_assign() {
 							 }
 						 }
 					 });
+}
+
+void UhdmAst::process_cont_assign() {
+	auto net_decl_assign = vpi_get(vpiNetDeclAssign, obj_h);
+	vpiHandle node_lhs_h = vpi_handle(vpiLhs, obj_h);
+	auto lhs_net_type = vpi_get(vpiNetType, node_lhs_h);
+
+	// Check if lhs is a subtype of a net
+	bool isNet;
+	if (lhs_net_type >= vpiWire && lhs_net_type <= vpiUwire)
+		isNet = true;
+	else
+		// lhs is a variable
+		isNet = false;
+	if (net_decl_assign && !isNet)
+		process_cont_assign_var_init();
+	else
+		process_cont_assign_net();
 }
 
 void UhdmAst::process_assignment() {
