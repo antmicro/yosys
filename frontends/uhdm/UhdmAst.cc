@@ -287,9 +287,12 @@ static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
 }
 
 void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* cell_node, AST::AstNode* type_node) {
-	auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
-	typeNode->str = strip_package_name(type_node->str);
-	cell_node->children.insert(cell_node->children.begin(), typeNode);
+	if (cell_node->children.size() == 0 ||
+			(cell_node->children.size() > 1 && cell_node->children[0]->type != AST::AST_CELLTYPE)) {
+		auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
+		typeNode->str = type_node->str;
+		cell_node->children.insert(cell_node->children.begin(), typeNode);
+	}
 	// Add port connections as arguments
 	vpiHandle port_itr = vpi_iterate(vpiPort, obj_h);
 	while (vpiHandle port_h = vpi_scan(port_itr) ) {
@@ -659,6 +662,42 @@ void UhdmAst::process_module() {
 				if (attr->integer == 1)
 					module_node->attributes.erase(ID::partial);
 		}
+		std::string module_parameters;
+		visit_one_to_many({vpiParamAssign},
+						  obj_h,
+						  [&](AST::AstNode* node) {
+							  if (node) {
+								if (std::find_if(module_node->children.begin(), module_node->children.end(),
+											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER &&
+											                                        child->str == node->str &&
+																//skip real parameters as they are currently not working: https://github.com/alainmarcel/Surelog/issues/1035
+																child->type != AST::AST_REALVALUE;})
+														!= module_node->children.end()) {
+									if (cell_instance || (node->children.size() > 0 && node->children[0]->type != AST::AST_CONSTANT)) { //if cell is a blackbox or we need to simplify parameter first, left setting parameters to yosys
+										auto clone = node->clone();
+										clone->type = AST::AST_PARASET;
+										current_node->children.push_back(clone);
+									} else {
+										if (node->children[0]->str != "")
+											module_parameters += node->str + "=" + node->children[0]->str;
+										else
+											module_parameters += node->str + "=" + std::to_string(node->children[0]->integer);
+										//replace
+										add_or_replace_child(module_node, node);
+									}
+								}
+							  }
+						  });
+		//rename module in same way yosys do
+		if (module_parameters.size() > 60)
+			module_node->str = "$paramod$" + sha1(module_parameters) + type;
+		else if(module_parameters != "")
+			module_node->str = "$paramod" + type + module_parameters;
+		auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
+		typeNode->str = module_node->str;
+		current_node->children.push_back(typeNode);
+		shared.top_node_templates[module_node->str] = module_node;
+		shared.top_nodes[module_node->str] = module_node;
 		visit_one_to_many({vpiVariables,
 						   vpiNet,
 						   vpiArrayNet},
@@ -694,40 +733,6 @@ void UhdmAst::process_module() {
 								}
 							  }
 						  });
-		std::string module_parameters;
-		visit_one_to_many({vpiParamAssign},
-						  obj_h,
-						  [&](AST::AstNode* node) {
-							  if (node) {
-								if (std::find_if(module_node->children.begin(), module_node->children.end(),
-											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER &&
-											                                        child->str == node->str &&
-																//skip real parameters as they are currently not working: https://github.com/alainmarcel/Surelog/issues/1035
-																child->type != AST::AST_REALVALUE;})
-														!= module_node->children.end()) {
-									if (cell_instance || (node->children.size() > 0 && node->children[0]->type != AST::AST_CONSTANT)) { //if cell is a blackbox or we need to simplify parameter first, left setting parameters to yosys
-										auto clone = node->clone();
-										clone->type = AST::AST_PARASET;
-										current_node->children.push_back(clone);
-									} else {
-										if (node->children[0]->str != "")
-											module_parameters += node->str + "=" + node->children[0]->str;
-										else
-											module_parameters += node->str + "=" + std::to_string(node->children[0]->integer);
-										//replace
-										add_or_replace_child(module_node, node);
-									}
-								}
-							  }
-						  });
-		//rename module in same way yosys do
-		if (module_parameters.size() > 60)
-			module_node->str = "$paramod$" + sha1(module_parameters) + type;
-		else if(module_parameters != "")
-			module_node->str = "$paramod" + type + module_parameters;
-		//add new module to templates and top nodes
-		shared.top_node_templates[module_node->str] = module_node;
-		shared.top_nodes[module_node->str] = module_node;
 		make_cell(obj_h, current_node, module_node);
 	}
 }
@@ -1611,7 +1616,11 @@ void UhdmAst::process_assignment_pattern_op() {
 		return;
 	}
 	auto assign_node = find_ancestor({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ, AST::AST_ASSIGN_LE});
-	auto proc_node = find_ancestor({AST::AST_BLOCK, AST::AST_ALWAYS, AST::AST_INITIAL, AST::AST_MODULE, AST::AST_PACKAGE});
+
+	auto proc_node = find_ancestor({AST::AST_BLOCK, AST::AST_ALWAYS, AST::AST_INITIAL, AST::AST_MODULE, AST::AST_PACKAGE, AST::AST_CELL});
+	if (proc_node && proc_node->type == AST::AST_CELL && shared.top_nodes.count(proc_node->children[0]->str)) {
+		proc_node = shared.top_nodes[proc_node->children[0]->str];
+	}
 	std::vector<AST::AstNode*> assignments;
 	visit_one_to_many({vpiOperand},
 					  obj_h,
