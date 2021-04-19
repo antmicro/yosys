@@ -85,16 +85,22 @@ void UhdmAst::visit_default_expr(vpiHandle obj_h)  {
 		auto assign_node = new AST::AstNode(AST::AST_ASSIGN_EQ);
 		auto id_node = new AST::AstNode(AST::AST_IDENTIFIER);
 		id_node->str = current_node->str;
+
 		for (auto child : mod->children) {
 			if (child->type == AST::AST_INITIAL) {
 				initial_node = child;
 				break;
 			}
 		}
-		// Ensure single AST_INITIAL node in AST_MODULE
+		// Ensure single AST_INITIAL node is located in AST_MODULE
+		// before any AST_ALWAYS
 		if (initial_node == nullptr) {
 			initial_node = new AST::AstNode(AST::AST_INITIAL);
-			mod->children.push_back(initial_node);
+
+			auto insert_it = find_if(mod->children.begin(), mod->children.end(),
+					[] (AST::AstNode *node) {return (node->type == AST::AST_ALWAYS);} );
+
+			mod->children.insert(insert_it, 1, initial_node);
 		}
 		// Ensure single AST_BLOCK node in AST_INITIAL
 		if (initial_node->children.size() && initial_node->children[0]) {
@@ -555,7 +561,14 @@ void UhdmAst::process_module() {
 							  obj_h,
 							  [&](AST::AstNode* node) {
 								  if (node) {
+									if (node->type == AST::AST_INITIAL) {
+										auto insert_it = find_if(current_node->children.begin(), current_node->children.end(),
+												[] (AST::AstNode *node) {return (node->type == AST::AST_ALWAYS);} );
+										// Place AST_INITIAL before AST_ALWAYS if found
+										current_node->children.insert(insert_it, 1, node);
+									} else {
 									  add_or_replace_child(current_node, node);
+									}
 								  }
 							  });
 			current_node->attributes.erase(ID::partial);
