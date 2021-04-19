@@ -79,6 +79,7 @@ class UhdmAst {
 		void process_enum_const();
 		void process_custom_var();
 		void process_int_var();
+		void process_real_var();
 		void process_array_var();
 		void process_param_assign();
 		void process_cont_assign();
