@@ -194,7 +194,12 @@ AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, std::vector<AST::Ast
 	} else if (auto name = vpi_get_str(vpiDefName, obj_h)) {
 		node->str = name;
 	} else if (auto name = vpi_get_str(vpiFullName, obj_h)) {
-		node->str = name;
+		std::string s = std::string(name);
+		if (s.rfind(".") != std::string::npos) {
+			node->str = s.substr(s.rfind(".") + 1);
+		} else {
+			node->str = s;
+		}
 	}
 	sanitize_symbol_name(node->str);
 	if (auto filename = vpi_get_str(vpiFile, obj_h)) {
