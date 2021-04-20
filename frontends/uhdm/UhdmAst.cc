@@ -248,8 +248,42 @@ static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
 			*it = child;
 			return;
 		}
+		parent->children.push_back(child);
+	} else if (child->type == AST::AST_INITIAL) {
+		// Special case for initials
+		// Ensure that there is only one AST_INITIAL in the design
+		// And there is only one AST_BLOCK inside that initial
+		// Copy nodes from child initial to parent initial
+		auto initial_node_it = find_if(parent->children.begin(), parent->children.end(),
+			[] (AST::AstNode *node) {return (node->type == AST::AST_INITIAL);} );
+		if (initial_node_it != parent->children.end()) {
+			AST::AstNode* initial_node = *initial_node_it;
+
+			log_assert(!(initial_node->children.empty()));
+			log_assert(initial_node->children[0]->type == AST::AST_BLOCK);
+			log_assert(!(child->children.empty()));
+			log_assert(child->children[0]->type == AST::AST_BLOCK);
+
+			AST::AstNode* block_node = initial_node->children[0];
+			AST::AstNode* child_block_node = child->children[0];
+
+			// Place the contents of child block node inside parent block
+			for (auto child_block_child : child_block_node->children)
+				block_node->children.push_back(child_block_child->clone());
+			// Place the remaining contents of child initial node inside the parent initial
+			for (auto initial_child = child->children.begin() + 1; initial_child != child->children.end(); ++initial_child) {
+				initial_node->children.push_back((*initial_child)->clone());
+			}
+		} else {
+			// Parent AST_INITIAL does not exist
+			// Place child AST_INITIAL before AST_ALWAYS if found
+			auto insert_it = find_if(parent->children.begin(), parent->children.end(),
+				[] (AST::AstNode *node) {return (node->type == AST::AST_ALWAYS);} );
+			parent->children.insert(insert_it, 1, child);
+		}
+	} else {
+		parent->children.push_back(child);
 	}
-	parent->children.push_back(child);
 }
 
 void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* cell_node, AST::AstNode* type_node) {
@@ -561,14 +595,7 @@ void UhdmAst::process_module() {
 							  obj_h,
 							  [&](AST::AstNode* node) {
 								  if (node) {
-									if (node->type == AST::AST_INITIAL) {
-										auto insert_it = find_if(current_node->children.begin(), current_node->children.end(),
-												[] (AST::AstNode *node) {return (node->type == AST::AST_ALWAYS);} );
-										// Place AST_INITIAL before AST_ALWAYS if found
-										current_node->children.insert(insert_it, 1, node);
-									} else {
 									  add_or_replace_child(current_node, node);
-									}
 								  }
 							  });
 			current_node->attributes.erase(ID::partial);
