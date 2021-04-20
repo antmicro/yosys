@@ -71,6 +71,7 @@ tlul_err.sv \
 tlul_assert_multiple.sv \
 tlul_adapter_reg.sv \
 tlul_adapter_sram.sv \
+tlul_err_resp.sv \
 tlul_socket_1n.sv \
 tlul_socket_m1.sv \
 sram2tlul.sv \
@@ -300,6 +301,7 @@ prim_filter.sv \
 usbdev_linkstate.sv \
 usbdev_flop_2syncpulse.sv \
 usbdev_usbif.sv \
+tlul_socket_1n.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
