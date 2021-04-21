@@ -393,6 +393,21 @@ index 052cb2f5a..b62227975 100644
  
    // Create Socket_1n
    tlul_socket_1n #(
+diff --git a/hw/ip/prim/rtl/prim_diff_decode.sv b/hw/ip/prim/rtl/prim_diff_decode.sv
+index c06a77d77..8c9db0c61 100644
+--- a/hw/ip/prim/rtl/prim_diff_decode.sv
++++ b/hw/ip/prim/rtl/prim_diff_decode.sv
+@@ -42,9 +42,9 @@ module prim_diff_decode #(
+   ///////////////////////////////////////////////////////////////
+   // synchronization regs for incoming diff pair (if required) //
+   ///////////////////////////////////////////////////////////////
++  typedef enum logic [1:0] {IsStd, IsSkewed, SigInt} state_e;
+   if (AsyncOn) begin : gen_async
+ 
+-    typedef enum logic [1:0] {IsStd, IsSkewed, SigInt} state_e;
+     state_e state_d, state_q;
+     logic diff_p_edge, diff_n_edge, diff_check_ok, level;
+ 
 diff --git a/hw/ip/prim/rtl/prim_prince.sv b/hw/ip/prim/rtl/prim_prince.sv
 index 423a7ca21..cb790a861 100644
 --- a/hw/ip/prim/rtl/prim_prince.sv
@@ -1182,6 +1197,59 @@ index 59fe3ffd4..071a30b94 100644
    parameter int unsigned ReqDepth = 2,
    parameter int unsigned RspDepth = 2,
    parameter int unsigned SpareReqW = 1,
+diff --git a/hw/ip/tlul/rtl/tlul_socket_m1.sv b/hw/ip/tlul/rtl/tlul_socket_m1.sv
+index 8637ad221..9f0f2888b 100644
+--- a/hw/ip/tlul/rtl/tlul_socket_m1.sv
++++ b/hw/ip/tlul/rtl/tlul_socket_m1.sv
+@@ -85,17 +85,17 @@ module tlul_socket_m1 #(
+   logic arb_ready;
+   tlul_pkg::tl_h2d_t arb_data;
+ 
++  tlul_pkg::tl_h2d_t hreq_fifo_i [M];
++  logic [IDW-1:0] shifted_id [M];
++  // ID Shifting
++  logic [STIDW-1:0] reqid_sub [M];
+   // Host Req/Rsp FIFO
+   for (genvar i = 0 ; i < M ; i++) begin : gen_host_fifo
+-    tlul_pkg::tl_h2d_t hreq_fifo_i;
+ 
+-    // ID Shifting
+-    logic [STIDW-1:0] reqid_sub;
+-    logic [IDW-1:0] shifted_id;
+-    assign reqid_sub = i;   // can cause conversion error?
+-    assign shifted_id = {
++    assign reqid_sub[i] = i;   // can cause conversion error?
++    assign shifted_id[i] = {
+       tl_h_i[i].a_source[0+:(IDW-STIDW)],
+-      reqid_sub
++      reqid_sub[i]
+     };
+ 
+   `ASSERT(idInRange, tl_h_i[i].a_valid |-> tl_h_i[i].a_source[IDW-1 -:STIDW] == '0)
+@@ -105,12 +105,12 @@ module tlul_socket_m1 #(
+     assign unused_tl_h_source = tl_h_i[i].a_source[IDW-1 -: STIDW];
+ 
+     // Put shifted ID
+-    assign hreq_fifo_i = '{
++    assign hreq_fifo_i[i] = '{
+       a_valid:    tl_h_i[i].a_valid,
+       a_opcode:   tl_h_i[i].a_opcode,
+       a_param:    tl_h_i[i].a_param,
+       a_size:     tl_h_i[i].a_size,
+-      a_source:   shifted_id,
++      a_source:   shifted_id[i],
+       a_address:  tl_h_i[i].a_address,
+       a_mask:     tl_h_i[i].a_mask,
+       a_data:     tl_h_i[i].a_data,
+@@ -127,7 +127,7 @@ module tlul_socket_m1 #(
+     ) u_hostfifo (
+       .clk_i,
+       .rst_ni,
+-      .tl_h_i      (hreq_fifo_i),
++      .tl_h_i      (hreq_fifo_i[i]),
+       .tl_h_o      (tl_h_o[i]),
+       .tl_d_o      (hreq_fifo_o[i]),
+       .tl_d_i      (hrsp_fifo_i[i]),
 diff --git a/hw/ip/usbdev/rtl/usbdev.sv b/hw/ip/usbdev/rtl/usbdev.sv
 index cbdadd624..42a4d1b7a 100644
 --- a/hw/ip/usbdev/rtl/usbdev.sv

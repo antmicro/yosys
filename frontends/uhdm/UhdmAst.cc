@@ -1774,13 +1774,12 @@ void UhdmAst::process_var_select() {
 }
 
 void UhdmAst::process_if_else() {
-	current_node = make_ast_node(AST::AST_BLOCK);
-	auto case_node = new AST::AstNode(AST::AST_CASE);
+	current_node = make_ast_node(AST::AST_CASE);
 	visit_one_to_one({vpiCondition},
 					 obj_h,
 					 [&](AST::AstNode* node) {
 						 auto reduce_node = new AST::AstNode(AST::AST_REDUCE_BOOL, node);
-						 case_node->children.push_back(reduce_node);
+						 current_node->children.push_back(reduce_node);
 					 });
 	// If true:
 	auto *condition = new AST::AstNode(AST::AST_COND);
@@ -1793,7 +1792,7 @@ void UhdmAst::process_if_else() {
 						 statements->children.push_back(node);
 						 condition->children.push_back(statements);
 					 });
-	case_node->children.push_back(condition);
+	current_node->children.push_back(condition);
 	// Else:
 	if (vpi_get(vpiType, obj_h) == vpiIfElse) {
 		auto *condition = new AST::AstNode(AST::AST_COND);
@@ -1806,9 +1805,8 @@ void UhdmAst::process_if_else() {
 							 statements->children.push_back(node);
 							 condition->children.push_back(statements);
 						 });
-		case_node->children.push_back(condition);
+		current_node->children.push_back(condition);
 	}
-	current_node->children.push_back(case_node);
 }
 
 void UhdmAst::process_for() {
@@ -1822,9 +1820,11 @@ void UhdmAst::process_for() {
 					  [&](AST::AstNode* node) {
 						  if (node->type == AST::AST_ASSIGN_LE) node->type = AST::AST_ASSIGN_EQ;
 						  if (node->children[0]->type == AST::AST_WIRE) {
-							loop_parent_node->children.push_back(node->children[0]);
-							node->children[0] = node->children[0]->clone();
+						  	auto *wire = node->children[0]->clone();
+							wire->is_reg = true;
+							loop_parent_node->children.push_back(wire);
 							node->children[0]->type = AST::AST_IDENTIFIER;
+							node->children[0]->is_signed = false;
 							node->children[0]->children.clear();
 						  }
 						  current_node->children.push_back(node);
@@ -1847,7 +1847,10 @@ void UhdmAst::process_for() {
 						 statements->children.push_back(node);
 						 current_node->children.push_back(statements);
 					 });
-	loop_parent_node->children.push_back(current_node);
+	auto for_block = make_ast_node(AST::AST_BLOCK);
+	for_block->str = "";
+	for_block->children.push_back(current_node);
+	loop_parent_node->children.push_back(for_block);
 	current_node = loop_parent_node;
 }
 
