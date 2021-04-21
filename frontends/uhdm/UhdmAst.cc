@@ -85,16 +85,22 @@ void UhdmAst::visit_default_expr(vpiHandle obj_h)  {
 		auto assign_node = new AST::AstNode(AST::AST_ASSIGN_EQ);
 		auto id_node = new AST::AstNode(AST::AST_IDENTIFIER);
 		id_node->str = current_node->str;
+
 		for (auto child : mod->children) {
 			if (child->type == AST::AST_INITIAL) {
 				initial_node = child;
 				break;
 			}
 		}
-		// Ensure single AST_INITIAL node in AST_MODULE
+		// Ensure single AST_INITIAL node is located in AST_MODULE
+		// before any AST_ALWAYS
 		if (initial_node == nullptr) {
 			initial_node = new AST::AstNode(AST::AST_INITIAL);
-			mod->children.push_back(initial_node);
+
+			auto insert_it = find_if(mod->children.begin(), mod->children.end(),
+					[] (AST::AstNode *node) {return (node->type == AST::AST_ALWAYS);} );
+
+			mod->children.insert(insert_it, 1, initial_node);
 		}
 		// Ensure single AST_BLOCK node in AST_INITIAL
 		if (initial_node->children.size() && initial_node->children[0]) {
@@ -242,8 +248,42 @@ static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
 			*it = child;
 			return;
 		}
+		parent->children.push_back(child);
+	} else if (child->type == AST::AST_INITIAL) {
+		// Special case for initials
+		// Ensure that there is only one AST_INITIAL in the design
+		// And there is only one AST_BLOCK inside that initial
+		// Copy nodes from child initial to parent initial
+		auto initial_node_it = find_if(parent->children.begin(), parent->children.end(),
+			[] (AST::AstNode *node) {return (node->type == AST::AST_INITIAL);} );
+		if (initial_node_it != parent->children.end()) {
+			AST::AstNode* initial_node = *initial_node_it;
+
+			log_assert(!(initial_node->children.empty()));
+			log_assert(initial_node->children[0]->type == AST::AST_BLOCK);
+			log_assert(!(child->children.empty()));
+			log_assert(child->children[0]->type == AST::AST_BLOCK);
+
+			AST::AstNode* block_node = initial_node->children[0];
+			AST::AstNode* child_block_node = child->children[0];
+
+			// Place the contents of child block node inside parent block
+			for (auto child_block_child : child_block_node->children)
+				block_node->children.push_back(child_block_child->clone());
+			// Place the remaining contents of child initial node inside the parent initial
+			for (auto initial_child = child->children.begin() + 1; initial_child != child->children.end(); ++initial_child) {
+				initial_node->children.push_back((*initial_child)->clone());
+			}
+		} else {
+			// Parent AST_INITIAL does not exist
+			// Place child AST_INITIAL before AST_ALWAYS if found
+			auto insert_it = find_if(parent->children.begin(), parent->children.end(),
+				[] (AST::AstNode *node) {return (node->type == AST::AST_ALWAYS);} );
+			parent->children.insert(insert_it, 1, child);
+		}
+	} else {
+		parent->children.push_back(child);
 	}
-	parent->children.push_back(child);
 }
 
 void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* cell_node, AST::AstNode* type_node) {
@@ -900,8 +940,31 @@ void UhdmAst::process_param_assign() {
 					 });
 }
 
-void UhdmAst::process_cont_assign() {
+void UhdmAst::process_cont_assign_var_init() {
+	current_node = make_ast_node(AST::AST_INITIAL);
+	auto block_node = make_ast_node(AST::AST_BLOCK);
+	auto assign_node = make_ast_node(AST::AST_ASSIGN_LE);
+	block_node->children.push_back(assign_node);
+	current_node->children.push_back(block_node);
+
+	visit_one_to_one({vpiLhs,
+					  vpiRhs},
+					 obj_h,
+					 [&](AST::AstNode* node) {
+						 if (node) {
+							 if (node->type == AST::AST_WIRE) {
+								 assign_node->children.push_back(new AST::AstNode(AST::AST_IDENTIFIER));
+								 assign_node->children.back()->str = node->str;
+							 } else {
+								 assign_node->children.push_back(node);
+							 }
+						 }
+					 });
+}
+
+void UhdmAst::process_cont_assign_net() {
 	current_node = make_ast_node(AST::AST_ASSIGN);
+
 	visit_one_to_one({vpiLhs,
 					  vpiRhs},
 					 obj_h,
@@ -915,6 +978,24 @@ void UhdmAst::process_cont_assign() {
 							 }
 						 }
 					 });
+}
+
+void UhdmAst::process_cont_assign() {
+	auto net_decl_assign = vpi_get(vpiNetDeclAssign, obj_h);
+	vpiHandle node_lhs_h = vpi_handle(vpiLhs, obj_h);
+	auto lhs_net_type = vpi_get(vpiNetType, node_lhs_h);
+
+	// Check if lhs is a subtype of a net
+	bool isNet;
+	if (lhs_net_type >= vpiWire && lhs_net_type <= vpiUwire)
+		isNet = true;
+	else
+		// lhs is a variable
+		isNet = false;
+	if (net_decl_assign && !isNet)
+		process_cont_assign_var_init();
+	else
+		process_cont_assign_net();
 }
 
 void UhdmAst::process_assignment() {

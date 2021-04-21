@@ -82,6 +82,8 @@ class UhdmAst {
 		void process_array_var();
 		void process_param_assign();
 		void process_cont_assign();
+		void process_cont_assign_net();
+		void process_cont_assign_var_init();
 		void process_assignment();
 		void process_net();
 		void process_packed_array_net();
