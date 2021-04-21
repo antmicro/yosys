@@ -154,6 +154,7 @@ spi_device_pkg.sv \
 spi_device_reg_pkg.sv \
 uart_reg_pkg.sv \
 usb_consts_pkg.sv \
+tl_main_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -524,7 +525,7 @@ uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 		-p "verilog_defines -DPRIM_DEFAULT_IMPL=prim_pkg::ImplGeneric" \
 		-p "verilog_defaults -push" \
 		-p "verilog_defaults -add -defer" \
-		-p "read_uhdm ${UHDM_file}" \
+		-p "read_uhdm -debug ${UHDM_file}" \
 		-p "read_verilog ${SV2V_FILE}" \
 		-p "read_verilog -overwrite ${CUSTOM_FILES}" \
 		-p "verilog_defaults -pop" \
