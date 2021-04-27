@@ -369,6 +369,7 @@ AST::AstNode* UhdmAst::find_ancestor(const std::unordered_set<AST::AstNodeType>&
 	return nullptr;
 }
 
+
 void UhdmAst::process_design() {
 	current_node = make_ast_node(AST::AST_DESIGN);
 	visit_one_to_many({UHDM::uhdmallInterfaces,
@@ -535,6 +536,25 @@ void UhdmAst::process_port() {
 								  });
 				shared.report.mark_handled(actual_h);
 				break;
+			case vpiArrayVar:
+				if (vpiHandle reg_h = vpi_scan(vpi_iterate(vpiReg, actual_h))) {
+					if (vpi_get(vpiType, reg_h) == vpiStructVar || vpi_get(vpiType, reg_h) == vpiEnumVar) {
+						vpiHandle typespec_h = vpi_handle(vpiTypespec, reg_h);
+						std::string name = vpi_get_str(vpiName, typespec_h);
+						sanitize_symbol_name(name);
+						auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+						wiretype_node->str = name;
+						current_node->children.push_back(wiretype_node);
+						current_node->is_custom_type = true;
+						shared.report.mark_handled(typespec_h);
+					}
+					vpi_free_object(reg_h);
+				}
+				visit_one_to_many({vpiRange}, obj_h, [&](AST::AstNode* node) {
+					current_node->children.push_back(node);
+				});
+				shared.report.mark_handled(actual_h);
+				break;
 			case vpiEnumNet:
 			case vpiStructNet:
 			case vpiArrayNet:
@@ -610,7 +630,6 @@ void UhdmAst::process_module() {
 		} else {
 			current_node = make_ast_node(AST::AST_MODULE);
 			current_node->str = type;
-			current_node->attributes[ID::hdlname] = AST::AstNode::mkconst_str(current_node->str);
 			shared.top_nodes[current_node->str] = current_node;
 			current_node->attributes[ID::partial] = AST::AstNode::mkconst_int(1, false, 1);
 			visit_one_to_many({vpiTypedef},
@@ -949,8 +968,15 @@ void UhdmAst::process_param_assign() {
 					 obj_h,
 					 [&](AST::AstNode* node) {
 						 if (node) {
+						 	 current_node->type = node->type;
 							 current_node->str = node->str;
-							 current_node->children = node->children;
+							 //Here we need to copy any ranges that is already present in lhs,
+							 //but we want to skip actual value, as it is set in rhs
+							 for (auto *c : node->children) {
+							 	if(c->type != AST::AST_CONSTANT) {
+									current_node->children.push_back(c->clone());
+								}
+							 }
 							 shared.param_types[current_node->str] = shared.param_types[node->str];
 						 }
 					 });
@@ -1904,7 +1930,7 @@ void UhdmAst::process_gen_scope() {
 									   node->children.size() == 0) {
 
 							   	return; //skip parameters without any children
-								}
+							   }
 							   current_node->children.push_back(node);
 						   }
 					   });
