@@ -108,7 +108,6 @@ uart.sv \
 usbdev_reg_top.sv \
 usbdev_iomux.sv \
 usbdev.sv \
-xbar_main.sv \
 xbar_peri.sv \
 pwrmgr.sv \
 pwrmgr_cdc.sv \
@@ -303,6 +302,14 @@ usbdev_linkstate.sv \
 usbdev_flop_2syncpulse.sv \
 usbdev_usbif.sv \
 tlul_socket_1n.sv \
+prim_arbiter_ppc_n2.sv \
+prim_arbiter_ppc_n3.sv \
+tlul_socket_m1_n2.sv \
+tlul_socket_m1_n3.sv \
+tlul_socket_m1_n2_depth.sv \
+tlul_fifo_async_surelog.sv \
+prim_fifo_async_surelog.sv \
+xbar_main.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -436,6 +443,13 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top uart_core \
 			-top usbdev_flop_2syncpulse \
 			-top usbdev_usbif \
+			-top prim_arbiter_ppc_n2 \
+			-top prim_arbiter_ppc_n3 \
+			-top tlul_socket_m1_n2 \
+			-top tlul_socket_m1_n3 \
+			-top tlul_socket_m1_n2_depth \
+			-top tlul_fifo_async_surelog \
+			-top xbar_main \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -525,7 +539,7 @@ uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 		-p "verilog_defines -DPRIM_DEFAULT_IMPL=prim_pkg::ImplGeneric" \
 		-p "verilog_defaults -push" \
 		-p "verilog_defaults -add -defer" \
-		-p "read_uhdm -debug ${UHDM_file}" \
+		-p "read_uhdm ${UHDM_file}" \
 		-p "read_verilog ${SV2V_FILE}" \
 		-p "read_verilog -overwrite ${CUSTOM_FILES}" \
 		-p "verilog_defaults -pop" \
