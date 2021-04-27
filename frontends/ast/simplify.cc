@@ -1868,24 +1868,31 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 							// for logic [a:b][c] arr;
 							// and arr[d]
-							// generates arr[ ((d+1)*c) - 1 : (d*c) ];
+							// generates arr[ ((d*c) + d - 1 : (d*c) ];
 
 							// (d + 1)
-							auto* x1 = new AstNode;
+							/*auto* x1 = new AstNode;
 							x1->type = AST_ADD;
 							x1->children.push_back(id->clone());
-							x1->children.push_back(mkconst_int(1, false, 32));
+							x1->children.push_back(mkconst_int(1, false, 32));*/
 
-							// x1 * c
+							// d * c
 							auto* x2 = new AstNode;
 							x2->type = AST_MUL;
-							x2->children.push_back(x1);
+							x2->children.push_back(id->clone());
 							x2->children.push_back(mkconst_int(_width, false, 32));
 
-							// x2 - 1
+							auto *x2_self = new AstNode(AST_SELFSZ, x2);
+
+							auto* x3_add = new AstNode;
+							x3_add->type = AST_ADD;
+							x3_add->children.push_back(x2_self);
+							x3_add->children.push_back(mkconst_int(_width, false, 32));
+
+							// x3 - 1
 							auto* x3 = new AstNode;
 							x3->type = AST_SUB;
-							x3->children.push_back(x2);
+							x3->children.push_back(x3_add);
 							x3->children.push_back(mkconst_int(1, false, 32));
 
 							// d * c
@@ -1894,10 +1901,14 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 							x4->children.push_back(id->clone());
 							x4->children.push_back(mkconst_int(_width, false, 32));
 
+							auto* x4_self = new AstNode(AST_SELFSZ, x4);
+
+							auto *x4_add = new AstNode(AST_ADD, x4_self, mkconst_int(0, false, 32));
+
 							// x3:x4
 							AstNode* simple_range = new AstNode(AST_RANGE);
 							simple_range->children.push_back(x3);
-							simple_range->children.push_back(x4);
+							simple_range->children.push_back(x4_add);
 							children.erase(children.begin());
 							children.insert(children.begin(), simple_range);
 						} else {
