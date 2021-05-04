@@ -913,6 +913,22 @@ void UhdmAst::process_real_var() {
 	visit_default_expr(obj_h);
 }
 
+void UhdmAst::process_string_var() {
+	auto module_node = find_ancestor({AST::AST_MODULE});
+	auto wire_node = make_ast_node(AST::AST_WIRE);
+	vpiHandle expr_h = vpi_handle(vpiExpr, obj_h);
+	if (expr_h) {
+		auto size = vpi_get(vpiSize, expr_h);
+		auto left_const = AST::AstNode::mkconst_int((size-1)*8, true);
+		auto right_const = AST::AstNode::mkconst_int(0, true);
+		auto range = new AST::AstNode(AST::AST_RANGE, left_const, right_const);
+		wire_node->children.push_back(range);
+	}
+	wire_node->is_string = true;
+	module_node->children.push_back(wire_node);
+	current_node = make_ast_node(AST::AST_IDENTIFIER);
+	visit_default_expr(obj_h);
+}
 void UhdmAst::process_array_var() {
 	current_node = make_ast_node(AST::AST_WIRE);
 	vpiHandle itr = vpi_iterate(vpi_get(vpiType, obj_h) == vpiArrayVar ?
@@ -2185,6 +2201,7 @@ AST::AstNode* UhdmAst::process_object(vpiHandle obj_handle) {
 		case vpiStructNet: process_custom_var(); break;
 		case vpiIntVar: process_int_var(); break;
 		case vpiRealVar: process_real_var(); break;
+		case vpiStringVar: process_string_var(); break;
 		case vpiPackedArrayVar:
 		case vpiArrayVar: process_array_var(); break;
 		case vpiParamAssign: process_param_assign(); break;
