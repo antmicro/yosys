@@ -2082,6 +2082,15 @@ void UhdmAst::process_func_call() {
 					  });
 }
 
+void UhdmAst::process_chandle_var() {
+	void *size_ptr;
+	current_node = make_ast_node(AST::AST_WIRE);
+	auto left_const = AST::AstNode::mkconst_int(sizeof(size_ptr) * 8, true);
+	auto right_const = AST::AstNode::mkconst_int(0, true);
+	auto range = new AST::AstNode(AST::AST_RANGE, left_const, right_const);
+	current_node->children.push_back(range);
+}
+
 void UhdmAst::process_immediate_assert() {
 	current_node = make_ast_node(AST::AST_ASSERT);
 	visit_one_to_one({vpiExpr},
@@ -2228,6 +2237,7 @@ AST::AstNode* UhdmAst::process_object(vpiHandle obj_handle) {
 		case vpiSysFuncCall: process_sys_func_call(); break;
 		case vpiFuncCall: process_func_call(); break;
 		case vpiTaskCall: current_node = make_ast_node(AST::AST_TCALL); break;
+		case vpiChandleVar: process_chandle_var(); break;
 		case vpiImmediateAssert:
 				  if (!shared.no_assert)
 					  process_immediate_assert();

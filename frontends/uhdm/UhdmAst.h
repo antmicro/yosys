@@ -120,6 +120,7 @@ class UhdmAst {
 		void process_logic_var();
 		void process_sys_func_call();
 		void process_func_call();
+		void process_chandle_var();
 		void process_immediate_assert();
 		void process_hier_path();
 		void process_logic_typespec();
