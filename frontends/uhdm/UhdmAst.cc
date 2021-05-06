@@ -1749,6 +1749,8 @@ void UhdmAst::process_indexed_part_select() {
 					 [&](AST::AstNode* node) {
 						 current_node->str = node->str;
 					 });
+	//TODO: check if there are other types, for now only handle 1 and 2 (+: and -:)
+	auto indexed_part_select_type = vpi_get(vpiIndexedPartSelectType, obj_h) == 1 ? AST::AST_ADD : AST::AST_SUB;
 	auto range_node = new AST::AstNode(AST::AST_RANGE);
 	range_node->filename = current_node->filename;
 	range_node->location = current_node->location;
@@ -1760,16 +1762,18 @@ void UhdmAst::process_indexed_part_select() {
 	visit_one_to_one({vpiWidthExpr},
 					 obj_h,
 					 [&](AST::AstNode* node) {
-						 auto right_range_node = new AST::AstNode(AST::AST_ADD);
+						 auto right_range_node = new AST::AstNode(indexed_part_select_type);
 						 right_range_node->children.push_back(range_node->children[0]->clone());
 						 right_range_node->children.push_back(node);
-						 auto sub = new AST::AstNode(AST::AST_SUB);
+						 auto sub = new AST::AstNode(indexed_part_select_type == AST::AST_ADD ? AST::AST_SUB : AST::AST_ADD);
 						 sub->children.push_back(right_range_node);
 						 sub->children.push_back(AST::AstNode::mkconst_int(1, false, 1));
 						 range_node->children.push_back(sub);
 						 //range_node->children.push_back(right_range_node);
 					 });
-	std::reverse(range_node->children.begin(), range_node->children.end());
+	if (indexed_part_select_type == AST::AST_ADD) {
+		std::reverse(range_node->children.begin(), range_node->children.end());
+	}
 	current_node->children.push_back(range_node);
 }
 
