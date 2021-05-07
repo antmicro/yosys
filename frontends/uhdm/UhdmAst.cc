@@ -1073,6 +1073,17 @@ void UhdmAst::process_net() {
 	current_node->is_output = net_type == vpiOutput;
 	current_node->is_logic = !current_node->is_reg;
 	current_node->is_signed = vpi_get(vpiSigned, obj_h);
+	visit_one_to_one({vpiTypespec},
+					 obj_h,
+					 [&](AST::AstNode* node) {
+					 	 if (node) {
+							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+							 wiretype_node->str = node->str;
+							 // wiretype needs to be 1st node
+							 current_node->children.insert(current_node->children.begin(), wiretype_node);
+							 current_node->is_custom_type=true;
+						 }
+					 });
 	visit_range(obj_h,
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);

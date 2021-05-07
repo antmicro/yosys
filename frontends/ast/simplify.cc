@@ -1524,18 +1524,18 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			is_string = template_node->is_string;
 			is_custom_type = template_node->is_custom_type;
 
-			int range_mult = 1;
-			if(children.size() == 1 && children[0]->type == AST_RANGE) {
-				range_mult = children[0]->children[1]->integer + 1;
-				children.pop_back();
-			}
 
 			range_valid = template_node->range_valid;
 			range_swapped = template_node->range_swapped;
 			range_left = template_node->range_left;
 			range_right = template_node->range_right;
 
-			attributes[ID::wiretype] = mkconst_int(template_node->range_left + 1, false, 32);
+			int range_mult = 1;
+			if(children.size() == 1 && children[0]->type == AST_RANGE) {
+				range_mult = children[0]->children[1]->integer + 1;
+				attributes[ID::wiretype] = mkconst_int(template_node->range_left + 1, false, 32);
+				children.pop_back();
+			}
 
 			// if an enum then add attributes to support simulator tracing
 			annotateTypedEnums(template_node);
