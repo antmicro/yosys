@@ -302,8 +302,7 @@ usbdev_linkstate.sv \
 usbdev_flop_2syncpulse.sv \
 usbdev_usbif.sv \
 tlul_socket_1n.sv \
-prim_arbiter_ppc_n2.sv \
-prim_arbiter_ppc_n3.sv \
+prim_arbiter_ppc_surelog.sv \
 tlul_socket_m1_n2.sv \
 tlul_socket_m1_n3.sv \
 tlul_socket_m1_n2_depth.sv \
@@ -443,8 +442,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top uart_core \
 			-top usbdev_flop_2syncpulse \
 			-top usbdev_usbif \
-			-top prim_arbiter_ppc_n2 \
-			-top prim_arbiter_ppc_n3 \
+			-top prim_arbiter_ppc_surelog \
 			-top tlul_socket_m1_n2 \
 			-top tlul_socket_m1_n3 \
 			-top tlul_socket_m1_n2_depth \
