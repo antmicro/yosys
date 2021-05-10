@@ -194,7 +194,12 @@ AST::AstNode* UhdmAst::make_ast_node(AST::AstNodeType type, std::vector<AST::Ast
 	} else if (auto name = vpi_get_str(vpiDefName, obj_h)) {
 		node->str = name;
 	} else if (auto name = vpi_get_str(vpiFullName, obj_h)) {
-		node->str = name;
+		std::string s = std::string(name);
+		if (s.rfind(".") != std::string::npos) {
+			node->str = s.substr(s.rfind(".") + 1);
+		} else {
+			node->str = s;
+		}
 	}
 	sanitize_symbol_name(node->str);
 	if (auto filename = vpi_get_str(vpiFile, obj_h)) {
@@ -287,9 +292,12 @@ static void add_or_replace_child(AST::AstNode* parent, AST::AstNode* child) {
 }
 
 void UhdmAst::make_cell(vpiHandle obj_h, AST::AstNode* cell_node, AST::AstNode* type_node) {
-	auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
-	typeNode->str = strip_package_name(type_node->str);
-	cell_node->children.insert(cell_node->children.begin(), typeNode);
+	if (cell_node->children.size() == 0 ||
+			(cell_node->children.size() > 1 && cell_node->children[0]->type != AST::AST_CELLTYPE)) {
+		auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
+		typeNode->str = type_node->str;
+		cell_node->children.insert(cell_node->children.begin(), typeNode);
+	}
 	// Add port connections as arguments
 	vpiHandle port_itr = vpi_iterate(vpiPort, obj_h);
 	while (vpiHandle port_h = vpi_scan(port_itr) ) {
@@ -360,6 +368,7 @@ AST::AstNode* UhdmAst::find_ancestor(const std::unordered_set<AST::AstNodeType>&
 	}
 	return nullptr;
 }
+
 
 void UhdmAst::process_design() {
 	current_node = make_ast_node(AST::AST_DESIGN);
@@ -527,6 +536,25 @@ void UhdmAst::process_port() {
 								  });
 				shared.report.mark_handled(actual_h);
 				break;
+			case vpiArrayVar:
+				if (vpiHandle reg_h = vpi_scan(vpi_iterate(vpiReg, actual_h))) {
+					if (vpi_get(vpiType, reg_h) == vpiStructVar || vpi_get(vpiType, reg_h) == vpiEnumVar) {
+						vpiHandle typespec_h = vpi_handle(vpiTypespec, reg_h);
+						std::string name = vpi_get_str(vpiName, typespec_h);
+						sanitize_symbol_name(name);
+						auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+						wiretype_node->str = name;
+						current_node->children.push_back(wiretype_node);
+						current_node->is_custom_type = true;
+						shared.report.mark_handled(typespec_h);
+					}
+					vpi_free_object(reg_h);
+				}
+				visit_one_to_many({vpiRange}, obj_h, [&](AST::AstNode* node) {
+					current_node->children.push_back(node);
+				});
+				shared.report.mark_handled(actual_h);
+				break;
 			case vpiEnumNet:
 			case vpiStructNet:
 			case vpiArrayNet:
@@ -586,9 +614,9 @@ void UhdmAst::process_module() {
 							   vpiInterface,
 							   vpiParameter,
 							   vpiParamAssign,
+							   vpiPort,
 							   vpiNet,
 							   vpiArrayNet,
-							   vpiPort,
 							   vpiGenScopeArray,
 							   vpiContAssign,
 							   vpiVariables},
@@ -602,7 +630,6 @@ void UhdmAst::process_module() {
 		} else {
 			current_node = make_ast_node(AST::AST_MODULE);
 			current_node->str = type;
-			current_node->attributes[ID::hdlname] = AST::AstNode::mkconst_str(current_node->str);
 			shared.top_nodes[current_node->str] = current_node;
 			current_node->attributes[ID::partial] = AST::AstNode::mkconst_int(1, false, 1);
 			visit_one_to_many({vpiTypedef},
@@ -616,9 +643,9 @@ void UhdmAst::process_module() {
 							   vpiInterface,
 							   vpiParameter,
 							   vpiParamAssign,
+							   vpiPort,
 							   vpiNet,
 							   vpiArrayNet,
-							   vpiPort,
 							   vpiGenScopeArray,
 							   vpiContAssign,
 							   vpiProcess,
@@ -659,6 +686,42 @@ void UhdmAst::process_module() {
 				if (attr->integer == 1)
 					module_node->attributes.erase(ID::partial);
 		}
+		std::string module_parameters;
+		visit_one_to_many({vpiParamAssign},
+						  obj_h,
+						  [&](AST::AstNode* node) {
+							  if (node) {
+								if (std::find_if(module_node->children.begin(), module_node->children.end(),
+											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER &&
+											                                        child->str == node->str &&
+																//skip real parameters as they are currently not working: https://github.com/alainmarcel/Surelog/issues/1035
+																child->type != AST::AST_REALVALUE;})
+														!= module_node->children.end()) {
+									if (cell_instance || (node->children.size() > 0 && node->children[0]->type != AST::AST_CONSTANT)) { //if cell is a blackbox or we need to simplify parameter first, left setting parameters to yosys
+										auto clone = node->clone();
+										clone->type = AST::AST_PARASET;
+										current_node->children.push_back(clone);
+									} else {
+										if (node->children[0]->str != "")
+											module_parameters += node->str + "=" + node->children[0]->str;
+										else
+											module_parameters += node->str + "=" + std::to_string(node->children[0]->integer);
+										//replace
+										add_or_replace_child(module_node, node);
+									}
+								}
+							  }
+						  });
+		//rename module in same way yosys do
+		if (module_parameters.size() > 60)
+			module_node->str = "$paramod$" + sha1(module_parameters) + type;
+		else if(module_parameters != "")
+			module_node->str = "$paramod" + type + module_parameters;
+		auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
+		typeNode->str = module_node->str;
+		current_node->children.push_back(typeNode);
+		shared.top_node_templates[module_node->str] = module_node;
+		shared.top_nodes[module_node->str] = module_node;
 		visit_one_to_many({vpiVariables,
 						   vpiNet,
 						   vpiArrayNet},
@@ -694,40 +757,6 @@ void UhdmAst::process_module() {
 								}
 							  }
 						  });
-		std::string module_parameters;
-		visit_one_to_many({vpiParamAssign},
-						  obj_h,
-						  [&](AST::AstNode* node) {
-							  if (node) {
-								if (std::find_if(module_node->children.begin(), module_node->children.end(),
-											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER &&
-											                                        child->str == node->str &&
-																//skip real parameters as they are currently not working: https://github.com/alainmarcel/Surelog/issues/1035
-																child->type != AST::AST_REALVALUE;})
-														!= module_node->children.end()) {
-									if (cell_instance || (node->children.size() > 0 && node->children[0]->type != AST::AST_CONSTANT)) { //if cell is a blackbox or we need to simplify parameter first, left setting parameters to yosys
-										auto clone = node->clone();
-										clone->type = AST::AST_PARASET;
-										current_node->children.push_back(clone);
-									} else {
-										if (node->children[0]->str != "")
-											module_parameters += node->str + "=" + node->children[0]->str;
-										else
-											module_parameters += node->str + "=" + std::to_string(node->children[0]->integer);
-										//replace
-										add_or_replace_child(module_node, node);
-									}
-								}
-							  }
-						  });
-		//rename module in same way yosys do
-		if (module_parameters.size() > 60)
-			module_node->str = "$paramod$" + sha1(module_parameters) + type;
-		else if(module_parameters != "")
-			module_node->str = "$paramod" + type + module_parameters;
-		//add new module to templates and top nodes
-		shared.top_node_templates[module_node->str] = module_node;
-		shared.top_nodes[module_node->str] = module_node;
 		make_cell(obj_h, current_node, module_node);
 	}
 }
@@ -939,8 +968,15 @@ void UhdmAst::process_param_assign() {
 					 obj_h,
 					 [&](AST::AstNode* node) {
 						 if (node) {
+						 	 current_node->type = node->type;
 							 current_node->str = node->str;
-							 current_node->children = node->children;
+							 //Here we need to copy any ranges that is already present in lhs,
+							 //but we want to skip actual value, as it is set in rhs
+							 for (auto *c : node->children) {
+							 	if(c->type != AST::AST_CONSTANT) {
+									current_node->children.push_back(c->clone());
+								}
+							 }
 							 shared.param_types[current_node->str] = shared.param_types[node->str];
 						 }
 					 });
@@ -1037,6 +1073,17 @@ void UhdmAst::process_net() {
 	current_node->is_output = net_type == vpiOutput;
 	current_node->is_logic = !current_node->is_reg;
 	current_node->is_signed = vpi_get(vpiSigned, obj_h);
+	visit_one_to_one({vpiTypespec},
+					 obj_h,
+					 [&](AST::AstNode* node) {
+					 	 if (node) {
+							 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+							 wiretype_node->str = node->str;
+							 // wiretype needs to be 1st node
+							 current_node->children.insert(current_node->children.begin(), wiretype_node);
+							 current_node->is_custom_type=true;
+						 }
+					 });
 	visit_range(obj_h,
 				[&](AST::AstNode* node) {
 					current_node->children.push_back(node);
@@ -1064,7 +1111,8 @@ void UhdmAst::process_array_net() {
 	current_node = make_ast_node(AST::AST_WIRE);
 	vpiHandle itr = vpi_iterate(vpiNet, obj_h);
 	while (vpiHandle net_h = vpi_scan(itr)) {
-		if (vpi_get(vpiType, net_h) == vpiLogicNet) {
+		auto net_type = vpi_get(vpiType, net_h);
+		if (net_type == vpiLogicNet) {
 			current_node->is_logic = true;
 			current_node->is_signed = vpi_get(vpiSigned, net_h);
 			visit_range(net_h,
@@ -1072,6 +1120,16 @@ void UhdmAst::process_array_net() {
 							current_node->children.push_back(node);
 						});
 			shared.report.mark_handled(net_h);
+		} else if (net_type == vpiStructNet) {
+                        vpiHandle typespec_h = vpi_handle(vpiTypespec, net_h);
+                        std::string name = vpi_get_str(vpiName, typespec_h);
+                        sanitize_symbol_name(name);
+                        auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+                        wiretype_node->str = name;
+                        current_node->children.push_back(wiretype_node);
+                        current_node->is_custom_type = true;
+                        shared.report.mark_handled(net_h);
+                        shared.report.mark_handled(typespec_h);
 		}
 		vpi_free_object(net_h);
 	}
@@ -1600,7 +1658,11 @@ void UhdmAst::process_assignment_pattern_op() {
 		return;
 	}
 	auto assign_node = find_ancestor({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ, AST::AST_ASSIGN_LE});
-	auto proc_node = find_ancestor({AST::AST_BLOCK, AST::AST_ALWAYS, AST::AST_INITIAL, AST::AST_MODULE, AST::AST_PACKAGE});
+
+	auto proc_node = find_ancestor({AST::AST_BLOCK, AST::AST_ALWAYS, AST::AST_INITIAL, AST::AST_MODULE, AST::AST_PACKAGE, AST::AST_CELL});
+	if (proc_node && proc_node->type == AST::AST_CELL && shared.top_nodes.count(proc_node->children[0]->str)) {
+		proc_node = shared.top_nodes[proc_node->children[0]->str];
+	}
 	std::vector<AST::AstNode*> assignments;
 	visit_one_to_many({vpiOperand},
 					  obj_h,
@@ -1698,6 +1760,8 @@ void UhdmAst::process_indexed_part_select() {
 					 [&](AST::AstNode* node) {
 						 current_node->str = node->str;
 					 });
+	//TODO: check if there are other types, for now only handle 1 and 2 (+: and -:)
+	auto indexed_part_select_type = vpi_get(vpiIndexedPartSelectType, obj_h) == 1 ? AST::AST_ADD : AST::AST_SUB;
 	auto range_node = new AST::AstNode(AST::AST_RANGE);
 	range_node->filename = current_node->filename;
 	range_node->location = current_node->location;
@@ -1709,16 +1773,18 @@ void UhdmAst::process_indexed_part_select() {
 	visit_one_to_one({vpiWidthExpr},
 					 obj_h,
 					 [&](AST::AstNode* node) {
-						 auto right_range_node = new AST::AstNode(AST::AST_ADD);
+						 auto right_range_node = new AST::AstNode(indexed_part_select_type);
 						 right_range_node->children.push_back(range_node->children[0]->clone());
 						 right_range_node->children.push_back(node);
-						 auto sub = new AST::AstNode(AST::AST_SUB);
+						 auto sub = new AST::AstNode(indexed_part_select_type == AST::AST_ADD ? AST::AST_SUB : AST::AST_ADD);
 						 sub->children.push_back(right_range_node);
 						 sub->children.push_back(AST::AstNode::mkconst_int(1, false, 1));
 						 range_node->children.push_back(sub);
 						 //range_node->children.push_back(right_range_node);
 					 });
-	std::reverse(range_node->children.begin(), range_node->children.end());
+	if (indexed_part_select_type == AST::AST_ADD) {
+		std::reverse(range_node->children.begin(), range_node->children.end());
+	}
 	current_node->children.push_back(range_node);
 }
 
@@ -1749,13 +1815,12 @@ void UhdmAst::process_var_select() {
 }
 
 void UhdmAst::process_if_else() {
-	current_node = make_ast_node(AST::AST_BLOCK);
-	auto case_node = new AST::AstNode(AST::AST_CASE);
+	current_node = make_ast_node(AST::AST_CASE);
 	visit_one_to_one({vpiCondition},
 					 obj_h,
 					 [&](AST::AstNode* node) {
 						 auto reduce_node = new AST::AstNode(AST::AST_REDUCE_BOOL, node);
-						 case_node->children.push_back(reduce_node);
+						 current_node->children.push_back(reduce_node);
 					 });
 	// If true:
 	auto *condition = new AST::AstNode(AST::AST_COND);
@@ -1768,7 +1833,7 @@ void UhdmAst::process_if_else() {
 						 statements->children.push_back(node);
 						 condition->children.push_back(statements);
 					 });
-	case_node->children.push_back(condition);
+	current_node->children.push_back(condition);
 	// Else:
 	if (vpi_get(vpiType, obj_h) == vpiIfElse) {
 		auto *condition = new AST::AstNode(AST::AST_COND);
@@ -1781,9 +1846,8 @@ void UhdmAst::process_if_else() {
 							 statements->children.push_back(node);
 							 condition->children.push_back(statements);
 						 });
-		case_node->children.push_back(condition);
+		current_node->children.push_back(condition);
 	}
-	current_node->children.push_back(case_node);
 }
 
 void UhdmAst::process_for() {
@@ -1797,9 +1861,11 @@ void UhdmAst::process_for() {
 					  [&](AST::AstNode* node) {
 						  if (node->type == AST::AST_ASSIGN_LE) node->type = AST::AST_ASSIGN_EQ;
 						  if (node->children[0]->type == AST::AST_WIRE) {
-							loop_parent_node->children.push_back(node->children[0]);
-							node->children[0] = node->children[0]->clone();
+						  	auto *wire = node->children[0]->clone();
+							wire->is_reg = true;
+							loop_parent_node->children.push_back(wire);
 							node->children[0]->type = AST::AST_IDENTIFIER;
+							node->children[0]->is_signed = false;
 							node->children[0]->children.clear();
 						  }
 						  current_node->children.push_back(node);
@@ -1822,14 +1888,15 @@ void UhdmAst::process_for() {
 						 statements->children.push_back(node);
 						 current_node->children.push_back(statements);
 					 });
-	loop_parent_node->children.push_back(current_node);
+	auto for_block = make_ast_node(AST::AST_BLOCK);
+	for_block->str = "";
+	for_block->children.push_back(current_node);
+	loop_parent_node->children.push_back(for_block);
 	current_node = loop_parent_node;
 }
 
 void UhdmAst::process_gen_scope_array() {
 	current_node = make_ast_node(AST::AST_GENBLOCK);
-	std::string full_name = vpi_get_str(vpiFullName, obj_h) ? vpi_get_str(vpiFullName, obj_h) : current_node->str;
-	full_name = full_name.substr(full_name.find("."));
 	visit_one_to_many({vpiGenScope},
 					  obj_h,
 					  [&](AST::AstNode* genscope_node) {
@@ -1841,7 +1908,14 @@ void UhdmAst::process_gen_scope_array() {
 								  genscope_node->visitEachDescendant([&](AST::AstNode* node) {
 									  auto pos = node->str.find(array_str);
 									  if (pos != std::string::npos) {
-									  	  node->str.replace(pos + 1, param_str.size(), (full_name + "." + param_str).substr(1));
+									  	node->type = AST::AST_PREFIX;
+										auto *param = new AST::AstNode(AST::AST_IDENTIFIER);
+										param->str = child->str;
+										auto *field = new AST::AstNode(AST::AST_IDENTIFIER);
+										field->str = "\\" + node->str.substr(node->str.rfind("]") + 2);
+										node->str = node->str.substr(0, node->str.find("["));
+										node->children.push_back(param);
+										node->children.push_back(field);
 									  }
 								  });
 							  }
@@ -1871,7 +1945,7 @@ void UhdmAst::process_gen_scope() {
 									   node->children.size() == 0) {
 
 							   	return; //skip parameters without any children
-								}
+							   }
 							   current_node->children.push_back(node);
 						   }
 					   });
@@ -2047,15 +2121,19 @@ void UhdmAst::process_hier_path() {
 	visit_one_to_many({vpiActual},
 					  obj_h,
 					  [&](AST::AstNode* node) {
-					  	  if (current_node->str != "\\") {
-						  	current_node->str += ".";
-						  }
-						  current_node->str += node->str.substr(1);
-						  if (node->children.size() > 0 && node->children[0]->type == AST::AST_RANGE) {
-						  	if (node->children[0]->children[0]->str != "") {
-								current_node->str += "[" + node->children[0]->children[0]->str.substr(1) + "]";
+						  if (current_node->str == "\\" && node->children.size() > 0 && node->children[0]->type == AST::AST_RANGE) {
+						  	current_node->type = AST::AST_PREFIX;
+							current_node->str = node->str;
+							current_node->children.push_back(node->children[0]->children[0]->clone());
+						  } else {
+						  	if (current_node->type == AST::AST_IDENTIFIER) {
+								if (current_node->str != "\\") {
+								      current_node->str += ".";
+								}
+								current_node->str += node->str.substr(1);
+								current_node->children = node->children;
 							} else {
-								current_node->str += "[" + std::to_string(node->children[0]->children[0]->integer) + "]";
+								current_node->children.push_back(node->clone());
 							}
 						  }
 					  });

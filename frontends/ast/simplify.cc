@@ -1426,18 +1426,18 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			is_string = template_node->is_string;
 			is_custom_type = template_node->is_custom_type;
 
-			int range_mult = 1;
-			if(children.size() == 1 && children[0]->type == AST_RANGE) {
-				range_mult = children[0]->children[1]->integer + 1;
-				children.pop_back();
-			}
 
 			range_valid = template_node->range_valid;
 			range_swapped = template_node->range_swapped;
 			range_left = template_node->range_left;
 			range_right = template_node->range_right;
 
-			attributes[ID::wiretype] = mkconst_int(template_node->range_left + 1, false, 32);
+			int range_mult = 1;
+			if(children.size() == 1 && children[0]->type == AST_RANGE) {
+				range_mult = children[0]->children[1]->integer + 1;
+				attributes[ID::wiretype] = mkconst_int(template_node->range_left + 1, false, 32);
+				children.pop_back();
+			}
 
 			// if an enum then add attributes to support simulator tracing
 			annotateTypedEnums(template_node);
@@ -1868,24 +1868,31 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 							// for logic [a:b][c] arr;
 							// and arr[d]
-							// generates arr[ ((d+1)*c) - 1 : (d*c) ];
+							// generates arr[ ((d*c) + d - 1 : (d*c) ];
 
 							// (d + 1)
-							auto* x1 = new AstNode;
+							/*auto* x1 = new AstNode;
 							x1->type = AST_ADD;
 							x1->children.push_back(id->clone());
-							x1->children.push_back(mkconst_int(1, false, 32));
+							x1->children.push_back(mkconst_int(1, false, 32));*/
 
-							// x1 * c
+							// d * c
 							auto* x2 = new AstNode;
 							x2->type = AST_MUL;
-							x2->children.push_back(x1);
+							x2->children.push_back(id->clone());
 							x2->children.push_back(mkconst_int(_width, false, 32));
 
-							// x2 - 1
+							auto *x2_self = new AstNode(AST_SELFSZ, x2);
+
+							auto* x3_add = new AstNode;
+							x3_add->type = AST_ADD;
+							x3_add->children.push_back(x2_self);
+							x3_add->children.push_back(mkconst_int(_width, false, 32));
+
+							// x3 - 1
 							auto* x3 = new AstNode;
 							x3->type = AST_SUB;
-							x3->children.push_back(x2);
+							x3->children.push_back(x3_add);
 							x3->children.push_back(mkconst_int(1, false, 32));
 
 							// d * c
@@ -1894,10 +1901,14 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 							x4->children.push_back(id->clone());
 							x4->children.push_back(mkconst_int(_width, false, 32));
 
+							auto* x4_self = new AstNode(AST_SELFSZ, x4);
+
+							auto *x4_add = new AstNode(AST_ADD, x4_self, mkconst_int(0, false, 32));
+
 							// x3:x4
 							AstNode* simple_range = new AstNode(AST_RANGE);
 							simple_range->children.push_back(x3);
-							simple_range->children.push_back(x4);
+							simple_range->children.push_back(x4_add);
 							children.erase(children.begin());
 							children.insert(children.begin(), simple_range);
 						} else {
@@ -1935,8 +1946,16 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 								const size_t r_width = r->range_left - r->range_right + 1;
 
 								_width /= r_width;
-								_range_left  = (s->range_left)  * _width + (_width - 1) + _offset;
-								_range_right = (s->range_right) * _width                + _offset;
+ 								int start_idx = 0;
+								if (idx == 0 && ranges->children[1]->range_swapped) {
+									start_idx = ranges->children[1]->children[1]->integer;
+									_width = r_width;
+									_range_left  = (start_idx - (s->range_left))  * _width + (_width - 1) + _offset;
+									_range_right = (start_idx - (s->range_right)) * _width                + _offset;
+								} else {
+									_range_left  = ((s->range_left))  * _width + (_width - 1) + _offset;
+									_range_right = ((s->range_right)) * _width                + _offset;
+ 								}
 								_offset = _range_right;
 							}
 
@@ -2072,6 +2091,10 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					}
 				}
 			}
+			if (current_scope.count(look_str) < 1) {
+				look_str = str;
+				sname = str.substr(0, str.rfind("."));
+			}
 			if (current_scope.count(look_str) > 0) {
 				auto item_node = current_scope[look_str];
 				if (item_node->type == AST_STRUCT_ITEM || item_node->type == AST_STRUCT) {
@@ -2082,7 +2105,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					newNode->basic_prep = true;
 					goto apply_newNode;
 				}
-			}
+			} 
 		} else if (children.size() == 1 && children[0]->type == AST_RANGE) {
 			if (current_scope.count(str) > 0) {
 				while(current_scope[str]->simplify(true, false, false, 1, -1, false, false)) { }
@@ -4421,8 +4444,15 @@ void AstNode::expand_genblock(std::string index_var, std::string prefix, std::ma
 		}
 	}
 
-	if ((type == AST_IDENTIFIER || type == AST_FCALL || type == AST_TCALL || type == AST_WIRETYPE) && name_map.count(str) > 0)
-		str = name_map[str];
+
+	if ((type == AST_IDENTIFIER || type == AST_FCALL || type == AST_TCALL || type == AST_WIRETYPE)) {
+		auto dot_pos = str.find(".");
+		if (dot_pos != std::string::npos && name_map.count(str.substr(0, dot_pos)) > 0) {
+			str = name_map[str.substr(0, dot_pos)] + str.substr(dot_pos);
+		} else if (name_map.count(str)) {
+			str = name_map[str];
+		}
+	}
 
 	std::map<std::string, std::string> backup_name_map;
 
