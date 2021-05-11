@@ -1499,16 +1499,15 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			if (template_node->type == AST_STRUCT || template_node->type == AST_UNION) {
 				// replace with wire representing the packed structure
 				newNode = make_packed_struct(template_node, str);
-				// add original input/output attribute to resolved wire
-				if (children.size() == 2 && children[1]->type == AST_RANGE) {
-					//save size of single struct in wiretype attribute
+				if (children.size() == 2 && children[1]->type == AST_RANGE && port_id == 0) {
 					newNode->attributes[ID::wiretype] = mkconst_int(newNode->children[0]->range_left + 1, false, 32);
-					log_warning("Setting wiretype to: %d\n", newNode->children[0]->range_left + 1);
-					int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
-					newNode->children[0]->range_left *= s;
-					newNode->children[0]->children[0]->integer *= s;
-					newNode->children[0]->range_left -= 1;
-					newNode->children[0]->children[0]->integer -= 1;
+ 					int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
+ 					newNode->children[0]->range_left = (newNode->children[0]->range_left + 1) * s;
+ 					newNode->children[0]->children[0]->integer = (newNode->children[0]->children[0]->integer + 1) * s;
+ 					newNode->children[0]->range_left -= 1;
+ 					newNode->children[0]->children[0]->integer -= 1;
+				} else if(children.size() == 2 && children[1]->type == AST_RANGE && port_id > 0) {
+					newNode->children.push_back(children[1]->clone());
 				}
 				newNode->is_input = this->is_input;
 				newNode->is_output = this->is_output;
@@ -1596,7 +1595,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				}
 
 				// Move ranges under attributes
-				//AstNode* ranges = attributes[ID::range] = new AstNode(AST_CONSTANT); // has to be constant
+				AstNode* ranges = attributes[ID::wiretype] = new AstNode(AST_CONSTANT); // has to be constant
 				bool again;
 				do { // FIXME: yeah, this loop...
 					again = false;
@@ -1604,13 +1603,13 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 						if (children[i]->type != AST_RANGE)
 							continue ;
 
-						//ranges->children.push_back(children[i]);
+						ranges->children.push_back(children[i]);
 						children.erase(children.begin() + i);
 						again = true;
 					}
 				} while (again);
-				//ranges->range_left  = size - 1;
-				//ranges->range_right = 0;
+				ranges->range_left  = size - 1;
+				ranges->range_right = 0;
 
 				// Replace with one-dimensional range (packed vector)
 				AstNode* simple_range = new AstNode(AST_RANGE);
@@ -2198,7 +2197,15 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				look_str = sname + sfield;
 				if (current_scope.count(sname) > 0) {
 					if (current_scope[sname]->attributes.count(ID::wiretype)) {
-						struct_size = current_scope[sname]->attributes[ID::wiretype]->integer;
+						auto wiretype = current_scope[sname]->attributes[ID::wiretype];
+						if (wiretype->children.size() > 0) {
+							struct_size = wiretype->children[0]->range_left + 1;
+							if(wiretype->children[1]->range_swapped) {
+								struct_mult = wiretype->children[1]->range_left - struct_mult;
+							}
+						} else {
+							struct_size = wiretype->integer;
+						}
 					}
 				}
 			}
@@ -2219,13 +2226,17 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			if (current_scope.count(str) > 0) {
 				while(current_scope[str]->simplify(true, false, false, 1, -1, false, false)) { }
 				if (current_scope[str]->attributes.count(ID::wiretype) && current_scope[str]->attributes[ID::wiretype]->str == "") {
-					dumpAst(NULL, "1. wiretype >");
+					auto wiretype = current_scope[str]->attributes[ID::wiretype];
+					int struct_size = 0;
+					if (wiretype->children.size() > 0) {
+						struct_size = wiretype->children[0]->range_left + 1;
+					} else {
+						struct_size = wiretype->integer;
+					}
 					auto *curr_range = children[0]->children[0];
 					int range_left = curr_range->integer + 1;
 					int range_right = curr_range->integer;
-					int range_size = current_scope[str]->attributes[ID::wiretype]->integer;
-					log_warning("range_size: %d\n", range_size);
-					auto *range = make_range((range_left * range_size) - 1, range_right * range_size);
+					auto *range = make_range((range_left * struct_size) - 1, range_right * struct_size);
 					delete children[0];
 					children[0] = range;
 					basic_prep = true;
