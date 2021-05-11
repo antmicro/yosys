@@ -1992,7 +1992,55 @@ void UhdmAst::process_return() {
 					 });
 }
 
+void erase_str(std::string &base, std::string to_erase) {
+	size_t pos = base.find(to_erase);
+	if (pos != std::string::npos)
+		base.erase(pos, to_erase.length());
+}
+
+void UhdmAst::process_dpi_function() {
+	// Base DPI function node must be accompanied by string constant nodes:
+	// * return type
+	// * function name
+	// * types of all function parameters (each parameter as separate constant node)
+	current_node = make_ast_node(AST::AST_DPI_FUNCTION);
+
+	// Get return type string
+	auto return_obj_h = vpi_handle(vpiReturn, obj_h);
+	std::string return_type;
+	if (return_obj_h) {
+		return_type = UHDM::VpiTypeName(return_obj_h);
+		erase_str(return_type, "_var");
+		vpi_free_object(return_obj_h);
+	} else {
+		// if there is no vpiReturn, function is of void type
+		return_type = "void";
+	}
+
+	current_node->children.push_back(AST::AstNode::mkconst_str(return_type));
+
+	// Get name
+	current_node->children.push_back(AST::AstNode::mkconst_str(vpi_get_str(vpiName, obj_h)));
+
+	// Iterate through function parameters and get their types
+	vpiHandle io_decl_itr = vpi_iterate(vpiIODecl, obj_h);
+	while (vpiHandle io_decl_obj = vpi_scan(io_decl_itr) ) {
+		auto typedef_obj = vpi_handle(vpiTypedef, io_decl_obj);
+		std::string typedef_name = UHDM::VpiTypeName(typedef_obj);
+		erase_str(typedef_name, "_typespec");
+		auto io_decl_node = AST::AstNode::mkconst_str(typedef_name);
+		vpi_free_object(typedef_obj);
+		vpi_free_object(io_decl_obj);
+		current_node->children.push_back(io_decl_node);
+	}
+	vpi_free_object(io_decl_itr);
+}
+
 void UhdmAst::process_function() {
+	if (vpi_get(vpiDPICStr, obj_h)) {
+		process_dpi_function();
+		return;
+	}
 	current_node = make_ast_node(vpi_get(vpiType, obj_h) == vpiFunction ? AST::AST_FUNCTION : AST::AST_TASK);
 	visit_one_to_one({vpiReturn},
 					 obj_h,

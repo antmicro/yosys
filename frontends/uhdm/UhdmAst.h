@@ -116,6 +116,7 @@ class UhdmAst {
 		void process_case_item();
 		void process_range();
 		void process_return();
+		void process_dpi_function();
 		void process_function();
 		void process_logic_var();
 		void process_sys_func_call();
