@@ -1513,6 +1513,8 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				newNode->is_input = this->is_input;
 				newNode->is_output = this->is_output;
 				current_scope[str] = this;
+				newNode->port_id = this->port_id;
+				newNode->type = this->type;
 				goto apply_newNode;
 			}
 
