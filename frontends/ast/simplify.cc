@@ -1496,14 +1496,14 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			if (template_node->type == AST_STRUCT || template_node->type == AST_UNION) {
 				// replace with wire representing the packed structure
 				newNode = make_packed_struct(template_node, str);
-				if (children.size() == 2 && children[1]->type == AST_RANGE && port_id == 0) {
+				if (children.size() == 2 && children[1]->type == AST_RANGE && port_id == 0 && type == AST_WIRE) {
 					newNode->attributes[ID::wiretype] = mkconst_int(newNode->children[0]->range_left + 1, false, 32);
  					int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
  					newNode->children[0]->range_left = (newNode->children[0]->range_left + 1) * s;
  					newNode->children[0]->children[0]->integer = (newNode->children[0]->children[0]->integer + 1) * s;
  					newNode->children[0]->range_left -= 1;
  					newNode->children[0]->children[0]->integer -= 1;
-				} else if(children.size() == 2 && children[1]->type == AST_RANGE && port_id > 0) {
+				} else if(children.size() == 2 && children[1]->type == AST_RANGE) {
 					newNode->children.push_back(children[1]->clone());
 				}
 				// add original input/output attribute to resolved wire
