@@ -537,20 +537,7 @@ void UhdmAst::process_port() {
 				shared.report.mark_handled(actual_h);
 				break;
 			case vpiArrayVar:
-				if (vpiHandle reg_h = vpi_scan(vpi_iterate(vpiReg, actual_h))) {
-					if (vpi_get(vpiType, reg_h) == vpiStructVar || vpi_get(vpiType, reg_h) == vpiEnumVar) {
-						vpiHandle typespec_h = vpi_handle(vpiTypespec, reg_h);
-						std::string name = vpi_get_str(vpiName, typespec_h);
-						sanitize_symbol_name(name);
-						auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
-						wiretype_node->str = name;
-						current_node->children.push_back(wiretype_node);
-						current_node->is_custom_type = true;
-						shared.report.mark_handled(typespec_h);
-					}
-					vpi_free_object(reg_h);
-				}
-				visit_one_to_many({vpiRange}, obj_h, [&](AST::AstNode* node) {
+				visit_one_to_many({vpiRange}, actual_h, [&](AST::AstNode* node) {
 					current_node->children.push_back(node);
 				});
 				shared.report.mark_handled(actual_h);
@@ -738,23 +725,7 @@ void UhdmAst::process_module() {
 						  obj_h,
 						  [&](AST::AstNode* node) {
 							  if (node) {
-								auto it = std::find_if(module_node->children.begin(),
-													   module_node->children.end(),
-													   [node](AST::AstNode* existing_child) {
-														   return existing_child->str == node->str;
-													   });
-								if (it != module_node->children.end() && node->children.size() > 0 && node->children[0]->type == AST::AST_WIRETYPE) {
-									for (auto *c : node->children) {
-										if(node->children.size() > 1 && node->children[1]->type == AST::AST_RANGE && c->type == AST::AST_RANGE)
-											continue;
-										if (c->type != AST::AST_WIRETYPE) { //do not override wiretype
-											(*it)->children.push_back(c);
-										}
-									}
-									(*it)->is_custom_type = true;
-								} else {
-									  add_or_replace_child(module_node, node);
-								}
+								  add_or_replace_child(module_node, node);
 							  }
 						  });
 		make_cell(obj_h, current_node, module_node);
