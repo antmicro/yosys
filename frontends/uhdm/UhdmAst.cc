@@ -1072,6 +1072,7 @@ void UhdmAst::process_packed_array_net() {
 					  [&](AST::AstNode* node) {
 						  if (node && GetSize(node->children) == 1)
 							  current_node->children.push_back(node->children[0]);
+						  current_node->is_custom_type = node->is_custom_type;
 					  });
 	visit_one_to_many({vpiRange},
 					  obj_h,
