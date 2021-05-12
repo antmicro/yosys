@@ -62,6 +62,7 @@ prim_generic_clock_inv.sv \
 prim_ram_1p_adv.sv \
 prim_ram_2p_async_adv.sv \
 prim_filter.sv \
+prim_alert_sender.sv \
 tlul_adapter_host.sv \
 ibex_dummy_instr.sv \
 tlul_fifo_sync.sv \
@@ -94,7 +95,6 @@ gpio_reg_top.sv \
 sha2.sv \
 hmac_reg_top.sv \
 hmac.sv \
-otbn.sv \
 jtag_mux.sv \
 padring.sv \
 padctrl.sv \
@@ -154,6 +154,7 @@ spi_device_reg_pkg.sv \
 uart_reg_pkg.sv \
 usb_consts_pkg.sv \
 tl_main_pkg.sv \
+otbn_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -309,6 +310,8 @@ tlul_socket_m1_n2_depth.sv \
 tlul_fifo_async_surelog.sv \
 prim_fifo_async_surelog.sv \
 xbar_main.sv \
+prim_ram_1p_adv.sv \
+otbn.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -448,6 +451,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top tlul_socket_m1_n2_depth \
 			-top tlul_fifo_async_surelog \
 			-top xbar_main \
+			-top otbn \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -529,6 +533,7 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top spi_device_reg_top when spi_device will be added to uhdm
 	# Delete -top uart_core when uart will be added to uhdm
 	# Delete -top usbdev_flop_2syncpulse when usbdev_usbif will be added to uhdm
+	# Delete -top otbn when top_earlgrey will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
