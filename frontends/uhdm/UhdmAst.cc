@@ -547,6 +547,7 @@ void UhdmAst::process_port() {
 			case vpiArrayNet:
 			case vpiStructVar:
 			case vpiEnumVar:
+			case vpiIntVar:
 				break;
 			default: {
 				const uhdm_handle* const handle = (const uhdm_handle*) actual_h;
