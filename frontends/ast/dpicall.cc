@@ -87,7 +87,7 @@ AST::AstNode *AST::dpi_call(const std::string &rtype, const std::string &fname, 
 			value_store[i].f32 = args[i]->asReal(args[i]->is_signed);
 			values[i] = &value_store[i].f32;
 			types[i] = &ffi_type_double;
-		} else if (argtypes[i] == "integer") {
+		} else if (argtypes[i] == "integer" || argtypes[i] == "int") {
 			log("  arg %d (%s): %lld\n", i, argtypes[i].c_str(), (long long)args[i]->asInt(args[i]->is_signed));
 			value_store[i].i32 = args[i]->asInt(args[i]->is_signed);
 			values[i] = &value_store[i].i32;
