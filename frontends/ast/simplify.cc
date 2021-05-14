@@ -2179,17 +2179,14 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		// check if a plausible struct member sss[srange].mmmm
 		std::string sname, sfield, srange;
 		if (name_has_dot(str, sname, sfield)) {
-			log_warning("1. str: %s, sname: %s, sfield: %s\n", str.c_str(), sname.c_str(), sfield.c_str());
 			std::string::size_type pos_start = sname.find("[", 0);
 			std::string::size_type pos_end = sname.rfind("]");
 			std::string look_str = str;
 			int struct_size = 0;
 			int struct_mult = 0;
 			if (pos_start != std::string::npos && pos_end != std::string::npos) {
-				log_warning("pos s: %d, pos e: %d\n", pos_start, pos_end);
 				srange = sname.substr(pos_start + 1, pos_end - pos_start - 1);
 				sname = sname.substr(0, pos_start);
-				log_warning("srange: %s\n", srange.c_str());
 				if (!srange.empty() && std::find_if(srange.begin(), srange.end(), [](unsigned char c) { return !std::isdigit(c); }) == srange.end()) {
 					struct_mult = stoi(srange);
 				} else {
@@ -2218,9 +2215,14 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					}
 				}
 			}
-			log_warning("2. str: %s, sname: %s, sfield: %s, struct_size: %d, struct_mult: %d, result: %d\n", str.c_str(), sname.c_str(), sfield.c_str(), struct_size, struct_mult, struct_size * struct_mult);
+			if (current_scope.count(look_str) < 1) {
+				look_str = str;
+				sname = str.substr(0, str.rfind("."));
+			}
+			if (current_scope.count(sname) > 0) {
+				while(current_scope[sname]->simplify(true, false, false, 1, -1, false, false)) { }
+			}
 			if (current_scope.count(look_str) > 0) {
-				log_warning("Found\n");
 				auto item_node = current_scope[look_str];
 				if (item_node->type == AST_STRUCT_ITEM || item_node->type == AST_STRUCT) {
 					// structure member, rewrite this node to reference the packed struct wire
@@ -2249,7 +2251,6 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					delete children[0];
 					children[0] = range;
 					basic_prep = true;
-					dumpAst(NULL, "2. wiretype >");
 				}
 			}
 
