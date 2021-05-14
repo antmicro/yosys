@@ -2200,6 +2200,13 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					}
 				}
 			}
+			if (current_scope.count(look_str) < 1) {
+				look_str = str;
+				sname = str.substr(0, str.rfind("."));
+			}
+			if (current_scope.count(sname) > 0) {
+				while(current_scope[sname]->simplify(true, false, false, 1, -1, false, false)) { }
+			}
 			if (current_scope.count(look_str) > 0) {
 				auto item_node = current_scope[look_str];
 				if (item_node->type == AST_STRUCT_ITEM || item_node->type == AST_STRUCT) {
