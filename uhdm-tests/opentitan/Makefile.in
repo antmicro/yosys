@@ -74,7 +74,6 @@ tlul_adapter_reg.sv \
 tlul_adapter_sram.sv \
 tlul_err_resp.sv \
 tlul_socket_1n.sv \
-tlul_socket_m1.sv \
 sram2tlul.sv \
 debug_rom_one_scratch.sv \
 aes_reg_top.sv \
@@ -303,10 +302,8 @@ usbdev_linkstate.sv \
 usbdev_flop_2syncpulse.sv \
 usbdev_usbif.sv \
 tlul_socket_1n.sv \
-prim_arbiter_ppc_surelog.sv \
-tlul_socket_m1_n2.sv \
-tlul_socket_m1_n3.sv \
-tlul_socket_m1_n2_depth.sv \
+prim_arbiter_ppc.sv \
+tlul_socket_m1.sv \
 tlul_fifo_async_surelog.sv \
 prim_fifo_async_surelog.sv \
 xbar_main.sv \
