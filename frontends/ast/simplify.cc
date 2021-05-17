@@ -1496,12 +1496,14 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				// replace with wire representing the packed structure
 				newNode = make_packed_struct(template_node, str);
 				if (children.size() == 2 && children[1]->type == AST_RANGE && port_id == 0 && type == AST_WIRE) {
-					newNode->attributes[ID::wiretype] = mkconst_int(newNode->children[0]->range_left + 1, false, 32);
+					newNode->attributes[ID::wiretype] = new AstNode(AST_CONSTANT);
+					newNode->attributes[ID::wiretype]->children.push_back(newNode->children[0]->clone()); // save original (size of struct) size
  					int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
  					newNode->children[0]->range_left = (newNode->children[0]->range_left + 1) * s;
  					newNode->children[0]->children[0]->integer = (newNode->children[0]->children[0]->integer + 1) * s;
  					newNode->children[0]->range_left -= 1;
  					newNode->children[0]->children[0]->integer -= 1;
+					newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
 				} else if(children.size() == 2 && children[1]->type == AST_RANGE) {
 					newNode->children.push_back(children[1]->clone());
 				}
@@ -2225,16 +2227,18 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				while(current_scope[str]->simplify(true, false, false, 1, -1, false, false)) { }
 				if (current_scope[str]->attributes.count(ID::wiretype) && current_scope[str]->attributes[ID::wiretype]->str == "") {
 					auto wiretype = current_scope[str]->attributes[ID::wiretype];
+					auto *curr_range = children[0]->children[0];
 					int struct_size = 0;
+					int struct_mult = curr_range->integer;
 					if (wiretype->children.size() > 0) {
 						struct_size = wiretype->children[0]->range_left + 1;
+						if(wiretype->children[1]->range_swapped) {
+							struct_mult = wiretype->children[1]->range_left - struct_mult;
+						}
 					} else {
 						struct_size = wiretype->integer;
 					}
-					auto *curr_range = children[0]->children[0];
-					int range_left = curr_range->integer + 1;
-					int range_right = curr_range->integer;
-					auto *range = make_range((range_left * struct_size) - 1, range_right * struct_size);
+					auto *range = make_range((struct_size * (struct_mult + 1)) - 1, struct_size * struct_mult);
 					delete children[0];
 					children[0] = range;
 					basic_prep = true;
