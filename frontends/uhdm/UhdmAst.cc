@@ -679,22 +679,26 @@ void UhdmAst::process_module() {
 						  obj_h,
 						  [&](AST::AstNode* node) {
 							  if (node) {
-								if (std::find_if(module_node->children.begin(), module_node->children.end(),
-											[&](AST::AstNode *child)->bool { return child->type == AST::AST_PARAMETER &&
-											                                        child->str == node->str &&
-																//skip real parameters as they are currently not working: https://github.com/alainmarcel/Surelog/issues/1035
-																child->type != AST::AST_REALVALUE;})
-														!= module_node->children.end()) {
-									if (cell_instance || (node->children.size() > 0 && node->children[0]->type != AST::AST_CONSTANT)) { //if cell is a blackbox or we need to simplify parameter first, left setting parameters to yosys
-										auto clone = node->clone();
-										clone->type = AST::AST_PARASET;
-										current_node->children.push_back(clone);
+							  	auto parent_node = std::find_if(module_node->children.begin(), module_node->children.end(),
+								                   		[&](AST::AstNode *child)->bool { return ((child->type == AST::AST_PARAMETER) || (child->type == AST::AST_LOCALPARAM)) &&
+								                       		                                        child->str == node->str &&
+								                       							//skip real parameters as they are currently not working: https://github.com/alainmarcel/Surelog/issues/1035
+								                       							child->type != AST::AST_REALVALUE;});
+								 if (parent_node != module_node->children.end()) {
+									if ((*parent_node)->type == AST::AST_PARAMETER) {
+										if (cell_instance || (node->children.size() > 0 && node->children[0]->type != AST::AST_CONSTANT)) { //if cell is a blackbox or we need to simplify parameter first, left setting parameters to yosys
+											auto clone = node->clone();
+											clone->type = AST::AST_PARASET;
+											current_node->children.push_back(clone);
+										} else {
+											if (node->children[0]->str != "")
+												module_parameters += node->str + "=" + node->children[0]->str;
+											else
+												module_parameters += node->str + "=" + std::to_string(node->children[0]->integer);
+											//replace
+											add_or_replace_child(module_node, node);
+										}
 									} else {
-										if (node->children[0]->str != "")
-											module_parameters += node->str + "=" + node->children[0]->str;
-										else
-											module_parameters += node->str + "=" + std::to_string(node->children[0]->integer);
-										//replace
 										add_or_replace_child(module_node, node);
 									}
 								}
