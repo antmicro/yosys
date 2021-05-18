@@ -1057,6 +1057,14 @@ void UhdmAst::process_assignment() {
 		  top_node->children.push_back(current_node->children[0]->clone());
 		  current_node = nullptr;
 	}
+	if (current_node->children.size() > 1) {
+		if (current_node->children[1]->is_string) {
+			int new_str_size = current_node->children[1]->bits.size();
+			std::cout << "SIZE: " << new_str_size << std::endl;
+			// TODO: we could rewrite here the AST_RANGE of AST_WIRE
+			// that correspods to our string var that is now assigned
+		}
+	}
 }
 
 void UhdmAst::process_net() {
