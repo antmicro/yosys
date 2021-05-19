@@ -105,7 +105,6 @@ spi_device.sv \
 uart_reg_top.sv \
 uart.sv \
 usbdev_reg_top.sv \
-usbdev_iomux.sv \
 usbdev.sv \
 pwrmgr.sv \
 pwrmgr_cdc.sv \
@@ -154,6 +153,7 @@ usb_consts_pkg.sv \
 tl_main_pkg.sv \
 otbn_pkg.sv \
 tl_peri_pkg.sv \
+usbdev_reg_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -310,6 +310,7 @@ xbar_main.sv \
 prim_ram_1p_adv.sv \
 otbn.sv \
 xbar_peri.sv \
+usbdev_iomux.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -451,6 +452,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top xbar_main \
 			-top otbn \
 			-top xbar_peri \
+			-top usbdev_iomux \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
