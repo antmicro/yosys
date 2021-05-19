@@ -304,8 +304,8 @@ usbdev_usbif.sv \
 tlul_socket_1n.sv \
 prim_arbiter_ppc.sv \
 tlul_socket_m1.sv \
-tlul_fifo_async_surelog.sv \
-prim_fifo_async_surelog.sv \
+tlul_fifo_async.sv \
+prim_fifo_async.sv \
 xbar_main.sv \
 prim_ram_1p_adv.sv \
 otbn.sv \
@@ -444,11 +444,6 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top uart_core \
 			-top usbdev_flop_2syncpulse \
 			-top usbdev_usbif \
-			-top prim_arbiter_ppc_surelog \
-			-top tlul_socket_m1_n2 \
-			-top tlul_socket_m1_n3 \
-			-top tlul_socket_m1_n2_depth \
-			-top tlul_fifo_async_surelog \
 			-top xbar_main \
 			-top otbn \
 			-top xbar_peri \
