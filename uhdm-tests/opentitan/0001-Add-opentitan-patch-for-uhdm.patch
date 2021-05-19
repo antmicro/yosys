@@ -412,18 +412,10 @@ index 052cb2f5a..b62227975 100644
    // Create Socket_1n
    tlul_socket_1n #(
 diff --git a/hw/ip/prim/prim.core b/hw/ip/prim/prim.core
-index 5c83f063c..cb822ede5 100644
+index 5c83f063c..25649d3dc 100644
 --- a/hw/ip/prim/prim.core
 +++ b/hw/ip/prim/prim.core
-@@ -23,6 +23,7 @@ filesets:
-       - rtl/prim_alert_receiver.sv
-       - rtl/prim_alert_sender.sv
-       - rtl/prim_arbiter_ppc.sv
-+      - rtl/prim_arbiter_ppc_surelog.sv
-       - rtl/prim_arbiter_tree.sv
-       - rtl/prim_dom_and_2share.sv
-       - rtl/prim_arbiter_fixed.sv
-@@ -31,6 +32,7 @@ filesets:
+@@ -31,6 +31,7 @@ filesets:
        - rtl/prim_esc_sender.sv
        - rtl/prim_sram_arbiter.sv
        - rtl/prim_fifo_async.sv
@@ -457,238 +449,6 @@ index 9ec473f85..86bef1e9d 100644
  
  endmodule : prim_arbiter_ppc
 -
-diff --git a/hw/ip/prim/rtl/prim_arbiter_ppc_surelog.sv b/hw/ip/prim/rtl/prim_arbiter_ppc_surelog.sv
-new file mode 100644
-index 000000000..af3ca8939
---- /dev/null
-+++ b/hw/ip/prim/rtl/prim_arbiter_ppc_surelog.sv
-@@ -0,0 +1,226 @@
-+// Copyright lowRISC contributors.
-+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
-+// SPDX-License-Identifier: Apache-2.0
-+//
-+// N:1 arbiter module
-+//
-+// Verilog parameter
-+//   N:           Number of request ports
-+//   DW:          Data width
-+//   DataPort:    Set to 1 to enable the data port. Otherwise that port will be ignored.
-+//   EnReqStabA:  Checks whether requests remain asserted until granted
-+//
-+// This is the original implementation of the arbiter which relies on parallel prefix computing
-+// optimization to optimize the request / arbiter tree. Not all synthesis tools may support this.
-+//
-+// Note that the currently winning request is held if the data sink is not ready. This behavior is
-+// required by some interconnect protocols (AXI, TL). The module contains an assertion that checks
-+// this behavior.
-+//
-+// Also, this module contains a request stability assertion that checks that requests stay asserted
-+// until they have been served. This assertion can be optionally disabled by setting EnReqStabA to
-+// zero. This is a non-functional parameter and does not affect the designs behavior.
-+//
-+// See also: prim_arbiter_tree
-+
-+`include "prim_assert.sv"
-+
-+module prim_arbiter_ppc_surelog #(
-+  parameter int unsigned N  = 8,
-+  parameter int unsigned DW = 32,
-+
-+  // Configurations
-+  // EnDataPort: {0, 1}, if 0, input data will be ignored
-+  parameter bit EnDataPort = 1,
-+
-+  // Non-functional parameter to switch on the request stability assertion
-+  parameter bit EnReqStabA = 1,
-+
-+  // Derived parameters
-+  localparam int IdxW = $clog2(N)
-+) (
-+  input clk_i,
-+  input rst_ni,
-+
-+  input        [ N-1:0]    req_i,
-+  input        [DW-1:0]    data_i [N],
-+  output logic [ N-1:0]    gnt_o,
-+  output logic [IdxW-1:0]  idx_o,
-+
-+  output logic             valid_o,
-+  output logic [DW-1:0]    data_o,
-+  input                    ready_i
-+);
-+
-+  `ASSERT_INIT(CheckNGreaterZero_A, N > 0)
-+
-+  // this case is basically just a bypass
-+  if (N == 1) begin : gen_degenerate_case
-+
-+    assign valid_o  = req_i[0];
-+    assign data_o   = data_i[0];
-+    assign gnt_o[0] = valid_o & ready_i;
-+    assign idx_o    = '0;
-+
-+  end else begin : gen_normal_case
-+
-+    logic [N-1:0] masked_req;
-+    logic [N-1:0] ppc_out;
-+    logic [N-1:0] arb_req;
-+    logic [N-1:0] mask, mask_next;
-+    logic [N-1:0] winner;
-+
-+    assign masked_req = mask & req_i;
-+    assign arb_req = (|masked_req) ? masked_req : req_i;
-+
-+    // PPC
-+    //   Even below code looks O(n) but DC optimizes it to O(log(N))
-+    //   Using Parallel Prefix Computation
-+    always_comb begin
-+      ppc_out[0] = arb_req[0];
-+      for (int i = 1 ; i < N ; i++) begin
-+        ppc_out[i] = ppc_out[i-1] | arb_req[i];
-+      end
-+    end
-+
-+    // Grant Generation: Leading-One detector
-+    assign winner = ppc_out ^ {ppc_out[N-2:0], 1'b0};
-+    assign gnt_o    = (ready_i) ? winner : '0;
-+
-+    assign valid_o = |req_i;
-+    // Mask Generation
-+    assign mask_next = {ppc_out[N-2:0], 1'b0};
-+    always_ff @(posedge clk_i or negedge rst_ni) begin
-+      if (!rst_ni) begin
-+        mask <= '0;
-+      end else if (valid_o && ready_i) begin
-+        // Latch only when requests accepted
-+        mask <= mask_next;
-+      end else if (valid_o && !ready_i) begin
-+        // Downstream isn't yet ready so, keep current request alive. (First come first serve)
-+        mask <= ppc_out;
-+      end
-+    end
-+
-+    if (EnDataPort == 1) begin: gen_datapath
-+      always_comb begin
-+        data_o = '0;
-+        for (int i = 0 ; i < N ; i++) begin
-+          if (winner[i]) begin
-+            data_o = data_i[i];
-+          end
-+        end
-+      end
-+    end else begin: gen_nodatapath
-+      assign data_o = '1;
-+      // The following signal is used to avoid possible lint errors.
-+      logic [DW-1:0] unused_data [N];
-+      assign unused_data = data_i;
-+    end
-+
-+    always_comb begin
-+      idx_o = '0;
-+      for (int unsigned i = 0 ; i < N ; i++) begin
-+        if (winner[i]) begin
-+          idx_o = i[IdxW-1:0];
-+        end
-+      end
-+    end
-+  end
-+
-+  ////////////////
-+  // assertions //
-+  ////////////////
-+
-+  // KNOWN assertions on outputs, except for data as that may be partially X in simulation
-+  // e.g. when used on a BUS
-+  `ASSERT_KNOWN(ValidKnown_A, valid_o)
-+  `ASSERT_KNOWN(GrantKnown_A, gnt_o)
-+  `ASSERT_KNOWN(IdxKnown_A, idx_o)
-+
-+  // grant index shall be higher index than previous index, unless no higher requests exist.
-+  `ASSERT(RoundRobin_A,
-+      ##1 valid_o && ready_i && $past(ready_i) && $past(valid_o) &&
-+      |(req_i & ~((N'(1) << $past(idx_o)+1) - 1)) |->
-+      idx_o > $past(idx_o))
-+  // we can only grant one requestor at a time
-+  `ASSERT(CheckHotOne_A, $onehot0(gnt_o))
-+  // A grant implies that the sink is ready
-+  `ASSERT(GntImpliesReady_A, |gnt_o |-> ready_i)
-+  // A grant implies that the arbiter asserts valid as well
-+  `ASSERT(GntImpliesValid_A, |gnt_o |-> valid_o)
-+  // A request and a sink that is ready imply a grant
-+  `ASSERT(ReqAndReadyImplyGrant_A, |req_i && ready_i |-> |gnt_o)
-+  // A request and a sink that is ready imply a grant
-+  `ASSERT(ReqImpliesValid_A, |req_i |-> valid_o)
-+  // Both conditions above combined and reversed
-+  `ASSERT(ReadyAndValidImplyGrant_A, ready_i && valid_o |-> |gnt_o)
-+  // Both conditions above combined and reversed
-+  `ASSERT(NoReadyValidNoGrant_A, !(ready_i || valid_o) |-> gnt_o == 0)
-+  // check index / grant correspond
-+  `ASSERT(IndexIsCorrect_A, ready_i && valid_o |-> gnt_o[idx_o] && req_i[idx_o])
-+
-+if (EnDataPort) begin: gen_data_port_assertion
-+  // data flow
-+  `ASSERT(DataFlow_A, ready_i && valid_o |-> data_o == data_i[idx_o])
-+end
-+
-+if (EnReqStabA) begin : gen_lock_assertion
-+  // requests must stay asserted until they have been granted
-+  `ASSUME(ReqStaysHighUntilGranted0_M, (|req_i) && !ready_i |=>
-+      (req_i & $past(req_i)) == $past(req_i))
-+  // check that the arbitration decision is held if the sink is not ready
-+  `ASSERT(LockArbDecision_A, |req_i && !ready_i |=> idx_o == $past(idx_o))
-+end
-+
-+// FPV-only assertions with symbolic variables
-+`ifdef FPV_ON
-+  // symbolic variables
-+  int unsigned k;
-+  bit ReadyIsStable;
-+  bit ReqsAreStable;
-+
-+  // constraints for symbolic variables
-+  `ASSUME(KStable_M, ##1 $stable(k))
-+  `ASSUME(KRange_M, k < N)
-+  // this is used enable checking for stable and unstable ready_i and req_i signals in the same run.
-+  // the symbolic variables act like a switch that the solver can trun on and off.
-+  `ASSUME(ReadyIsStable_M, ##1 $stable(ReadyIsStable))
-+  `ASSUME(ReqsAreStable_M, ##1 $stable(ReqsAreStable))
-+  `ASSUME(ReadyStable_M, ##1 !ReadyIsStable || $stable(ready_i))
-+  `ASSUME(ReqsStable_M, ##1 !ReqsAreStable || $stable(req_i))
-+
-+  // A grant implies a request
-+  `ASSERT(GntImpliesReq_A, gnt_o[k] |-> req_i[k])
-+
-+  // if request and ready are constantly held at 1, we should eventually get a grant
-+  `ASSERT(NoStarvation_A,
-+      ReqsAreStable && ReadyIsStable && ready_i && req_i[k] |->
-+      strong(##[0:$] gnt_o[k]))
-+
-+  // if N requests are constantly asserted and ready is constant 1, each request must
-+  // be granted exactly once over a time window of N cycles for the arbiter to be fair.
-+  for (genvar n = 1; n <= N; n++) begin : gen_fairness
-+    integer gnt_cnt;
-+    `ASSERT(Fairness_A,
-+        ReqsAreStable && ReadyIsStable && ready_i && req_i[k] &&
-+        $countones(req_i) == n |->
-+        ##n gnt_cnt == $past(gnt_cnt, n) + 1)
-+
-+    always_ff @(posedge clk_i or negedge rst_ni) begin : p_cnt
-+      if (!rst_ni) begin
-+        gnt_cnt <= 0;
-+      end else begin
-+        gnt_cnt <= gnt_cnt + gnt_o[k];
-+      end
-+    end
-+  end
-+
-+  if (EnReqStabA) begin : gen_lock_assertion_fpv
-+    // requests must stay asserted until they have been granted
-+    `ASSUME(ReqStaysHighUntilGranted1_M, req_i[k] & !gnt_o[k] |=>
-+        req_i[k], clk_i, !rst_ni)
-+  end
-+`endif
-+
-+endmodule : prim_arbiter_ppc
 diff --git a/hw/ip/prim/rtl/prim_diff_decode.sv b/hw/ip/prim/rtl/prim_diff_decode.sv
 index c06a77d77..8c9db0c61 100644
 --- a/hw/ip/prim/rtl/prim_diff_decode.sv
@@ -1641,6 +1401,50 @@ index 7667a16ec..5d6e3647f 100644
        - rtl/tlul_assert.sv
        - rtl/tlul_err.sv
        - rtl/tlul_assert_multiple.sv
+diff --git a/hw/ip/tlul/rtl/tlul_adapter_reg.sv b/hw/ip/tlul/rtl/tlul_adapter_reg.sv
+index c451308bd..41522c926 100644
+--- a/hw/ip/tlul/rtl/tlul_adapter_reg.sv
++++ b/hw/ip/tlul/rtl/tlul_adapter_reg.sv
+@@ -69,8 +69,8 @@ module tlul_adapter_reg import tlul_pkg::*; #(
+ 
+   always_ff @(posedge clk_i or negedge rst_ni) begin
+     if (!rst_ni) begin
+-      reqid <= '0;
+-      reqsz <= '0;
++      reqid <= {IW{1'b0}};
++      reqsz <= {SZW{1'b0}};
+       rspop <= AccessAck;
+     end else if (a_ack) begin
+       reqid <= tl_i.a_source;
+@@ -82,10 +82,10 @@ module tlul_adapter_reg import tlul_pkg::*; #(
+ 
+   always_ff @(posedge clk_i or negedge rst_ni) begin
+     if (!rst_ni) begin
+-      rdata  <= '0;
++      rdata  <= {RegDw{1'b0}};
+       error <= 1'b0;
+     end else if (a_ack) begin
+-      rdata <= (err_internal) ? '1 : rdata_i;
++      rdata <= (err_internal) ? {RegDw{1'b1}} : rdata_i;
+       error <= error_i | err_internal;
+     end
+   end
+@@ -94,12 +94,12 @@ module tlul_adapter_reg import tlul_pkg::*; #(
+     a_ready:  ~outstanding,
+     d_valid:  outstanding,
+     d_opcode: rspop,
+-    d_param:  '0,
++    d_param:  3'b000,
+     d_size:   reqsz,
+     d_source: reqid,
+-    d_sink:   '0,
++    d_sink:   1'b0,
+     d_data:   rdata,
+-    d_user:  '0,
++    d_user:  16'b0000000000000000,
+     d_error: error
+   };
+ 
 diff --git a/hw/ip/tlul/rtl/tlul_adapter_sram.sv b/hw/ip/tlul/rtl/tlul_adapter_sram.sv
 index 6e2f33191..cb3e9088c 100644
 --- a/hw/ip/tlul/rtl/tlul_adapter_sram.sv
@@ -1654,6 +1458,44 @@ index 6e2f33191..cb3e9088c 100644
      wmask_int = '0;
      wdata_int = '0;
  
+diff --git a/hw/ip/tlul/rtl/tlul_err.sv b/hw/ip/tlul/rtl/tlul_err.sv
+index add8477ba..0479ed442 100644
+--- a/hw/ip/tlul/rtl/tlul_err.sv
++++ b/hw/ip/tlul/rtl/tlul_err.sv
+@@ -42,7 +42,7 @@ module tlul_err import tlul_pkg::*; (
+ 
+   logic [MW-1:0] mask;
+ 
+-  assign mask = (1 << tl_i.a_address[SubAW-1:0]);
++  assign mask = (1 << $unsigned(tl_i.a_address[SubAW-1:0]));
+ 
+   always_comb begin
+     addr_sz_chk  = 1'b0;
+@@ -51,13 +51,13 @@ module tlul_err import tlul_pkg::*; (
+ 
+     if (tl_i.a_valid) begin
+       unique case (tl_i.a_size)
+-        'h0: begin // 1 Byte
++        64'h0: begin // 1 Byte
+           addr_sz_chk  = 1'b1;
+           mask_chk     = ~|(tl_i.a_mask & ~mask);
+           fulldata_chk = |(tl_i.a_mask & mask);
+         end
+ 
+-        'h1: begin // 2 Byte
++        64'h1: begin // 2 Byte
+           addr_sz_chk  = ~tl_i.a_address[0];
+           // check inactive lanes if lower 2B, check a_mask[3:2], if uppwer 2B, a_mask[1:0]
+           mask_chk     = (tl_i.a_address[1]) ? ~|(tl_i.a_mask & 4'b0011)
+@@ -65,7 +65,7 @@ module tlul_err import tlul_pkg::*; (
+           fulldata_chk = (tl_i.a_address[1]) ? &tl_i.a_mask[3:2] : &tl_i.a_mask[1:0] ;
+         end
+ 
+-        'h2: begin // 4 Byte
++        64'h2: begin // 4 Byte
+           addr_sz_chk  = ~|tl_i.a_address[SubAW-1:0];
+           mask_chk     = 1'b1;
+           fulldata_chk = &tl_i.a_mask[3:0];
 diff --git a/hw/ip/tlul/rtl/tlul_fifo_async_surelog.sv b/hw/ip/tlul/rtl/tlul_fifo_async_surelog.sv
 new file mode 100644
 index 000000000..ca3e3c653
@@ -1770,806 +1612,85 @@ index 59fe3ffd4..071a30b94 100644
    parameter int unsigned ReqDepth = 2,
    parameter int unsigned RspDepth = 2,
    parameter int unsigned SpareReqW = 1,
-diff --git a/hw/ip/tlul/rtl/tlul_socket_m1_n2.sv b/hw/ip/tlul/rtl/tlul_socket_m1_n2.sv
-new file mode 100644
-index 000000000..91089db3a
---- /dev/null
-+++ b/hw/ip/tlul/rtl/tlul_socket_m1_n2.sv
-@@ -0,0 +1,256 @@
-+// Copyright lowRISC contributors.
-+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
-+// SPDX-License-Identifier: Apache-2.0
-+//
-+// TL-UL socket M:1 module
-+//
-+// Verilog parameters
-+//   M:             Number of host ports.
-+//   HReqPass:      M bit array to allow requests to pass through the host i
-+//                  FIFO with no clock delay if the request FIFO is empty. If
-+//                  1'b0, at least one clock cycle of latency is created.
-+//                  Default is 1'b1.
-+//   HRspPass:      Same as HReqPass but for host response FIFO.
-+//   HReqDepth:     Mx4 bit array. bit[i*4+:4] is depth of host i request FIFO.
-+//                  Depth of zero is allowed if ReqPass is true. A maximum value
-+//                  of 16 is allowed, default is 2.
-+//   HRspDepth:     Same as HReqDepth but for host response FIFO.
-+//   DReqPass:      Same as HReqPass but for device request FIFO.
-+//   DRspPass:      Same as HReqPass but for device response FIFO.
-+//   DReqDepth:     Same as HReqDepth but for device request FIFO.
-+//   DRspDepth:     Same as HReqDepth but for device response FIFO.
-+
-+`include "prim_assert.sv"
-+
-+module tlul_socket_m1_n2 #(
-+  parameter int unsigned  M         = 2,
-+  parameter bit [M-1:0]   HReqPass  = {M{1'b1}},
-+  parameter bit [M-1:0]   HRspPass  = {M{1'b1}},
-+  parameter bit [M*4-1:0] HReqDepth = {M{4'h0}},
-+  parameter bit [M*4-1:0] HRspDepth = {M{4'h0}},
-+  parameter bit           DReqPass  = 1'b0,
-+  parameter bit           DRspPass  = 1'b0,
-+  parameter bit [3:0]     DReqDepth = 4'h2,
-+  parameter bit [3:0]     DRspDepth = 4'h2
-+) (
-+  input                     clk_i,
-+  input                     rst_ni,
-+
-+  input  tlul_pkg::tl_h2d_t tl_h_i [M],
-+  output tlul_pkg::tl_d2h_t tl_h_o [M],
-+
-+  output tlul_pkg::tl_h2d_t tl_d_o,
-+  input  tlul_pkg::tl_d2h_t tl_d_i
-+);
-+
-+  `ASSERT_INIT(maxM, M < 16)
-+
-+
-+  // Signals
-+  //
-+  //  tl_h_i/o[0] |  tl_h_i/o[1] | ... |  tl_h_i/o[M-1]
-+  //      |              |                    |
-+  // u_hostfifo[0]  u_hostfifo[1]        u_hostfifo[M-1]
-+  //      |              |                    |
-+  //       hreq_fifo_o(i) / hrsp_fifo_i(i)
-+  //     ---------------------------------------
-+  //     |       request/grant/req_data        |
-+  //     |                                     |
-+  //     |           PRIM_ARBITER              |
-+  //     |                                     |
-+  //     |  arb_valid / arb_ready / arb_data   |
-+  //     ---------------------------------------
-+  //                     |
-+  //                dreq_fifo_i / drsp_fifo_o
-+  //                     |
-+  //                u_devicefifo
-+  //                     |
-+  //                  tl_d_o/i
-+  //
-+  // Required ID width to distinguish between host ports
-+  //  Used in response steering
-+  localparam int unsigned IDW   = top_pkg::TL_AIW;
-+  localparam int unsigned STIDW = $clog2(M);
-+
-+  tlul_pkg::tl_h2d_t hreq_fifo_o [M];
-+  tlul_pkg::tl_d2h_t hrsp_fifo_i [M];
-+
-+  logic [M-1:0] hrequest;
-+  logic [M-1:0] hgrant;
-+
-+  tlul_pkg::tl_h2d_t dreq_fifo_i;
-+  tlul_pkg::tl_d2h_t drsp_fifo_o;
-+
-+  logic arb_valid;
-+  logic arb_ready;
-+  tlul_pkg::tl_h2d_t arb_data;
-+
-+  // Host Req/Rsp FIFO
-+  for (genvar i = 0 ; i < M ; i++) begin : gen_host_fifo
-+    tlul_pkg::tl_h2d_t hreq_fifo_i;
-+
-+    // ID Shifting
-+    logic [STIDW-1:0] reqid_sub;
-+    logic [IDW-1:0] shifted_id;
+diff --git a/hw/ip/tlul/rtl/tlul_socket_m1.sv b/hw/ip/tlul/rtl/tlul_socket_m1.sv
+index 8637ad221..fe7aa9858 100644
+--- a/hw/ip/tlul/rtl/tlul_socket_m1.sv
++++ b/hw/ip/tlul/rtl/tlul_socket_m1.sv
+@@ -92,9 +92,11 @@ module tlul_socket_m1 #(
+     // ID Shifting
+     logic [STIDW-1:0] reqid_sub;
+     logic [IDW-1:0] shifted_id;
 +    logic [7:0] tmp;
 +    assign tmp = tl_h_i[i].a_source;
-+    assign reqid_sub = i;   // can cause conversion error?
-+    assign shifted_id = {
+     assign reqid_sub = i;   // can cause conversion error?
+     assign shifted_id = {
+-      tl_h_i[i].a_source[0+:(IDW-STIDW)],
 +      tmp[0+:(IDW-STIDW)],
-+      reqid_sub
-+    };
-+
-+  `ASSERT(idInRange, tl_h_i[i].a_valid |-> tl_h_i[i].a_source[IDW-1 -:STIDW] == '0)
-+
-+    // assign not connected bits to nc_* signal to make lint happy
-+    logic [IDW-1 : IDW-STIDW] unused_tl_h_source;
-+    assign unused_tl_h_source = tmp[IDW-1 -: STIDW];
-+
-+    // Put shifted ID
-+    assign hreq_fifo_i.a_valid = tl_h_i[i].a_valid;
-+    assign hreq_fifo_i.a_opcode = tl_h_i[i].a_opcode;
-+    assign hreq_fifo_i.a_param = tl_h_i[i].a_param;
-+    assign hreq_fifo_i.a_size = tl_h_i[i].a_size;
-+    assign hreq_fifo_i.a_source = shifted_id;
-+    assign hreq_fifo_i.a_address = tl_h_i[i].a_address;
-+    assign hreq_fifo_i.a_mask = tl_h_i[i].a_mask;
-+    assign hreq_fifo_i.a_data = tl_h_i[i].a_data;
-+    assign hreq_fifo_i.a_user = tl_h_i[i].a_user;
-+    assign hreq_fifo_i.d_ready = tl_h_i[i].d_ready;
-+
-+    tlul_fifo_sync #(
-+      .ReqPass    (HReqPass[i]),
-+      .RspPass    (HRspPass[i]),
-+      .ReqDepth   (HReqDepth[i*4+:4]),
-+      .RspDepth   (HRspDepth[i*4+:4]),
-+      .SpareReqW  (1)
-+    ) u_hostfifo (
-+      .clk_i,
-+      .rst_ni,
-+      .tl_h_i      (hreq_fifo_i),
-+      .tl_h_o      (tl_h_o[i]),
-+      .tl_d_o      (hreq_fifo_o[i]),
-+      .tl_d_i      (hrsp_fifo_i[i]),
-+      .spare_req_i (1'b0),
-+      .spare_req_o (),
-+      .spare_rsp_i (1'b0),
-+      .spare_rsp_o ()
-+    );
-+  end
-+
-+  // Device Req/Rsp FIFO
-+  tlul_fifo_sync #(
-+    .ReqPass    (DReqPass),
-+    .RspPass    (DRspPass),
-+    .ReqDepth   (DReqDepth),
-+    .RspDepth   (DRspDepth),
-+    .SpareReqW  (1)
-+  ) u_devicefifo (
-+    .clk_i,
-+    .rst_ni,
-+    .tl_h_i      (dreq_fifo_i),
-+    .tl_h_o      (drsp_fifo_o),
-+    .tl_d_o      (tl_d_o),
-+    .tl_d_i      (tl_d_i),
-+    .spare_req_i (1'b0),
-+    .spare_req_o (),
-+    .spare_rsp_i (1'b0),
-+    .spare_rsp_o ()
-+  );
-+
-+  // Request Arbiter
-+  for (genvar i = 0 ; i < M ; i++) begin : gen_arbreqgnt
-+    assign hrequest[i] = hreq_fifo_o[i].a_valid;
-+  end
-+
-+  assign arb_ready = drsp_fifo_o.a_ready;
-+
-+  if (tlul_pkg::ArbiterImpl == "PPC") begin : gen_arb_ppc
-+    prim_arbiter_ppc_surelog #(
-+      .N      (M),
-+      .DW     ($bits(tlul_pkg::tl_h2d_t))
-+    ) u_reqarb (
-+      .clk_i,
-+      .rst_ni,
-+      .req_i   ( hrequest    ),
-+      .data_i  ( hreq_fifo_o ),
-+      .gnt_o   ( hgrant      ),
-+      .idx_o   (             ),
-+      .valid_o ( arb_valid   ),
-+      .data_o  ( arb_data    ),
-+      .ready_i ( arb_ready   )
-+    );
-+  end else if (tlul_pkg::ArbiterImpl == "BINTREE") begin : gen_tree_arb
-+    prim_arbiter_tree #(
-+      .N      (M),
-+      .DW     ($bits(tlul_pkg::tl_h2d_t))
-+    ) u_reqarb (
-+      .clk_i,
-+      .rst_ni,
-+      .req_i   ( hrequest    ),
-+      .data_i  ( hreq_fifo_o ),
-+      .gnt_o   ( hgrant      ),
-+      .idx_o   (             ),
-+      .valid_o ( arb_valid   ),
-+      .data_o  ( arb_data    ),
-+      .ready_i ( arb_ready   )
-+    );
-+  end else begin : gen_unknown
-+    `ASSERT_INIT(UnknownArbImpl_A, 0)
-+  end
-+
-+  logic [  M-1:0] hfifo_rspvalid;
-+  logic [  M-1:0] dfifo_rspready;
-+  logic [IDW-1:0] hfifo_rspid;
-+  logic dfifo_rspready_merged;
-+
-+  // arb_data --> dreq_fifo_i
-+  //   dreq_fifo_i.hd_rspready <= dfifo_rspready
-+
-+  assign dfifo_rspready_merged = |dfifo_rspready;
-+  assign dreq_fifo_i = '{
-+    a_valid:   arb_valid,
-+    a_opcode:  arb_data.a_opcode,
-+    a_param:   arb_data.a_param,
-+    a_size:    arb_data.a_size,
-+    a_source:  arb_data.a_source,
-+    a_address: arb_data.a_address,
-+    a_mask:    arb_data.a_mask,
-+    a_data:    arb_data.a_data,
-+    a_user:    arb_data.a_user,
-+
-+    d_ready:   dfifo_rspready_merged
-+  };
-+
-+  // Response ID steering
-+  // drsp_fifo_o --> hrsp_fifo_i[i]
-+
-+  // Response ID shifting before put into host fifo
-+  assign hfifo_rspid = {
-+    {STIDW{1'b0}},
-+    drsp_fifo_o.d_source[IDW-1:STIDW]
-+  };
-+  for (genvar i = 0 ; i < M ; i++) begin : gen_idrouting
-+    assign hfifo_rspvalid[i] = drsp_fifo_o.d_valid &
-+                               (drsp_fifo_o.d_source[0+:STIDW] == i);
-+    assign dfifo_rspready[i] = hreq_fifo_o[i].d_ready                &
-+                               (drsp_fifo_o.d_source[0+:STIDW] == i) &
-+                              drsp_fifo_o.d_valid;
-+
-+    assign hrsp_fifo_i[i].d_valid = hfifo_rspvalid[i];
-+    assign hrsp_fifo_i[i].d_opcode = drsp_fifo_o.d_opcode;
-+    assign hrsp_fifo_i[i].d_param = drsp_fifo_o.d_param;
-+    assign hrsp_fifo_i[i].d_size = drsp_fifo_o.d_size;
-+    assign hrsp_fifo_i[i].d_source = hfifo_rspid;
-+    assign hrsp_fifo_i[i].d_sink = drsp_fifo_o.d_sink;
-+    assign hrsp_fifo_i[i].d_data = drsp_fifo_o.d_data;
-+    assign hrsp_fifo_i[i].d_user = drsp_fifo_o.d_user;
-+    assign hrsp_fifo_i[i].d_error = drsp_fifo_o.d_error;
-+    assign hrsp_fifo_i[i].a_ready = hgrant[i];
-+  end
-+
-+  // this assertion fails when rspid[0+:STIDW] not in [0..M-1]
-+  `ASSERT(rspIdInRange, drsp_fifo_o.d_valid |->
-+      drsp_fifo_o.d_source[0+:STIDW] >= 0 && drsp_fifo_o.d_source[0+:STIDW] < M)
-+
-+endmodule
-diff --git a/hw/ip/tlul/rtl/tlul_socket_m1_n2_depth.sv b/hw/ip/tlul/rtl/tlul_socket_m1_n2_depth.sv
-new file mode 100644
-index 000000000..1007785d1
---- /dev/null
-+++ b/hw/ip/tlul/rtl/tlul_socket_m1_n2_depth.sv
-@@ -0,0 +1,256 @@
-+// Copyright lowRISC contributors.
-+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
-+// SPDX-License-Identifier: Apache-2.0
-+//
-+// TL-UL socket M:1 module
-+//
-+// Verilog parameters
-+//   M:             Number of host ports.
-+//   HReqPass:      M bit array to allow requests to pass through the host i
-+//                  FIFO with no clock delay if the request FIFO is empty. If
-+//                  1'b0, at least one clock cycle of latency is created.
-+//                  Default is 1'b1.
-+//   HRspPass:      Same as HReqPass but for host response FIFO.
-+//   HReqDepth:     Mx4 bit array. bit[i*4+:4] is depth of host i request FIFO.
-+//                  Depth of zero is allowed if ReqPass is true. A maximum value
-+//                  of 16 is allowed, default is 2.
-+//   HRspDepth:     Same as HReqDepth but for host response FIFO.
-+//   DReqPass:      Same as HReqPass but for device request FIFO.
-+//   DRspPass:      Same as HReqPass but for device response FIFO.
-+//   DReqDepth:     Same as HReqDepth but for device request FIFO.
-+//   DRspDepth:     Same as HReqDepth but for device response FIFO.
-+
-+`include "prim_assert.sv"
-+
-+module tlul_socket_m1_n2_depth #(
-+  parameter int unsigned  M         = 2,
-+  parameter bit [M-1:0]   HReqPass  = {M{1'b1}},
-+  parameter bit [M-1:0]   HRspPass  = {M{1'b1}},
-+  parameter bit [M*4-1:0] HReqDepth = {M{4'h0}},
-+  parameter bit [M*4-1:0] HRspDepth = {M{4'h0}},
-+  parameter bit           DReqPass  = 1'b1,
-+  parameter bit           DRspPass  = 1'b1,
-+  parameter bit [3:0]     DReqDepth = 4'h0,
-+  parameter bit [3:0]     DRspDepth = 4'h0
-+) (
-+  input                     clk_i,
-+  input                     rst_ni,
-+
-+  input  tlul_pkg::tl_h2d_t tl_h_i [M],
-+  output tlul_pkg::tl_d2h_t tl_h_o [M],
-+
-+  output tlul_pkg::tl_h2d_t tl_d_o,
-+  input  tlul_pkg::tl_d2h_t tl_d_i
-+);
-+
-+  `ASSERT_INIT(maxM, M < 16)
-+
-+
-+  // Signals
-+  //
-+  //  tl_h_i/o[0] |  tl_h_i/o[1] | ... |  tl_h_i/o[M-1]
-+  //      |              |                    |
-+  // u_hostfifo[0]  u_hostfifo[1]        u_hostfifo[M-1]
-+  //      |              |                    |
-+  //       hreq_fifo_o(i) / hrsp_fifo_i(i)
-+  //     ---------------------------------------
-+  //     |       request/grant/req_data        |
-+  //     |                                     |
-+  //     |           PRIM_ARBITER              |
-+  //     |                                     |
-+  //     |  arb_valid / arb_ready / arb_data   |
-+  //     ---------------------------------------
-+  //                     |
-+  //                dreq_fifo_i / drsp_fifo_o
-+  //                     |
-+  //                u_devicefifo
-+  //                     |
-+  //                  tl_d_o/i
-+  //
-+  // Required ID width to distinguish between host ports
-+  //  Used in response steering
-+  localparam int unsigned IDW   = top_pkg::TL_AIW;
-+  localparam int unsigned STIDW = $clog2(M);
-+
-+  tlul_pkg::tl_h2d_t hreq_fifo_o [M];
-+  tlul_pkg::tl_d2h_t hrsp_fifo_i [M];
-+
-+  logic [M-1:0] hrequest;
-+  logic [M-1:0] hgrant;
-+
-+  tlul_pkg::tl_h2d_t dreq_fifo_i;
-+  tlul_pkg::tl_d2h_t drsp_fifo_o;
-+
-+  logic arb_valid;
-+  logic arb_ready;
-+  tlul_pkg::tl_h2d_t arb_data;
-+
-+  // Host Req/Rsp FIFO
-+  for (genvar i = 0 ; i < M ; i++) begin : gen_host_fifo
-+    tlul_pkg::tl_h2d_t hreq_fifo_i;
-+
-+    // ID Shifting
-+    logic [STIDW-1:0] reqid_sub;
-+    logic [IDW-1:0] shifted_id;
-+    logic [7:0] tmp;
-+    assign tmp = tl_h_i[i].a_source;
-+    assign reqid_sub = i;   // can cause conversion error?
-+    assign shifted_id = {
-+      tmp[0+:(IDW-STIDW)],
-+      reqid_sub
-+    };
-+
-+  `ASSERT(idInRange, tl_h_i[i].a_valid |-> tl_h_i[i].a_source[IDW-1 -:STIDW] == '0)
-+
-+    // assign not connected bits to nc_* signal to make lint happy
-+    logic [IDW-1 : IDW-STIDW] unused_tl_h_source;
-+    assign unused_tl_h_source = tmp[IDW-1 -: STIDW];
-+
-+    // Put shifted ID
-+    assign hreq_fifo_i.a_valid = tl_h_i[i].a_valid;
-+    assign hreq_fifo_i.a_opcode = tl_h_i[i].a_opcode;
-+    assign hreq_fifo_i.a_param = tl_h_i[i].a_param;
-+    assign hreq_fifo_i.a_size = tl_h_i[i].a_size;
-+    assign hreq_fifo_i.a_source = shifted_id;
-+    assign hreq_fifo_i.a_address = tl_h_i[i].a_address;
-+    assign hreq_fifo_i.a_mask = tl_h_i[i].a_mask;
-+    assign hreq_fifo_i.a_data = tl_h_i[i].a_data;
-+    assign hreq_fifo_i.a_user = tl_h_i[i].a_user;
-+    assign hreq_fifo_i.d_ready = tl_h_i[i].d_ready;
-+
-+    tlul_fifo_sync #(
-+      .ReqPass    (HReqPass[i]),
-+      .RspPass    (HRspPass[i]),
-+      .ReqDepth   (HReqDepth[i*4+:4]),
-+      .RspDepth   (HRspDepth[i*4+:4]),
-+      .SpareReqW  (1)
-+    ) u_hostfifo (
-+      .clk_i,
-+      .rst_ni,
-+      .tl_h_i      (hreq_fifo_i),
-+      .tl_h_o      (tl_h_o[i]),
-+      .tl_d_o      (hreq_fifo_o[i]),
-+      .tl_d_i      (hrsp_fifo_i[i]),
-+      .spare_req_i (1'b0),
-+      .spare_req_o (),
-+      .spare_rsp_i (1'b0),
-+      .spare_rsp_o ()
-+    );
-+  end
-+
-+  // Device Req/Rsp FIFO
-+  tlul_fifo_sync #(
-+    .ReqPass    (DReqPass),
-+    .RspPass    (DRspPass),
-+    .ReqDepth   (DReqDepth),
-+    .RspDepth   (DRspDepth),
-+    .SpareReqW  (1)
-+  ) u_devicefifo (
-+    .clk_i,
-+    .rst_ni,
-+    .tl_h_i      (dreq_fifo_i),
-+    .tl_h_o      (drsp_fifo_o),
-+    .tl_d_o      (tl_d_o),
-+    .tl_d_i      (tl_d_i),
-+    .spare_req_i (1'b0),
-+    .spare_req_o (),
-+    .spare_rsp_i (1'b0),
-+    .spare_rsp_o ()
-+  );
-+
-+  // Request Arbiter
-+  for (genvar i = 0 ; i < M ; i++) begin : gen_arbreqgnt
-+    assign hrequest[i] = hreq_fifo_o[i].a_valid;
-+  end
-+
-+  assign arb_ready = drsp_fifo_o.a_ready;
-+
-+  if (tlul_pkg::ArbiterImpl == "PPC") begin : gen_arb_ppc
-+    prim_arbiter_ppc_surelog #(
-+      .N      (M),
-+      .DW     ($bits(tlul_pkg::tl_h2d_t))
-+    ) u_reqarb (
-+      .clk_i,
-+      .rst_ni,
-+      .req_i   ( hrequest    ),
-+      .data_i  ( hreq_fifo_o ),
-+      .gnt_o   ( hgrant      ),
-+      .idx_o   (             ),
-+      .valid_o ( arb_valid   ),
-+      .data_o  ( arb_data    ),
-+      .ready_i ( arb_ready   )
-+    );
-+  end else if (tlul_pkg::ArbiterImpl == "BINTREE") begin : gen_tree_arb
-+    prim_arbiter_tree #(
-+      .N      (M),
-+      .DW     ($bits(tlul_pkg::tl_h2d_t))
-+    ) u_reqarb (
-+      .clk_i,
-+      .rst_ni,
-+      .req_i   ( hrequest    ),
-+      .data_i  ( hreq_fifo_o ),
-+      .gnt_o   ( hgrant      ),
-+      .idx_o   (             ),
-+      .valid_o ( arb_valid   ),
-+      .data_o  ( arb_data    ),
-+      .ready_i ( arb_ready   )
-+    );
-+  end else begin : gen_unknown
-+    `ASSERT_INIT(UnknownArbImpl_A, 0)
-+  end
-+
-+  logic [  M-1:0] hfifo_rspvalid;
-+  logic [  M-1:0] dfifo_rspready;
-+  logic [IDW-1:0] hfifo_rspid;
-+  logic dfifo_rspready_merged;
-+
-+  // arb_data --> dreq_fifo_i
-+  //   dreq_fifo_i.hd_rspready <= dfifo_rspready
-+
-+  assign dfifo_rspready_merged = |dfifo_rspready;
-+  assign dreq_fifo_i = '{
-+    a_valid:   arb_valid,
-+    a_opcode:  arb_data.a_opcode,
-+    a_param:   arb_data.a_param,
-+    a_size:    arb_data.a_size,
-+    a_source:  arb_data.a_source,
-+    a_address: arb_data.a_address,
-+    a_mask:    arb_data.a_mask,
-+    a_data:    arb_data.a_data,
-+    a_user:    arb_data.a_user,
-+
-+    d_ready:   dfifo_rspready_merged
-+  };
-+
-+  // Response ID steering
-+  // drsp_fifo_o --> hrsp_fifo_i[i]
-+
-+  // Response ID shifting before put into host fifo
-+  assign hfifo_rspid = {
-+    {STIDW{1'b0}},
-+    drsp_fifo_o.d_source[IDW-1:STIDW]
-+  };
-+  for (genvar i = 0 ; i < M ; i++) begin : gen_idrouting
-+    assign hfifo_rspvalid[i] = drsp_fifo_o.d_valid &
-+                               (drsp_fifo_o.d_source[0+:STIDW] == i);
-+    assign dfifo_rspready[i] = hreq_fifo_o[i].d_ready                &
-+                               (drsp_fifo_o.d_source[0+:STIDW] == i) &
-+                              drsp_fifo_o.d_valid;
-+
-+    assign hrsp_fifo_i[i].d_valid = hfifo_rspvalid[i];
-+    assign hrsp_fifo_i[i].d_opcode = drsp_fifo_o.d_opcode;
-+    assign hrsp_fifo_i[i].d_param = drsp_fifo_o.d_param;
-+    assign hrsp_fifo_i[i].d_size = drsp_fifo_o.d_size;
-+    assign hrsp_fifo_i[i].d_source = hfifo_rspid;
-+    assign hrsp_fifo_i[i].d_sink = drsp_fifo_o.d_sink;
-+    assign hrsp_fifo_i[i].d_data = drsp_fifo_o.d_data;
-+    assign hrsp_fifo_i[i].d_user = drsp_fifo_o.d_user;
-+    assign hrsp_fifo_i[i].d_error = drsp_fifo_o.d_error;
-+    assign hrsp_fifo_i[i].a_ready = hgrant[i];
-+  end
-+
-+  // this assertion fails when rspid[0+:STIDW] not in [0..M-1]
-+  `ASSERT(rspIdInRange, drsp_fifo_o.d_valid |->
-+      drsp_fifo_o.d_source[0+:STIDW] >= 0 && drsp_fifo_o.d_source[0+:STIDW] < M)
-+
-+endmodule
-diff --git a/hw/ip/tlul/rtl/tlul_socket_m1_n3.sv b/hw/ip/tlul/rtl/tlul_socket_m1_n3.sv
-new file mode 100644
-index 000000000..14eae9755
---- /dev/null
-+++ b/hw/ip/tlul/rtl/tlul_socket_m1_n3.sv
-@@ -0,0 +1,256 @@
-+// Copyright lowRISC contributors.
-+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
-+// SPDX-License-Identifier: Apache-2.0
-+//
-+// TL-UL socket M:1 module
-+//
-+// Verilog parameters
-+//   M:             Number of host ports.
-+//   HReqPass:      M bit array to allow requests to pass through the host i
-+//                  FIFO with no clock delay if the request FIFO is empty. If
-+//                  1'b0, at least one clock cycle of latency is created.
-+//                  Default is 1'b1.
-+//   HRspPass:      Same as HReqPass but for host response FIFO.
-+//   HReqDepth:     Mx4 bit array. bit[i*4+:4] is depth of host i request FIFO.
-+//                  Depth of zero is allowed if ReqPass is true. A maximum value
-+//                  of 16 is allowed, default is 2.
-+//   HRspDepth:     Same as HReqDepth but for host response FIFO.
-+//   DReqPass:      Same as HReqPass but for device request FIFO.
-+//   DRspPass:      Same as HReqPass but for device response FIFO.
-+//   DReqDepth:     Same as HReqDepth but for device request FIFO.
-+//   DRspDepth:     Same as HReqDepth but for device response FIFO.
-+
-+`include "prim_assert.sv"
-+
-+module tlul_socket_m1_n3 #(
-+  parameter int unsigned  M         = 3,
-+  parameter bit [M-1:0]   HReqPass  = {M{1'b1}},
-+  parameter bit [M-1:0]   HRspPass  = {M{1'b1}},
-+  parameter bit [M*4-1:0] HReqDepth = {M{4'h0}},
-+  parameter bit [M*4-1:0] HRspDepth = {M{4'h0}},
-+  parameter bit           DReqPass  = 1'b1,
-+  parameter bit           DRspPass  = 1'b1,
-+  parameter bit [3:0]     DReqDepth = 4'h0,
-+  parameter bit [3:0]     DRspDepth = 4'h0
-+) (
-+  input                     clk_i,
-+  input                     rst_ni,
-+
-+  input  tlul_pkg::tl_h2d_t tl_h_i [M],
-+  output tlul_pkg::tl_d2h_t tl_h_o [M],
-+
-+  output tlul_pkg::tl_h2d_t tl_d_o,
-+  input  tlul_pkg::tl_d2h_t tl_d_i
-+);
-+
-+  `ASSERT_INIT(maxM, M < 16)
-+
-+
-+  // Signals
-+  //
-+  //  tl_h_i/o[0] |  tl_h_i/o[1] | ... |  tl_h_i/o[M-1]
-+  //      |              |                    |
-+  // u_hostfifo[0]  u_hostfifo[1]        u_hostfifo[M-1]
-+  //      |              |                    |
-+  //       hreq_fifo_o(i) / hrsp_fifo_i(i)
-+  //     ---------------------------------------
-+  //     |       request/grant/req_data        |
-+  //     |                                     |
-+  //     |           PRIM_ARBITER              |
-+  //     |                                     |
-+  //     |  arb_valid / arb_ready / arb_data   |
-+  //     ---------------------------------------
-+  //                     |
-+  //                dreq_fifo_i / drsp_fifo_o
-+  //                     |
-+  //                u_devicefifo
-+  //                     |
-+  //                  tl_d_o/i
-+  //
-+  // Required ID width to distinguish between host ports
-+  //  Used in response steering
-+  localparam int unsigned IDW   = top_pkg::TL_AIW;
-+  localparam int unsigned STIDW = $clog2(M);
-+
-+  tlul_pkg::tl_h2d_t hreq_fifo_o [M];
-+  tlul_pkg::tl_d2h_t hrsp_fifo_i [M];
-+
-+  logic [M-1:0] hrequest;
-+  logic [M-1:0] hgrant;
-+
-+  tlul_pkg::tl_h2d_t dreq_fifo_i;
-+  tlul_pkg::tl_d2h_t drsp_fifo_o;
-+
-+  logic arb_valid;
-+  logic arb_ready;
-+  tlul_pkg::tl_h2d_t arb_data;
-+
-+  // Host Req/Rsp FIFO
-+  for (genvar i = 0 ; i < M ; i++) begin : gen_host_fifo
-+    tlul_pkg::tl_h2d_t hreq_fifo_i;
-+
-+    // ID Shifting
-+    logic [STIDW-1:0] reqid_sub;
-+    logic [IDW-1:0] shifted_id;
-+    logic [7:0] tmp;
-+    assign tmp = tl_h_i[i].a_source;
-+    assign reqid_sub = i;   // can cause conversion error?
-+    assign shifted_id = {
-+      tmp[0+:(IDW-STIDW)],
-+      reqid_sub
-+    };
-+
-+  `ASSERT(idInRange, tl_h_i[i].a_valid |-> tl_h_i[i].a_source[IDW-1 -:STIDW] == '0)
-+
-+    // assign not connected bits to nc_* signal to make lint happy
-+    logic [IDW-1 : IDW-STIDW] unused_tl_h_source;
-+    assign unused_tl_h_source = tmp[IDW-1 -: STIDW];
-+
-+    // Put shifted ID
-+    assign hreq_fifo_i.a_valid = tl_h_i[i].a_valid;
-+    assign hreq_fifo_i.a_opcode = tl_h_i[i].a_opcode;
-+    assign hreq_fifo_i.a_param = tl_h_i[i].a_param;
-+    assign hreq_fifo_i.a_size = tl_h_i[i].a_size;
-+    assign hreq_fifo_i.a_source = shifted_id;
-+    assign hreq_fifo_i.a_address = tl_h_i[i].a_address;
-+    assign hreq_fifo_i.a_mask = tl_h_i[i].a_mask;
-+    assign hreq_fifo_i.a_data = tl_h_i[i].a_data;
-+    assign hreq_fifo_i.a_user = tl_h_i[i].a_user;
-+    assign hreq_fifo_i.d_ready = tl_h_i[i].d_ready;
-+
-+    tlul_fifo_sync #(
-+      .ReqPass    (HReqPass[i]),
-+      .RspPass    (HRspPass[i]),
-+      .ReqDepth   (HReqDepth[i*4+:4]),
-+      .RspDepth   (HRspDepth[i*4+:4]),
-+      .SpareReqW  (1)
-+    ) u_hostfifo (
-+      .clk_i,
-+      .rst_ni,
-+      .tl_h_i      (hreq_fifo_i),
-+      .tl_h_o      (tl_h_o[i]),
-+      .tl_d_o      (hreq_fifo_o[i]),
-+      .tl_d_i      (hrsp_fifo_i[i]),
-+      .spare_req_i (1'b0),
-+      .spare_req_o (),
-+      .spare_rsp_i (1'b0),
-+      .spare_rsp_o ()
-+    );
-+  end
-+
-+  // Device Req/Rsp FIFO
-+  tlul_fifo_sync #(
-+    .ReqPass    (DReqPass),
-+    .RspPass    (DRspPass),
-+    .ReqDepth   (DReqDepth),
-+    .RspDepth   (DRspDepth),
-+    .SpareReqW  (1)
-+  ) u_devicefifo (
-+    .clk_i,
-+    .rst_ni,
-+    .tl_h_i      (dreq_fifo_i),
-+    .tl_h_o      (drsp_fifo_o),
-+    .tl_d_o      (tl_d_o),
-+    .tl_d_i      (tl_d_i),
-+    .spare_req_i (1'b0),
-+    .spare_req_o (),
-+    .spare_rsp_i (1'b0),
-+    .spare_rsp_o ()
-+  );
-+
-+  // Request Arbiter
-+  for (genvar i = 0 ; i < M ; i++) begin : gen_arbreqgnt
-+    assign hrequest[i] = hreq_fifo_o[i].a_valid;
-+  end
-+
-+  assign arb_ready = drsp_fifo_o.a_ready;
-+
-+  if (tlul_pkg::ArbiterImpl == "PPC") begin : gen_arb_ppc
-+    prim_arbiter_ppc_surelog #(
-+      .N      (M),
-+      .DW     ($bits(tlul_pkg::tl_h2d_t))
-+    ) u_reqarb (
-+      .clk_i,
-+      .rst_ni,
-+      .req_i   ( hrequest    ),
-+      .data_i  ( hreq_fifo_o ),
-+      .gnt_o   ( hgrant      ),
-+      .idx_o   (             ),
-+      .valid_o ( arb_valid   ),
-+      .data_o  ( arb_data    ),
-+      .ready_i ( arb_ready   )
-+    );
-+  end else if (tlul_pkg::ArbiterImpl == "BINTREE") begin : gen_tree_arb
-+    prim_arbiter_tree #(
-+      .N      (M),
-+      .DW     ($bits(tlul_pkg::tl_h2d_t))
-+    ) u_reqarb (
-+      .clk_i,
-+      .rst_ni,
-+      .req_i   ( hrequest    ),
-+      .data_i  ( hreq_fifo_o ),
-+      .gnt_o   ( hgrant      ),
-+      .idx_o   (             ),
-+      .valid_o ( arb_valid   ),
-+      .data_o  ( arb_data    ),
-+      .ready_i ( arb_ready   )
-+    );
-+  end else begin : gen_unknown
-+    `ASSERT_INIT(UnknownArbImpl_A, 0)
-+  end
-+
-+  logic [  M-1:0] hfifo_rspvalid;
-+  logic [  M-1:0] dfifo_rspready;
-+  logic [IDW-1:0] hfifo_rspid;
-+  logic dfifo_rspready_merged;
-+
-+  // arb_data --> dreq_fifo_i
-+  //   dreq_fifo_i.hd_rspready <= dfifo_rspready
-+
-+  assign dfifo_rspready_merged = |dfifo_rspready;
-+  assign dreq_fifo_i = '{
-+    a_valid:   arb_valid,
-+    a_opcode:  arb_data.a_opcode,
-+    a_param:   arb_data.a_param,
-+    a_size:    arb_data.a_size,
-+    a_source:  arb_data.a_source,
-+    a_address: arb_data.a_address,
-+    a_mask:    arb_data.a_mask,
-+    a_data:    arb_data.a_data,
-+    a_user:    arb_data.a_user,
-+
-+    d_ready:   dfifo_rspready_merged
-+  };
-+
-+  // Response ID steering
-+  // drsp_fifo_o --> hrsp_fifo_i[i]
-+
-+  // Response ID shifting before put into host fifo
-+  assign hfifo_rspid = {
-+    {STIDW{1'b0}},
-+    drsp_fifo_o.d_source[IDW-1:STIDW]
-+  };
-+  for (genvar i = 0 ; i < M ; i++) begin : gen_idrouting
-+    assign hfifo_rspvalid[i] = drsp_fifo_o.d_valid &
-+                               (drsp_fifo_o.d_source[0+:STIDW] == i);
-+    assign dfifo_rspready[i] = hreq_fifo_o[i].d_ready                &
-+                               (drsp_fifo_o.d_source[0+:STIDW] == i) &
-+                              drsp_fifo_o.d_valid;
-+
-+    assign hrsp_fifo_i[i].d_valid = hfifo_rspvalid[i];
-+    assign hrsp_fifo_i[i].d_opcode = drsp_fifo_o.d_opcode;
-+    assign hrsp_fifo_i[i].d_param = drsp_fifo_o.d_param;
-+    assign hrsp_fifo_i[i].d_size = drsp_fifo_o.d_size;
-+    assign hrsp_fifo_i[i].d_source = hfifo_rspid;
-+    assign hrsp_fifo_i[i].d_sink = drsp_fifo_o.d_sink;
-+    assign hrsp_fifo_i[i].d_data = drsp_fifo_o.d_data;
-+    assign hrsp_fifo_i[i].d_user = drsp_fifo_o.d_user;
-+    assign hrsp_fifo_i[i].d_error = drsp_fifo_o.d_error;
-+    assign hrsp_fifo_i[i].a_ready = hgrant[i];
-+  end
-+
-+  // this assertion fails when rspid[0+:STIDW] not in [0..M-1]
-+  `ASSERT(rspIdInRange, drsp_fifo_o.d_valid |->
-+      drsp_fifo_o.d_source[0+:STIDW] >= 0 && drsp_fifo_o.d_source[0+:STIDW] < M)
-+
-+endmodule
-diff --git a/hw/ip/tlul/socket_m1.core b/hw/ip/tlul/socket_m1.core
-index 1dba035f5..b08354864 100644
---- a/hw/ip/tlul/socket_m1.core
-+++ b/hw/ip/tlul/socket_m1.core
-@@ -13,6 +13,9 @@ filesets:
-       - lowrisc:tlul:headers
-     files:
-       - rtl/tlul_socket_m1.sv
-+      - rtl/tlul_socket_m1_n2.sv
-+      - rtl/tlul_socket_m1_n3.sv
-+      - rtl/tlul_socket_m1_n2_depth.sv
-     file_type: systemVerilogSource
+       reqid_sub
+     };
  
-   files_verilator_waiver:
+@@ -102,21 +104,19 @@ module tlul_socket_m1 #(
+ 
+     // assign not connected bits to nc_* signal to make lint happy
+     logic [IDW-1 : IDW-STIDW] unused_tl_h_source;
+-    assign unused_tl_h_source = tl_h_i[i].a_source[IDW-1 -: STIDW];
++    assign unused_tl_h_source = tmp[IDW-1 -: STIDW];
+ 
+     // Put shifted ID
+-    assign hreq_fifo_i = '{
+-      a_valid:    tl_h_i[i].a_valid,
+-      a_opcode:   tl_h_i[i].a_opcode,
+-      a_param:    tl_h_i[i].a_param,
+-      a_size:     tl_h_i[i].a_size,
+-      a_source:   shifted_id,
+-      a_address:  tl_h_i[i].a_address,
+-      a_mask:     tl_h_i[i].a_mask,
+-      a_data:     tl_h_i[i].a_data,
+-      a_user:     tl_h_i[i].a_user,
+-      d_ready:    tl_h_i[i].d_ready
+-    };
++    assign hreq_fifo_i.a_valid = tl_h_i[i].a_valid;
++    assign hreq_fifo_i.a_opcode = tl_h_i[i].a_opcode;
++    assign hreq_fifo_i.a_param = tl_h_i[i].a_param;
++    assign hreq_fifo_i.a_size = tl_h_i[i].a_size;
++    assign hreq_fifo_i.a_source = shifted_id;
++    assign hreq_fifo_i.a_address = tl_h_i[i].a_address;
++    assign hreq_fifo_i.a_mask = tl_h_i[i].a_mask;
++    assign hreq_fifo_i.a_data = tl_h_i[i].a_data;
++    assign hreq_fifo_i.a_user = tl_h_i[i].a_user;
++    assign hreq_fifo_i.d_ready = tl_h_i[i].d_ready;
+ 
+     tlul_fifo_sync #(
+       .ReqPass    (HReqPass[i]),
+@@ -237,18 +237,16 @@ module tlul_socket_m1 #(
+                                (drsp_fifo_o.d_source[0+:STIDW] == i) &
+                               drsp_fifo_o.d_valid;
+ 
+-    assign hrsp_fifo_i[i] = '{
+-      d_valid:  hfifo_rspvalid[i],
+-      d_opcode: drsp_fifo_o.d_opcode,
+-      d_param:  drsp_fifo_o.d_param,
+-      d_size:   drsp_fifo_o.d_size,
+-      d_source: hfifo_rspid,
+-      d_sink:   drsp_fifo_o.d_sink,
+-      d_data:   drsp_fifo_o.d_data,
+-      d_user:   drsp_fifo_o.d_user,
+-      d_error:  drsp_fifo_o.d_error,
+-      a_ready:  hgrant[i]
+-    };
++    assign hrsp_fifo_i[i].d_valid = hfifo_rspvalid[i];
++    assign hrsp_fifo_i[i].d_opcode = drsp_fifo_o.d_opcode;
++    assign hrsp_fifo_i[i].d_param = drsp_fifo_o.d_param;
++    assign hrsp_fifo_i[i].d_size = drsp_fifo_o.d_size;
++    assign hrsp_fifo_i[i].d_source = hfifo_rspid;
++    assign hrsp_fifo_i[i].d_sink = drsp_fifo_o.d_sink;
++    assign hrsp_fifo_i[i].d_data = drsp_fifo_o.d_data;
++    assign hrsp_fifo_i[i].d_user = drsp_fifo_o.d_user;
++    assign hrsp_fifo_i[i].d_error = drsp_fifo_o.d_error;
++    assign hrsp_fifo_i[i].a_ready = hgrant[i];
+   end
+ 
+   // this assertion fails when rspid[0+:STIDW] not in [0..M-1]
 diff --git a/hw/ip/usbdev/rtl/usbdev.sv b/hw/ip/usbdev/rtl/usbdev.sv
 index cbdadd624..42a4d1b7a 100644
 --- a/hw/ip/usbdev/rtl/usbdev.sv
@@ -2630,145 +1751,6 @@ index 9889b0a1f..9b297e67f 100644
    always_ff @(posedge clk_i or negedge rst_ni) begin
      if (!rst_ni) begin
        d_sync_q <= '0;
-diff --git a/hw/top_earlgrey/ip/xbar_main/rtl/autogen/xbar_main.sv b/hw/top_earlgrey/ip/xbar_main/rtl/autogen/xbar_main.sv
-index ff5251ee5..eba568103 100644
---- a/hw/top_earlgrey/ip/xbar_main/rtl/autogen/xbar_main.sv
-+++ b/hw/top_earlgrey/ip/xbar_main/rtl/autogen/xbar_main.sv
-@@ -559,7 +559,7 @@ end
-     .tl_d_i       (tl_s1n_17_ds_d2h),
-     .dev_select_i (dev_sel_s1n_17)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n3 #(
-     .HReqDepth (12'h0),
-     .HRspDepth (12'h0),
-     .DReqDepth (4'h0),
-@@ -573,7 +573,7 @@ end
-     .tl_d_o       (tl_sm1_18_ds_h2d),
-     .tl_d_i       (tl_sm1_18_ds_d2h)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n2 #(
-     .HReqDepth (8'h0),
-     .HRspDepth (8'h0),
-     .DReqPass  (1'b0),
-@@ -587,7 +587,7 @@ end
-     .tl_d_o       (tl_sm1_19_ds_h2d),
-     .tl_d_i       (tl_sm1_19_ds_d2h)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n3 #(
-     .HReqDepth (12'h0),
-     .HRspDepth (12'h0),
-     .DReqDepth (4'h0),
-@@ -601,7 +601,7 @@ end
-     .tl_d_o       (tl_sm1_20_ds_h2d),
-     .tl_d_i       (tl_sm1_20_ds_d2h)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n3 #(
-     .HReqDepth (12'h0),
-     .HRspDepth (12'h0),
-     .DReqDepth (4'h0),
-@@ -630,7 +630,7 @@ end
-     .tl_d_i       (tl_s1n_22_ds_d2h),
-     .dev_select_i (dev_sel_s1n_22)
-   );
--  tlul_fifo_async #(
-+  tlul_fifo_async_surelog #(
-     .ReqDepth        (3),// At least 3 to make async work
-     .RspDepth        (3) // At least 3 to make async work
-   ) u_asf_23 (
-@@ -643,7 +643,7 @@ end
-     .tl_d_o       (tl_asf_23_ds_h2d),
-     .tl_d_i       (tl_asf_23_ds_d2h)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n2_depth #(
-     .HReqDepth (8'h0),
-     .HRspDepth (8'h0),
-     .DReqDepth (4'h0),
-@@ -657,7 +657,7 @@ end
-     .tl_d_o       (tl_sm1_24_ds_h2d),
-     .tl_d_i       (tl_sm1_24_ds_d2h)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n2 #(
-     .HReqDepth (8'h0),
-     .HRspDepth (8'h0),
-     .DReqPass  (1'b0),
-@@ -671,7 +671,7 @@ end
-     .tl_d_o       (tl_sm1_25_ds_h2d),
-     .tl_d_i       (tl_sm1_25_ds_d2h)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n2 #(
-     .HReqDepth (8'h0),
-     .HRspDepth (8'h0),
-     .DReqPass  (1'b0),
-@@ -685,7 +685,7 @@ end
-     .tl_d_o       (tl_sm1_26_ds_h2d),
-     .tl_d_i       (tl_sm1_26_ds_d2h)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n2 #(
-     .HReqDepth (8'h0),
-     .HRspDepth (8'h0),
-     .DReqPass  (1'b0),
-@@ -699,7 +699,7 @@ end
-     .tl_d_o       (tl_sm1_27_ds_h2d),
-     .tl_d_i       (tl_sm1_27_ds_d2h)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n2 #(
-     .HReqDepth (8'h0),
-     .HRspDepth (8'h0),
-     .DReqPass  (1'b0),
-@@ -713,7 +713,7 @@ end
-     .tl_d_o       (tl_sm1_28_ds_h2d),
-     .tl_d_i       (tl_sm1_28_ds_d2h)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n2 #(
-     .HReqDepth (8'h0),
-     .HRspDepth (8'h0),
-     .DReqPass  (1'b0),
-@@ -727,7 +727,7 @@ end
-     .tl_d_o       (tl_sm1_29_ds_h2d),
-     .tl_d_i       (tl_sm1_29_ds_d2h)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n2 #(
-     .HReqDepth (8'h0),
-     .HRspDepth (8'h0),
-     .DReqPass  (1'b0),
-@@ -741,7 +741,7 @@ end
-     .tl_d_o       (tl_sm1_30_ds_h2d),
-     .tl_d_i       (tl_sm1_30_ds_d2h)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n2 #(
-     .HReqDepth (8'h0),
-     .HRspDepth (8'h0),
-     .DReqPass  (1'b0),
-@@ -755,7 +755,7 @@ end
-     .tl_d_o       (tl_sm1_31_ds_h2d),
-     .tl_d_i       (tl_sm1_31_ds_d2h)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n2 #(
-     .HReqDepth (8'h0),
-     .HRspDepth (8'h0),
-     .DReqPass  (1'b0),
-@@ -769,7 +769,7 @@ end
-     .tl_d_o       (tl_sm1_32_ds_h2d),
-     .tl_d_i       (tl_sm1_32_ds_d2h)
-   );
--  tlul_socket_m1 #(
-+  tlul_socket_m1_n2 #(
-     .HReqDepth (8'h0),
-     .HRspDepth (8'h0),
-     .DReqPass  (1'b0),
 diff --git a/hw/vendor/lowrisc_ibex/rtl/ibex_core.sv b/hw/vendor/lowrisc_ibex/rtl/ibex_core.sv
 index 61469937f..12f0a2bcd 100644
 --- a/hw/vendor/lowrisc_ibex/rtl/ibex_core.sv
