@@ -88,7 +88,6 @@ flash_ctrl_reg_top.sv \
 flash_ctrl.sv \
 flash_mp.sv \
 gpio.sv \
-sha2.sv \
 hmac_reg_top.sv \
 hmac.sv \
 jtag_mux.sv \
@@ -311,6 +310,7 @@ gpio_reg_top.sv \
 uart.sv \
 prim_sram_arbiter.sv \
 spi_device.sv \
+sha2.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -450,6 +450,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top gpio_reg_top \
 			-top uart \
 			-top spi_device \
+			-top sha2 \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
