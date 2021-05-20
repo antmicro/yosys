@@ -101,7 +101,6 @@ pinmux.sv \
 rv_timer_reg_top.sv \
 rv_timer.sv \
 spi_device.sv \
-uart.sv \
 usbdev_reg_top.sv \
 usbdev.sv \
 pwrmgr.sv \
@@ -312,6 +311,7 @@ xbar_peri.sv \
 usbdev_iomux.sv \
 uart_reg_top.sv \
 gpio_reg_top.sv \
+uart.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -442,15 +442,14 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top spi_fwm_rxf_ctrl \
 			-top spi_fwm_txf_ctrl \
 			-top spi_device_reg_top \
-			-top uart_core \
 			-top usbdev_flop_2syncpulse \
 			-top usbdev_usbif \
 			-top xbar_main \
 			-top otbn \
 			-top xbar_peri \
 			-top usbdev_iomux \
-			-top uart_reg_top \
 			-top gpio_reg_top \
+			-top uart \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -530,7 +529,6 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top spi_fwm_rxf_ctrl when spi_device will be added to uhdm
 	# Delete -top spi_fwm_txf_ctrl when spi_device will be added to uhdm
 	# Delete -top spi_device_reg_top when spi_device will be added to uhdm
-	# Delete -top uart_core when uart will be added to uhdm
 	# Delete -top usbdev_flop_2syncpulse when usbdev_usbif will be added to uhdm
 	# Delete -top otbn when top_earlgrey will be added to uhdm
 
