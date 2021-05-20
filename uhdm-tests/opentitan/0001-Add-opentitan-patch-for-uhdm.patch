@@ -1214,9 +1214,20 @@ index f7f9ed1bf..0b0fd2f7e 100644
      .CfgW  (8),
  
 diff --git a/hw/ip/tlul/rtl/tlul_adapter_reg.sv b/hw/ip/tlul/rtl/tlul_adapter_reg.sv
-index c451308bd..41522c926 100644
+index c451308bd..a0dd153b8 100644
 --- a/hw/ip/tlul/rtl/tlul_adapter_reg.sv
 +++ b/hw/ip/tlul/rtl/tlul_adapter_reg.sv
+@@ -30,8 +30,8 @@ module tlul_adapter_reg import tlul_pkg::*; #(
+   input                    error_i
+ );
+ 
+-  localparam int IW  = $bits(tl_i.a_source);
+-  localparam int SZW = $bits(tl_i.a_size);
++  localparam int IW  = 8;
++  localparam int SZW = 2;
+ 
+   logic outstanding;    // Indicates current request is pending
+   logic a_ack, d_ack;
 @@ -69,8 +69,8 @@ module tlul_adapter_reg import tlul_pkg::*; #(
  
    always_ff @(posedge clk_i or negedge rst_ni) begin
@@ -1271,9 +1282,26 @@ index 6e2f33191..cb3e9088c 100644
      wdata_int = '0;
  
 diff --git a/hw/ip/tlul/rtl/tlul_err.sv b/hw/ip/tlul/rtl/tlul_err.sv
-index add8477ba..0479ed442 100644
+index add8477ba..4ab895782 100644
 --- a/hw/ip/tlul/rtl/tlul_err.sv
 +++ b/hw/ip/tlul/rtl/tlul_err.sv
+@@ -14,11 +14,11 @@ module tlul_err import tlul_pkg::*; (
+   output logic err_o
+ );
+ 
+-  localparam int IW  = $bits(tl_i.a_source);
+-  localparam int SZW = $bits(tl_i.a_size);
+-  localparam int DW  = $bits(tl_i.a_data);
+-  localparam int MW  = $bits(tl_i.a_mask);
+-  localparam int SubAW = $clog2(DW/8);
++  localparam int IW  = 8;
++  localparam int SZW = 2;
++  localparam int DW  = 32;
++  localparam int MW  = 4;
++  localparam int SubAW = 2;
+ 
+   logic opcode_allowed, a_config_allowed;
+ 
 @@ -42,7 +42,7 @@ module tlul_err import tlul_pkg::*; (
  
    logic [MW-1:0] mask;
@@ -1402,6 +1430,118 @@ index 8637ad221..fe7aa9858 100644
    end
  
    // this assertion fails when rspid[0+:STIDW] not in [0..M-1]
+diff --git a/hw/ip/uart/rtl/uart_reg_top.sv b/hw/ip/uart/rtl/uart_reg_top.sv
+index f25d459ef..c5ea11cb2 100644
+--- a/hw/ip/uart/rtl/uart_reg_top.sv
++++ b/hw/ip/uart/rtl/uart_reg_top.sv
+@@ -949,7 +949,7 @@ module uart_reg_top (
+ 
+     // from internal hardware
+     .de     (1'b0),
+-    .d      ('0  ),
++    .d      (2'b0  ),
+ 
+     // to internal hardware
+     .qe     (),
+@@ -975,7 +975,7 @@ module uart_reg_top (
+ 
+     // from internal hardware
+     .de     (1'b0),
+-    .d      ('0  ),
++    .d      (16'b0  ),
+ 
+     // to internal hardware
+     .qe     (),
+@@ -1085,7 +1085,7 @@ module uart_reg_top (
+   ) u_rdata (
+     .re     (rdata_re),
+     .we     (1'b0),
+-    .wd     ('0),
++    .wd     (8'b0),
+     .d      (hw2reg.rdata.d),
+     .qre    (reg2hw.rdata.re),
+     .qe     (),
+@@ -1110,7 +1110,7 @@ module uart_reg_top (
+ 
+     // from internal hardware
+     .de     (1'b0),
+-    .d      ('0  ),
++    .d      (8'b0  ),
+ 
+     // to internal hardware
+     .qe     (reg2hw.wdata.qe),
+@@ -1232,7 +1232,7 @@ module uart_reg_top (
+   ) u_fifo_status_txlvl (
+     .re     (fifo_status_txlvl_re),
+     .we     (1'b0),
+-    .wd     ('0),
++    .wd     (6'b0),
+     .d      (hw2reg.fifo_status.txlvl.d),
+     .qre    (),
+     .qe     (),
+@@ -1247,7 +1247,7 @@ module uart_reg_top (
+   ) u_fifo_status_rxlvl (
+     .re     (fifo_status_rxlvl_re),
+     .we     (1'b0),
+-    .wd     ('0),
++    .wd     (6'b0),
+     .d      (hw2reg.fifo_status.rxlvl.d),
+     .qre    (),
+     .qe     (),
+@@ -1317,7 +1317,7 @@ module uart_reg_top (
+   ) u_val (
+     .re     (val_re),
+     .we     (1'b0),
+-    .wd     ('0),
++    .wd     (16'b0),
+     .d      (hw2reg.val.d),
+     .qre    (),
+     .qe     (),
+@@ -1343,7 +1343,7 @@ module uart_reg_top (
+ 
+     // from internal hardware
+     .de     (1'b0),
+-    .d      ('0  ),
++    .d      (24'b0  ),
+ 
+     // to internal hardware
+     .qe     (),
+@@ -1384,7 +1384,7 @@ module uart_reg_top (
+ 
+   logic [11:0] addr_hit;
+   always_comb begin
+-    addr_hit = '0;
++    addr_hit = 12'b000000000000;
+     addr_hit[ 0] = (reg_addr == UART_INTR_STATE_OFFSET);
+     addr_hit[ 1] = (reg_addr == UART_INTR_ENABLE_OFFSET);
+     addr_hit[ 2] = (reg_addr == UART_INTR_TEST_OFFSET);
+@@ -1566,7 +1566,7 @@ module uart_reg_top (
+ 
+   // Read data return
+   always_comb begin
+-    reg_rdata_next = '0;
++    reg_rdata_next = {DW{1'b0}};
+     unique case (1'b1)
+       addr_hit[0]: begin
+         reg_rdata_next[0] = intr_state_tx_watermark_qs;
+@@ -1627,7 +1627,7 @@ module uart_reg_top (
+       end
+ 
+       addr_hit[6]: begin
+-        reg_rdata_next[7:0] = '0;
++        reg_rdata_next[7:0] = {8{1'b0}};
+       end
+ 
+       addr_hit[7]: begin
+@@ -1657,7 +1657,7 @@ module uart_reg_top (
+       end
+ 
+       default: begin
+-        reg_rdata_next = '1;
++        reg_rdata_next = {DW{1'b1}};
+       end
+     endcase
+   end
 diff --git a/hw/ip/usbdev/rtl/usbdev.sv b/hw/ip/usbdev/rtl/usbdev.sv
 index cbdadd624..42a4d1b7a 100644
 --- a/hw/ip/usbdev/rtl/usbdev.sv
