@@ -102,7 +102,6 @@ pinmux.sv \
 rv_timer_reg_top.sv \
 rv_timer.sv \
 spi_device.sv \
-uart_reg_top.sv \
 uart.sv \
 usbdev_reg_top.sv \
 usbdev.sv \
@@ -311,6 +310,7 @@ prim_ram_1p_adv.sv \
 otbn.sv \
 xbar_peri.sv \
 usbdev_iomux.sv \
+uart_reg_top.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -448,6 +448,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top otbn \
 			-top xbar_peri \
 			-top usbdev_iomux \
+			-top uart_reg_top \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
