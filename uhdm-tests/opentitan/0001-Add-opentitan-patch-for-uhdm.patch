@@ -411,6 +411,46 @@ index 052cb2f5a..b62227975 100644
  
    // Create Socket_1n
    tlul_socket_1n #(
+diff --git a/hw/ip/pinmux/rtl/pinmux_wkup.sv b/hw/ip/pinmux/rtl/pinmux_wkup.sv
+index 101062346..2eb8496b3 100644
+--- a/hw/ip/pinmux/rtl/pinmux_wkup.sv
++++ b/hw/ip/pinmux/rtl/pinmux_wkup.sv
+@@ -2,7 +2,7 @@
+ // Licensed under the Apache License, Version 2.0, see LICENSE for details.
+ // SPDX-License-Identifier: Apache-2.0
+ //
+-module pinmux_wkup import pinmux_pkg::*; import pinmux_reg_pkg::*; #(
++module pinmux_wkup import pinmux_pkg::*; #(
+   parameter int Cycles = 4
+ ) (
+   input                    clk_i,
+@@ -16,7 +16,7 @@ module pinmux_wkup import pinmux_pkg::*; import pinmux_reg_pkg::*; #(
+   input                    wkup_en_i,
+   input                    filter_en_i,
+   input wkup_mode_e        wkup_mode_i,
+-  input [WkupCntWidth-1:0] wkup_cnt_th_i,
++  input [7:0] wkup_cnt_th_i,
+   input                    pin_value_i,
+   // Signals to/from cause register.
+   // They are synched to/from the AON clock internally
+@@ -37,7 +37,7 @@ module pinmux_wkup import pinmux_pkg::*; import pinmux_reg_pkg::*; #(
+   wkup_mode_e aon_wkup_mode_q;
+   logic aon_filter_en_q;
+   logic aon_wkup_en_d, aon_wkup_en_q;
+-  logic [WkupCntWidth-1:0] aon_wkup_cnt_th_q;
++  logic [7:0] aon_wkup_cnt_th_q;
+ 
+   prim_flop_2sync #(
+     .Width(1)
+@@ -106,7 +106,7 @@ module pinmux_wkup import pinmux_pkg::*; import pinmux_reg_pkg::*; #(
+   assign aon_rising  =  aon_filter_out_d & ~aon_filter_out_q;
+ 
+   logic aon_cnt_en, aon_cnt_eq_th;
+-  logic [WkupCntWidth-1:0] aon_cnt_d, aon_cnt_q;
++  logic [7:0] aon_cnt_d, aon_cnt_q;
+   assign aon_cnt_d = (aon_cnt_eq_th) ? '0                :
+                      (aon_cnt_en)    ?  aon_cnt_q + 1'b1 : '0;
+ 
 diff --git a/hw/ip/prim/rtl/prim_arbiter_ppc.sv b/hw/ip/prim/rtl/prim_arbiter_ppc.sv
 index 9ec473f85..86bef1e9d 100644
 --- a/hw/ip/prim/rtl/prim_arbiter_ppc.sv
