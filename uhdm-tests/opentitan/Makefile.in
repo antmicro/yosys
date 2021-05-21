@@ -93,7 +93,6 @@ padring.sv \
 padctrl.sv \
 rv_timer_reg_top.sv \
 rv_timer.sv \
-usbdev.sv \
 pwrmgr.sv \
 pwrmgr_cdc.sv \
 rv_plic_reg_top.sv \
@@ -313,6 +312,7 @@ pinmux_wkup.sv \
 pinmux_reg_top.sv \
 pinmux.sv \
 usbdev_reg_top.sv \
+usbdev.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -435,18 +435,15 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top rv_plic_target \
 			-top rv_plic_gateway \
 			-top timer_core \
-			-top usbdev_usbif \
 			-top xbar_main \
 			-top otbn \
 			-top xbar_peri \
-			-top usbdev_iomux \
 			-top gpio_reg_top \
 			-top uart \
 			-top spi_device \
 			-top sha2 \
-			-top usbdev_flop_2syncpulse \
 			-top pinmux \
-			-top usbdev_reg_top \
+			-top usbdev \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -520,7 +517,6 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PWidth=32 \
 	# Delete -top otbn when top_earlgrey will be added to uhdm
 	# Delete -top spi_device when top_earlgrey will be added to uhdm
-	# Delete -top usbdev_flop_2syncpulse when usbdev will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
