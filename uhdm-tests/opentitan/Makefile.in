@@ -59,7 +59,6 @@ prim_subreg_ext.sv \
 prim_generic_clock_inv.sv \
 prim_ram_1p_adv.sv \
 prim_ram_2p_async_adv.sv \
-prim_filter.sv \
 prim_alert_sender.sv \
 tlul_adapter_host.sv \
 ibex_dummy_instr.sv \
@@ -93,7 +92,6 @@ hmac.sv \
 jtag_mux.sv \
 padring.sv \
 padctrl.sv \
-pinmux_wkup.sv \
 pinmux.sv \
 rv_timer_reg_top.sv \
 rv_timer.sv \
@@ -148,6 +146,8 @@ otbn_pkg.sv \
 tl_peri_pkg.sv \
 usbdev_reg_pkg.sv \
 gpio_reg_pkg.sv \
+pinmux_pkg.sv \
+pinmux_reg_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -311,6 +311,8 @@ uart.sv \
 prim_sram_arbiter.sv \
 spi_device.sv \
 sha2.sv \
+prim_filter.sv \
+pinmux_wkup.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -419,12 +421,9 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top flash_prog_ctrl \
 			-top flash_erase_ctrl \
 			-top flash_phy \
-			-top sha2_pad \
 			-top prim_packer \
 			-top hmac_core \
 			-top nmi_gen \
-			-top otbn_reg_top \
-			-top otbn_core \
 			-top prim_generic_pad_wrapper \
 			-top prim_pad_wrapper \
 			-top prim_pulse_sync \
@@ -436,12 +435,6 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top rv_plic_target \
 			-top rv_plic_gateway \
 			-top timer_core \
-			-top spi_fwmode \
-			-top prim_ram_2p_adv \
-			-top spi_fwm_rxf_ctrl \
-			-top spi_fwm_txf_ctrl \
-			-top spi_device_reg_top \
-			-top usbdev_flop_2syncpulse \
 			-top usbdev_usbif \
 			-top xbar_main \
 			-top otbn \
@@ -451,6 +444,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top uart \
 			-top spi_device \
 			-top sha2 \
+			-top pinmux_wkup \
+			-top usbdev_flop_2syncpulse \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -490,7 +485,6 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top alert_handler_esc_timer when alert_handler will be added to uhdm
 	# Delete -top alert_handler_class when alert_handler will be added to uhdm
 	# Delete -top aes_prng when aes will be added to uhdm
-	# Delete -top dm_dm when top_earlgrey will be added to uhdm
 	# Delete -top flash_rd_ctrl when flash_ctrl will be added to uhdm
 		# -PAddrW=17 \
 		# -PDataW=32 \
@@ -499,22 +493,13 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PWordsPerPage=256 \
 		# -PPagesPerBank=256 \
 		# -PEraseBitWidth=1 \
-	# Delete -top flash_phy when top_earlgrey will be added to uhdm
-	# Delete -top sha2_pad when sha2 will be added to uhdm
 	# Delete -top prim_packer when hmac will be added to uhdm
 	# Delete -top hmac_core when hmac will be added to uhdm
-	# Delete -top nmi_gen when top_earlgrey will be added to uhdm
-	# Delete -top otbn_reg_top when otbn will be added to uhdm
-	# Delete -top otbn_core when otbn will be added to uhdm
 	# Delete -top prim_generic_pad_wrapper when padctrl will be added to uhdm
 	# Delete -top prim_pad_wrapper when padring will be added to uhdm
 		# -PVariant=0 \
 		# -PAttrDw=10 \
 	# Delete -top prim_pulse_sync when pinmux_wkup will be added to uhdm
-	# Delete -top prim_rom_adv when top_earlgrey will be added to uhdm
-		# -PMemInitFile=boot_rom_fpga_nexysvideo.32.vmem \
-		# -PDepth=4096 \
-		# -PWidth=32 \
 	# Delete -top prim_filter_ctr when gpio will be added to uhdm
 	# Delete -top pwrmgr_fsm when pwrmgr will be added to uhdm
 	# Delete -top pwrmgr_slow_fsm when pwrmgr will be added to uhdm
@@ -525,13 +510,16 @@ ${UHDM_file}: ${SV2V_FILE}
 		# -PN_SOURCE=83 \
 		# -PMAX_PRIO=3 \
 	# Delete -top timer_core when rv_timer will be added to uhdm
-	# Delete -top spi_fwmode when spi_device will be added to uhdm
-	# Delete -top prim_ram_2p_adv when spi_device will be added to uhdm
-	# Delete -top spi_fwm_rxf_ctrl when spi_device will be added to uhdm
-	# Delete -top spi_fwm_txf_ctrl when spi_device will be added to uhdm
-	# Delete -top spi_device_reg_top when spi_device will be added to uhdm
-	# Delete -top usbdev_flop_2syncpulse when usbdev_usbif will be added to uhdm
+	# Delete -top dm_dm when top_earlgrey will be added to uhdm
+	# Delete -top flash_phy when top_earlgrey will be added to uhdm
+	# Delete -top nmi_gen when top_earlgrey will be added to uhdm
+	# Delete -top prim_rom_adv when top_earlgrey will be added to uhdm
+		# -PMemInitFile=boot_rom_fpga_nexysvideo.32.vmem \
+		# -PDepth=4096 \
+		# -PWidth=32 \
 	# Delete -top otbn when top_earlgrey will be added to uhdm
+	# Delete -top spi_device when top_earlgrey will be added to uhdm
+	# Delete -top usbdev_flop_2syncpulse when usbdev will be added to uhdm
 
 uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
 	(cd ${root_dir}/build && \
