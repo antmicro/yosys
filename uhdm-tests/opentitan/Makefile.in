@@ -93,7 +93,6 @@ padring.sv \
 padctrl.sv \
 rv_timer_reg_top.sv \
 rv_timer.sv \
-usbdev_reg_top.sv \
 usbdev.sv \
 pwrmgr.sv \
 pwrmgr_cdc.sv \
@@ -313,6 +312,7 @@ prim_filter.sv \
 pinmux_wkup.sv \
 pinmux_reg_top.sv \
 pinmux.sv \
+usbdev_reg_top.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -446,6 +446,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top sha2 \
 			-top usbdev_flop_2syncpulse \
 			-top pinmux \
+			-top usbdev_reg_top \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
