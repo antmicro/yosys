@@ -41,7 +41,6 @@ prim_lfsr.sv \
 prim_intr_hw.sv \
 alert_handler_reg_top.sv \
 padctrl_reg_top.sv \
-pinmux_reg_top.sv \
 pwrmgr_reg_top.sv \
 ibex_icache.sv \
 prim_dom_and_2share.sv \
@@ -92,7 +91,6 @@ hmac.sv \
 jtag_mux.sv \
 padring.sv \
 padctrl.sv \
-pinmux.sv \
 rv_timer_reg_top.sv \
 rv_timer.sv \
 usbdev_reg_top.sv \
@@ -313,6 +311,8 @@ spi_device.sv \
 sha2.sv \
 prim_filter.sv \
 pinmux_wkup.sv \
+pinmux_reg_top.sv \
+pinmux.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -444,8 +444,8 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top uart \
 			-top spi_device \
 			-top sha2 \
-			-top pinmux_wkup \
 			-top usbdev_flop_2syncpulse \
+			-top pinmux \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
