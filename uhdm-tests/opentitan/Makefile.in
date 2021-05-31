@@ -41,7 +41,6 @@ prim_lfsr.sv \
 prim_intr_hw.sv \
 alert_handler_reg_top.sv \
 padctrl_reg_top.sv \
-pwrmgr_reg_top.sv \
 ibex_icache.sv \
 prim_dom_and_2share.sv \
 prim_arbiter_fixed.sv \
@@ -91,8 +90,6 @@ hmac.sv \
 jtag_mux.sv \
 padring.sv \
 padctrl.sv \
-pwrmgr.sv \
-pwrmgr_cdc.sv \
 prim_secded_39_32_dec.sv \
 prim_secded_39_32_enc.sv \
 top_earlgrey.sv \
@@ -315,6 +312,9 @@ rv_timer_reg_top.sv \
 rv_timer.sv \
 rv_plic_reg_top.sv \
 rv_plic.sv \
+pwrmgr_cdc.sv \
+pwrmgr_reg_top.sv \
+pwrmgr.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -382,8 +382,6 @@ ${UHDM_file}: ${SV2V_FILE}
 			-PVariant=0 \
 			-PAttrDw=10 \
 			-PCycles=16 \
-			-PN_SOURCE=83 \
-			-PMAX_PRIO=3 \
 			-PRamDepth=512 \
 			-PRamWidth=32 \
 			-PDataBitsPerMask=1 \
@@ -434,9 +432,6 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top pwrmgr_fsm \
 			-top pwrmgr_slow_fsm \
 			-top pwrmgr_wake_info \
-			-top rv_plic_target \
-			-top rv_plic_gateway \
-			-top timer_core \
 			-top xbar_main \
 			-top otbn \
 			-top xbar_peri \
@@ -448,6 +443,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top usbdev \
 			-top rv_timer \
 			-top rv_plic \
+			-top pwrmgr \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
@@ -506,12 +502,6 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top pwrmgr_fsm when pwrmgr will be added to uhdm
 	# Delete -top pwrmgr_slow_fsm when pwrmgr will be added to uhdm
 	# Delete -top pwrmgr_wake_info when pwrmgr will be added to uhdm
-	# Delete -top rv_plic_gateway when rv_plic will be added to uhdm
-		# -PN_SOURCE=83 \
-	# Delete -top rv_plic_target when rv_plic will be added to uhdm
-		# -PN_SOURCE=83 \
-		# -PMAX_PRIO=3 \
-	# Delete -top timer_core when rv_timer will be added to uhdm
 	# Delete -top dm_dm when top_earlgrey will be added to uhdm
 	# Delete -top flash_phy when top_earlgrey will be added to uhdm
 	# Delete -top nmi_gen when top_earlgrey will be added to uhdm
