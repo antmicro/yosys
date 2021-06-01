@@ -1440,12 +1440,19 @@ void UhdmAst::process_stream_op()  {
 	auto block_node = find_ancestor({AST::AST_BLOCK, AST::AST_ALWAYS, AST::AST_INITIAL});
 	auto process_node = find_ancestor({AST::AST_ALWAYS, AST::AST_INITIAL});
 	auto module_node = find_ancestor({AST::AST_MODULE, AST::AST_FUNCTION, AST::AST_PACKAGE});
+	log_assert(module_node);
 	if (!process_node) {
-		// Create a @* always block
-		process_node = make_ast_node(AST::AST_ALWAYS);
-		module_node->children.push_back(process_node);
-		block_node = make_ast_node(AST::AST_BLOCK);
-		process_node->children.push_back(block_node);
+		if (module_node->type != AST::AST_FUNCTION) {
+			// Create a @* always block
+			process_node = make_ast_node(AST::AST_ALWAYS);
+			module_node->children.push_back(process_node);
+			block_node = make_ast_node(AST::AST_BLOCK);
+			process_node->children.push_back(block_node);
+		} else {
+			// Create only block
+			block_node = make_ast_node(AST::AST_BLOCK);
+			module_node->children.push_back(block_node);
+		}
 	}
 
 	auto loop_id = shared.next_loop_id();
@@ -1456,26 +1463,35 @@ void UhdmAst::process_stream_op()  {
 	loop_counter->is_reg = true;
 	loop_counter->is_signed = true;
 	loop_counter->str = "\\loop" + std::to_string(loop_id) + "::i";
-	module_node->children.push_back(loop_counter);
+	module_node->children.insert(module_node->children.end() - 1, loop_counter);
 	auto loop_counter_ident = make_ast_node(AST::AST_IDENTIFIER);
 	loop_counter_ident->str = loop_counter->str;
 
 	auto lhs_node = find_ancestor({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ, AST::AST_ASSIGN_LE})->children[0];
-
-	// Width of LHS
-	auto bits_call = make_ast_node(AST::AST_FCALL,
-								   {lhs_node->clone()});
-	bits_call->str = "\\$bits";
-
 	// Temp var to allow concatenation
-	auto temp_var = make_ast_node(AST::AST_WIRE,
-								  {make_ast_node(AST::AST_RANGE,
-												 {make_ast_node(AST::AST_SUB,
-																{bits_call,
-																 AST::AstNode::mkconst_int(1, false)}),
-												  AST::AstNode::mkconst_int(0, false)})});
+	AST::AstNode *temp_var = nullptr;
+	AST::AstNode *bits_call = nullptr;
+	if (lhs_node->type == AST::AST_WIRE) {
+		module_node->children.insert(module_node->children.begin(), lhs_node->clone());
+		temp_var = lhs_node->clone(); //if we already have wire as lhs, we want to create the same wire for temp_var 
+		lhs_node->children.clear();
+		lhs_node->type = AST::AST_IDENTIFIER;
+		bits_call = make_ast_node(AST::AST_FCALL, {lhs_node->clone()});
+		bits_call->str = "\\$bits";
+	} else {
+		// otherwise, we need to calculate size using bits fcall
+		bits_call = make_ast_node(AST::AST_FCALL, {lhs_node->clone()});
+		bits_call->str = "\\$bits";
+		temp_var = make_ast_node(AST::AST_WIRE,
+									  {make_ast_node(AST::AST_RANGE,
+													 {make_ast_node(AST::AST_SUB,
+																	{bits_call,
+																	 AST::AstNode::mkconst_int(1, false)}),
+													  AST::AstNode::mkconst_int(0, false)})});
+	}
+
 	temp_var->str = "\\loop" + std::to_string(loop_id) + "::temp";
-	module_node->children.push_back(temp_var);
+	module_node->children.insert(module_node->children.end() - 1, temp_var);
 	auto temp_var_ident = make_ast_node(AST::AST_IDENTIFIER);
 	temp_var_ident->str = temp_var->str;
 	auto temp_assign = make_ast_node(AST::AST_ASSIGN_EQ, {temp_var_ident});

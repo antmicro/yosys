@@ -328,6 +328,1576 @@ index 28ad2a12a..af2b735dd 100644
  
    // select which bank each is operating on
    assign host_bank_sel = host_req_i ? host_addr_i[BusAddrW-1 -: BankW] : '0;
+diff --git a/hw/ip/hmac/rtl/hmac.sv b/hw/ip/hmac/rtl/hmac.sv
+index 043829d21..2ddee7f3a 100644
+--- a/hw/ip/hmac/rtl/hmac.sv
++++ b/hw/ip/hmac/rtl/hmac.sv
+@@ -30,11 +30,13 @@ module hmac
+   /////////////////////////
+   // Signal declarations //
+   /////////////////////////
+-  hmac_reg2hw_t reg2hw;
+-  hmac_hw2reg_t hw2reg;
++  wire [320:0] reg2hw;
++  wire [627:0] hw2reg;
++  //hmac_reg2hw_t reg2hw;
++  //hmac_hw2reg_t hw2reg;
+ 
+-  tlul_pkg::tl_h2d_t  tl_win_h2d[1];
+-  tlul_pkg::tl_d2h_t  tl_win_d2h[1];
++  tlul_pkg::tl_h2d_t  tl_win_h2d;
++  tlul_pkg::tl_d2h_t  tl_win_d2h;
+ 
+   logic [255:0] secret_key;
+ 
+@@ -67,8 +69,10 @@ module hmac
+   logic        packer_flush_done;
+ 
+   logic        reg_fifo_wvalid;
+-  sha_word_t   reg_fifo_wdata;
+-  sha_word_t   reg_fifo_wmask;
++  wire [31:0] reg_fifo_wdata;
++  wire [31:0] reg_fifo_wmask;
++  //sha_word_t   reg_fifo_wdata;
++  //sha_word_t   reg_fifo_wmask;
+   logic        hmac_fifo_wsel;
+   logic        hmac_fifo_wvalid;
+   logic [2:0]  hmac_fifo_wdata_sel;
+@@ -97,7 +101,8 @@ module hmac
+   err_code_e   err_code;
+   logic        err_valid;
+ 
+-  sha_word_t [7:0] digest;
++  wire [255:0] digest;
++  //sha_word_t [7:0] digest;
+ 
+   hmac_reg2hw_cfg_reg_t cfg_reg;
+   logic                 cfg_block;  // Prevent changing config
+@@ -106,33 +111,33 @@ module hmac
+   ///////////////////////
+   // Connect registers //
+   ///////////////////////
+-  assign hw2reg.status.fifo_full.d  = fifo_full;
+-  assign hw2reg.status.fifo_empty.d = fifo_empty;
+-  assign hw2reg.status.fifo_depth.d = fifo_depth;
++  assign hw2reg[616]  = fifo_full;
++  assign hw2reg[617] = fifo_empty;
++  assign hw2reg[615-:5] = fifo_depth;
+ 
+   // secret key
+-  assign wipe_secret = reg2hw.wipe_secret.qe;
+-  assign wipe_v      = reg2hw.wipe_secret.q;
++  assign wipe_secret = reg2hw[264];
++  assign wipe_v      = reg2hw[296-:32];
+ 
+   always_ff @(posedge clk_i or negedge rst_ni) begin
+     if (!rst_ni) begin
+-      secret_key <= '0;
++      secret_key <= {256 {1'b0}};
+     end else if (wipe_secret) begin
+       secret_key <= secret_key ^ {8{wipe_v}};
+     end else if (!cfg_block) begin
+       // Allow updating secret key only when the engine is in Idle.
+       for (int i = 0; i < 8; i++) begin
+-        if (reg2hw.key[7-i].qe) begin
+-          secret_key[32*i+:32] <= reg2hw.key[7-i].q;
++        if (reg2hw[(7 - i) * 33]) begin
++          secret_key[32*i+:32] <= reg2hw[((7 - i) * 33) + 32-:32];
+         end
+       end
+     end
+   end
+ 
+   for (genvar i = 0; i < 8; i++) begin : gen_key_digest
+-    assign hw2reg.key[7-i].d      = '0;
++    assign hw2reg[322 + (((7 - i) * 32) + 31)-:32]      = {32{1'b0}};
+     // digest
+-    assign hw2reg.digest[i].d = conv_endian(digest[i], digest_swap);
++    assign hw2reg[66 + ((i * 32) + 31)-:32] = conv_endian(digest[i * 32+:32], digest_swap);
+   end
+ 
+   logic [3:0] unused_cfg_qe;
+@@ -144,17 +149,17 @@ module hmac
+   assign hmac_en     = cfg_reg.hmac_en.q;
+   assign endian_swap = cfg_reg.endian_swap.q;
+   assign digest_swap = cfg_reg.digest_swap.q;
+-  assign hw2reg.cfg.hmac_en.d     = cfg_reg.hmac_en.q;
+-  assign hw2reg.cfg.sha_en.d      = cfg_reg.sha_en.q;
+-  assign hw2reg.cfg.endian_swap.d = cfg_reg.endian_swap.q;
+-  assign hw2reg.cfg.digest_swap.d = cfg_reg.digest_swap.q;
++  assign hw2reg[621]     = cfg_reg.hmac_en.q;
++  assign hw2reg[620]      = cfg_reg.sha_en.q;
++  assign hw2reg[619] = cfg_reg.endian_swap.q;
++  assign hw2reg[618] = cfg_reg.digest_swap.q;
+ 
+-  assign reg_hash_start   = reg2hw.cmd.hash_start.qe   & reg2hw.cmd.hash_start.q;
+-  assign reg_hash_process = reg2hw.cmd.hash_process.qe & reg2hw.cmd.hash_process.q;
++  assign reg_hash_start   = reg2hw[299]   & reg2hw[300];
++  assign reg_hash_process = reg2hw[297] & reg2hw[298];
+ 
+   // Error code register
+-  assign hw2reg.err_code.de = err_valid;
+-  assign hw2reg.err_code.d  = err_code;
++  assign hw2reg[578] = err_valid;
++  assign hw2reg[610-:32]  = err_code;
+ 
+   /////////////////////
+   // Control signals //
+@@ -163,7 +168,7 @@ module hmac
+ 
+   always_ff @(posedge clk_i or negedge rst_ni) begin
+     if (!rst_ni) begin
+-      cfg_block <= '0;
++      cfg_block <= 1'b0;
+     end else if (hash_start) begin
+       cfg_block <= 1'b 1;
+     end else if (reg_hash_done) begin
+@@ -173,16 +178,16 @@ module hmac
+   // Hold the configuration during the process
+   always_ff @(posedge clk_i or negedge rst_ni) begin
+     if (!rst_ni) begin
+-      cfg_reg <= '{endian_swap: '{q: 1'b1, qe: 1'b0}, default:'0};
+-    end else if (!cfg_block && reg2hw.cfg.hmac_en.qe) begin
+-      cfg_reg <= reg2hw.cfg ;
++      cfg_reg <= 8'b00001000;
++    end else if (!cfg_block && reg2hw[307]) begin
++      cfg_reg <= reg2hw[308-:8];
+     end
+   end
+ 
+   // Open up the MSG_FIFO from the TL-UL port when it is ready
+   always_ff @(posedge clk_i or negedge rst_ni) begin
+     if (!rst_ni) begin
+-      msg_allowed <= '0;
++      msg_allowed <= 1'b0;
+     end else if (hash_start) begin
+       msg_allowed <= 1'b 1;
+     end else if (packer_flush_done) begin
+@@ -195,7 +200,7 @@ module hmac
+   logic fifo_empty_q, fifo_empty_event;
+   always_ff @(posedge clk_i or negedge rst_ni) begin
+     if (!rst_ni) begin
+-      fifo_empty_q <= '1; // By default, it is empty
++      fifo_empty_q <= 1'b1; // By default, it is empty
+     end else if (!hmac_fifo_wsel) begin
+       fifo_empty_q <= fifo_empty;
+     end
+@@ -206,35 +211,35 @@ module hmac
+   assign event_intr = {err_valid, fifo_empty_event, reg_hash_done};
+ 
+   // instantiate interrupt hardware primitive
+-  prim_intr_hw #(.Width(1)) intr_hw_hmac_done (
+-    .event_intr_i           (event_intr[0]),
+-    .reg2hw_intr_enable_q_i (reg2hw.intr_enable.hmac_done.q),
+-    .reg2hw_intr_test_q_i   (reg2hw.intr_test.hmac_done.q),
+-    .reg2hw_intr_test_qe_i  (reg2hw.intr_test.hmac_done.qe),
+-    .reg2hw_intr_state_q_i  (reg2hw.intr_state.hmac_done.q),
+-    .hw2reg_intr_state_de_o (hw2reg.intr_state.hmac_done.de),
+-    .hw2reg_intr_state_d_o  (hw2reg.intr_state.hmac_done.d),
+-    .intr_o                 (intr_hmac_done_o)
++  prim_intr_hw #(.Width(1)) intr_hw_hmac_done(
++          .event_intr_i(event_intr[0]),
++          .reg2hw_intr_enable_q_i(reg2hw[317]),
++          .reg2hw_intr_test_q_i(reg2hw[314]),
++          .reg2hw_intr_test_qe_i(reg2hw[313]),
++          .reg2hw_intr_state_q_i(reg2hw[320]),
++          .hw2reg_intr_state_de_o(hw2reg[626]),
++          .hw2reg_intr_state_d_o(hw2reg[627]),
++          .intr_o(intr_hmac_done_o)
+   );
+-  prim_intr_hw #(.Width(1)) intr_hw_fifo_empty (
+-    .event_intr_i           (event_intr[1]),
+-    .reg2hw_intr_enable_q_i (reg2hw.intr_enable.fifo_empty.q),
+-    .reg2hw_intr_test_q_i   (reg2hw.intr_test.fifo_empty.q),
+-    .reg2hw_intr_test_qe_i  (reg2hw.intr_test.fifo_empty.qe),
+-    .reg2hw_intr_state_q_i  (reg2hw.intr_state.fifo_empty.q),
+-    .hw2reg_intr_state_de_o (hw2reg.intr_state.fifo_empty.de),
+-    .hw2reg_intr_state_d_o  (hw2reg.intr_state.fifo_empty.d),
+-    .intr_o                 (intr_fifo_empty_o)
++  prim_intr_hw #(.Width(1)) intr_hw_fifo_empty(
++          .event_intr_i(event_intr[1]),
++          .reg2hw_intr_enable_q_i(reg2hw[316]),
++          .reg2hw_intr_test_q_i(reg2hw[312]),
++          .reg2hw_intr_test_qe_i(reg2hw[311]),
++          .reg2hw_intr_state_q_i(reg2hw[319]),
++          .hw2reg_intr_state_de_o(hw2reg[624]),
++          .hw2reg_intr_state_d_o(hw2reg[625]),
++          .intr_o(intr_fifo_empty_o)
+   );
+-  prim_intr_hw #(.Width(1)) intr_hw_hmac_err (
+-    .event_intr_i           (event_intr[2]),
+-    .reg2hw_intr_enable_q_i (reg2hw.intr_enable.hmac_err.q),
+-    .reg2hw_intr_test_q_i   (reg2hw.intr_test.hmac_err.q),
+-    .reg2hw_intr_test_qe_i  (reg2hw.intr_test.hmac_err.qe),
+-    .reg2hw_intr_state_q_i  (reg2hw.intr_state.hmac_err.q),
+-    .hw2reg_intr_state_de_o (hw2reg.intr_state.hmac_err.de),
+-    .hw2reg_intr_state_d_o  (hw2reg.intr_state.hmac_err.d),
+-    .intr_o                 (intr_hmac_err_o)
++  prim_intr_hw #(.Width(1)) intr_hw_hmac_err(
++          .event_intr_i(event_intr[2]),
++          .reg2hw_intr_enable_q_i(reg2hw[315]),
++          .reg2hw_intr_test_q_i(reg2hw[310]),
++          .reg2hw_intr_test_qe_i(reg2hw[309]),
++          .reg2hw_intr_state_q_i(reg2hw[318]),
++          .hw2reg_intr_state_de_o(hw2reg[622]),
++          .hw2reg_intr_state_d_o(hw2reg[623]),
++          .intr_o(intr_hmac_err_o)
+   );
+ 
+   ///////////////
+@@ -242,20 +247,18 @@ module hmac
+   ///////////////
+ 
+   assign msg_fifo_rvalid = msg_fifo_req & ~msg_fifo_we;
+-  assign msg_fifo_rdata  = '1;  // Return all F
+-  assign msg_fifo_rerror = '1;  // Return error for read access
++  assign msg_fifo_rdata  = {32{1'b1}};  // Return all F
++  assign msg_fifo_rerror = {2{1'b1}};  // Return error for read access
+   assign msg_fifo_gnt    = msg_fifo_req & ~hmac_fifo_wsel & packer_ready;
+ 
+   // FIFO control
+-  sha_fifo_t reg_fifo_wentry;
+-  assign reg_fifo_wentry.data = conv_endian(reg_fifo_wdata, 1'b1); // always convert
+-  assign reg_fifo_wentry.mask = {reg_fifo_wmask[0],  reg_fifo_wmask[8],
+-                                 reg_fifo_wmask[16], reg_fifo_wmask[24]};
++  wire [35:0] reg_fifo_wentry;
++  assign reg_fifo_wentry[35-:32] = conv_endian(reg_fifo_wdata, 1'b1);
++  assign reg_fifo_wentry[3-:4] = {reg_fifo_wmask[0], reg_fifo_wmask[8], reg_fifo_wmask[16], reg_fifo_wmask[24]};
+   assign fifo_full   = ~fifo_wready;
+   assign fifo_empty  = ~fifo_rvalid;
+   assign fifo_wvalid = (hmac_fifo_wsel && fifo_wready) ? hmac_fifo_wvalid : reg_fifo_wvalid;
+-  assign fifo_wdata  = (hmac_fifo_wsel) ? '{data: digest[hmac_fifo_wdata_sel], mask: '1}
+-                                       : reg_fifo_wentry;
++  assign fifo_wdata = (hmac_fifo_wsel ? {digest[hmac_fifo_wdata_sel * 32+:32], {4{1'b1}}} : reg_fifo_wentry);
+ 
+   prim_fifo_sync #(
+     .Width   ($bits(sha_fifo_t)),
+@@ -287,8 +290,8 @@ module hmac
+   ) u_tlul_adapter (
+     .clk_i,
+     .rst_ni,
+-    .tl_i   (tl_win_h2d[0]),
+-    .tl_o   (tl_win_d2h[0]),
++    .tl_i   (tl_win_h2d),
++    .tl_o   (tl_win_d2h),
+ 
+     .req_o    (msg_fifo_req   ),
+     .gnt_i    (msg_fifo_gnt   ),
+@@ -309,7 +312,7 @@ module hmac
+   logic [$clog2(32+1)-1:0] wmask_ones;
+ 
+   always_comb begin
+-    wmask_ones = '0;
++    wmask_ones = {6{1'b0}};
+     for (int i = 0 ; i < 32 ; i++) begin
+       wmask_ones = wmask_ones + msg_fifo_wmask[i];
+     end
+@@ -318,18 +321,18 @@ module hmac
+   // Calculate written message
+   always_ff @(posedge clk_i or negedge rst_ni) begin
+     if (!rst_ni) begin
+-      message_length <= '0;
++      message_length <= {64 {1'b0}};
+     end else if (hash_start) begin
+-      message_length <= '0;
++      message_length <= {64 {1'b0}};
+     end else if (msg_write && sha_en && packer_ready) begin
+       message_length <= message_length + 64'(wmask_ones);
+     end
+   end
+ 
+-  assign hw2reg.msg_length_upper.de = 1'b1;
+-  assign hw2reg.msg_length_upper.d = message_length[63:32];
+-  assign hw2reg.msg_length_lower.de = 1'b1;
+-  assign hw2reg.msg_length_lower.d = message_length[31:0];
++  assign hw2reg[0] = 1'b1;
++  assign hw2reg[32-:32] = message_length[63:32];
++  assign hw2reg[33] = 1'b1;
++  assign hw2reg[65-:32] = message_length[31:0];
+ 
+ 
+   // Convert endian here
+@@ -445,11 +448,11 @@ module hmac
+   assign hash_start_active = reg_hash_start & cfg_block;
+   assign msg_push_not_allowed = msg_fifo_req & ~msg_allowed;
+ 
+-  always_comb begin
++  always begin
+     update_seckey_inprocess = 1'b0;
+     if (cfg_block) begin
+       for (int i = 0 ; i < 8 ; i++) begin
+-        if (reg2hw.key[i].qe) begin
++        if (reg2hw[i * 33]) begin
+           update_seckey_inprocess = update_seckey_inprocess | 1'b1;
+         end
+       end
+@@ -462,7 +465,7 @@ module hmac
+   // This ensures only the first event of the series of events can be seen to sw.
+   // It is recommended that the software reads ERR_CODE register when interrupt
+   // is pending to avoid any race conditions.
+-  assign err_valid = ~reg2hw.intr_state.hmac_err.q &
++  assign err_valid = ~reg2hw[318] &
+                    ( msg_push_sha_disabled | hash_start_sha_disabled
+                    | update_seckey_inprocess | hash_start_active
+                    | msg_push_not_allowed );
+diff --git a/hw/ip/hmac/rtl/hmac_core.sv b/hw/ip/hmac/rtl/hmac_core.sv
+index a1c9515db..52ddaa910 100644
+--- a/hw/ip/hmac/rtl/hmac_core.sv
++++ b/hw/ip/hmac/rtl/hmac_core.sv
+@@ -111,12 +111,25 @@ module hmac_core import hmac_pkg::*; (
+   assign fifo_rready  = (hmac_en) ? (st_q == StMsg) & sha_rready : sha_rready ;
+   // sha_rvalid is controlled by State Machine below.
+   assign sha_rvalid = (!hmac_en) ? fifo_rvalid : hmac_sha_rvalid ;
+-  assign sha_rdata =
++  if (!hmac_en) begin
++    assign sha_rdata = fifo_rdata;
++  end else if (sel_rdata == SelIPad) begin
++    assign sha_rdata.data = i_pad[(BlockSize-1)-32*pad_index-:32];
++    assign sha_rdata.mask = {WordByte{1'b1}};
++  end else if (sel_rdata == SelOPad) begin
++    assign sha_rdata.data = o_pad[(BlockSize-1)-32*pad_index-:32];
++    assign sha_rdata.mask = {WordByte{1'b1}};
++  end else if (sel_rdata == SelFifo) begin
++    assign sha_rdata = fifo_rdata;
++  end else begin
++    assign sha_rdata = '{default: '0};
++  end
++  /*assign sha_rdata =
+     (!hmac_en)             ? fifo_rdata                                               :
+     (sel_rdata == SelIPad) ? '{data: i_pad[(BlockSize-1)-32*pad_index-:32], mask: '1} :
+     (sel_rdata == SelOPad) ? '{data: o_pad[(BlockSize-1)-32*pad_index-:32], mask: '1} :
+     (sel_rdata == SelFifo) ? fifo_rdata                                               :
+-    '{default: '0};
++    '{default: '0};*/
+ 
+   assign sha_message_length = (!hmac_en)                 ? message_length             :
+                               (sel_msglen == SelIPadMsg) ? message_length + BlockSize :
+diff --git a/hw/ip/hmac/rtl/hmac_reg_top.sv b/hw/ip/hmac/rtl/hmac_reg_top.sv
+index b11dc5747..bccfe829d 100644
+--- a/hw/ip/hmac/rtl/hmac_reg_top.sv
++++ b/hw/ip/hmac/rtl/hmac_reg_top.sv
+@@ -19,8 +19,10 @@ module hmac_reg_top (
+   input  tlul_pkg::tl_d2h_t tl_win_i  [1],
+ 
+   // To HW
+-  output hmac_reg_pkg::hmac_reg2hw_t reg2hw, // Write
+-  input  hmac_reg_pkg::hmac_hw2reg_t hw2reg, // Read
++  output wire [320:0] reg2hw,
++  input wire [627:0] hw2reg,
++  //output hmac_reg_pkg::hmac_reg2hw_t reg2hw, // Write
++  //input  hmac_reg_pkg::hmac_hw2reg_t hw2reg, // Read
+ 
+   // Config
+   input devmode_i // If 1, explicit error return for unmapped register access
+@@ -210,701 +212,429 @@ module hmac_reg_top (
+ 
+   //   F[hmac_done]: 0:0
+   prim_subreg #(
+-    .DW      (1),
+-    .SWACCESS("W1C"),
+-    .RESVAL  (1'h0)
+-  ) u_intr_state_hmac_done (
+-    .clk_i   (clk_i    ),
+-    .rst_ni  (rst_ni  ),
+-
+-    // from register interface
+-    .we     (intr_state_hmac_done_we),
+-    .wd     (intr_state_hmac_done_wd),
+-
+-    // from internal hardware
+-    .de     (hw2reg.intr_state.hmac_done.de),
+-    .d      (hw2reg.intr_state.hmac_done.d ),
+-
+-    // to internal hardware
+-    .qe     (),
+-    .q      (reg2hw.intr_state.hmac_done.q ),
+-
+-    // to register interface (read)
+-    .qs     (intr_state_hmac_done_qs)
++          .DW(1),
++          .SWACCESS("W1C"),
++          .RESVAL(1'h0)
++  ) u_intr_state_hmac_done(
++          .clk_i(clk_i),
++          .rst_ni(rst_ni),
++          .we(intr_state_hmac_done_we),
++          .wd(intr_state_hmac_done_wd),
++          .de(hw2reg[626]),
++          .d(hw2reg[627]),
++          .qe(),
++          .q(reg2hw[320]),
++          .qs(intr_state_hmac_done_qs)
+   );
+-
+-
+-  //   F[fifo_empty]: 1:1
+   prim_subreg #(
+-    .DW      (1),
+-    .SWACCESS("W1C"),
+-    .RESVAL  (1'h0)
+-  ) u_intr_state_fifo_empty (
+-    .clk_i   (clk_i    ),
+-    .rst_ni  (rst_ni  ),
+-
+-    // from register interface
+-    .we     (intr_state_fifo_empty_we),
+-    .wd     (intr_state_fifo_empty_wd),
+-
+-    // from internal hardware
+-    .de     (hw2reg.intr_state.fifo_empty.de),
+-    .d      (hw2reg.intr_state.fifo_empty.d ),
+-
+-    // to internal hardware
+-    .qe     (),
+-    .q      (reg2hw.intr_state.fifo_empty.q ),
+-
+-    // to register interface (read)
+-    .qs     (intr_state_fifo_empty_qs)
++          .DW(1),
++          .SWACCESS("W1C"),
++          .RESVAL(1'h0)
++  ) u_intr_state_fifo_empty(
++          .clk_i(clk_i),
++          .rst_ni(rst_ni),
++          .we(intr_state_fifo_empty_we),
++          .wd(intr_state_fifo_empty_wd),
++          .de(hw2reg[624]),
++          .d(hw2reg[625]),
++          .qe(),
++          .q(reg2hw[319]),
++          .qs(intr_state_fifo_empty_qs)
+   );
+-
+-
+-  //   F[hmac_err]: 2:2
+   prim_subreg #(
+-    .DW      (1),
+-    .SWACCESS("W1C"),
+-    .RESVAL  (1'h0)
+-  ) u_intr_state_hmac_err (
+-    .clk_i   (clk_i    ),
+-    .rst_ni  (rst_ni  ),
+-
+-    // from register interface
+-    .we     (intr_state_hmac_err_we),
+-    .wd     (intr_state_hmac_err_wd),
+-
+-    // from internal hardware
+-    .de     (hw2reg.intr_state.hmac_err.de),
+-    .d      (hw2reg.intr_state.hmac_err.d ),
+-
+-    // to internal hardware
+-    .qe     (),
+-    .q      (reg2hw.intr_state.hmac_err.q ),
+-
+-    // to register interface (read)
+-    .qs     (intr_state_hmac_err_qs)
++          .DW(1),
++          .SWACCESS("W1C"),
++          .RESVAL(1'h0)
++  ) u_intr_state_hmac_err(
++          .clk_i(clk_i),
++          .rst_ni(rst_ni),
++          .we(intr_state_hmac_err_we),
++          .wd(intr_state_hmac_err_wd),
++          .de(hw2reg[622]),
++          .d(hw2reg[623]),
++          .qe(),
++          .q(reg2hw[318]),
++          .qs(intr_state_hmac_err_qs)
+   );
+-
+-
+-  // R[intr_enable]: V(False)
+-
+-  //   F[hmac_done]: 0:0
+   prim_subreg #(
+-    .DW      (1),
+-    .SWACCESS("RW"),
+-    .RESVAL  (1'h0)
+-  ) u_intr_enable_hmac_done (
+-    .clk_i   (clk_i    ),
+-    .rst_ni  (rst_ni  ),
+-
+-    // from register interface
+-    .we     (intr_enable_hmac_done_we),
+-    .wd     (intr_enable_hmac_done_wd),
+-
+-    // from internal hardware
+-    .de     (1'b0),
+-    .d      ('0  ),
+-
+-    // to internal hardware
+-    .qe     (),
+-    .q      (reg2hw.intr_enable.hmac_done.q ),
+-
+-    // to register interface (read)
+-    .qs     (intr_enable_hmac_done_qs)
++          .DW(1),
++          .SWACCESS("RW"),
++          .RESVAL(1'h0)
++  ) u_intr_enable_hmac_done(
++          .clk_i(clk_i),
++          .rst_ni(rst_ni),
++          .we(intr_enable_hmac_done_we),
++          .wd(intr_enable_hmac_done_wd),
++          .de(1'b0),
++          .d(1'b0),
++          .qe(),
++          .q(reg2hw[317]),
++          .qs(intr_enable_hmac_done_qs)
+   );
+-
+-
+-  //   F[fifo_empty]: 1:1
+   prim_subreg #(
+-    .DW      (1),
+-    .SWACCESS("RW"),
+-    .RESVAL  (1'h0)
+-  ) u_intr_enable_fifo_empty (
+-    .clk_i   (clk_i    ),
+-    .rst_ni  (rst_ni  ),
+-
+-    // from register interface
+-    .we     (intr_enable_fifo_empty_we),
+-    .wd     (intr_enable_fifo_empty_wd),
+-
+-    // from internal hardware
+-    .de     (1'b0),
+-    .d      ('0  ),
+-
+-    // to internal hardware
+-    .qe     (),
+-    .q      (reg2hw.intr_enable.fifo_empty.q ),
+-
+-    // to register interface (read)
+-    .qs     (intr_enable_fifo_empty_qs)
++          .DW(1),
++          .SWACCESS("RW"),
++          .RESVAL(1'h0)
++  ) u_intr_enable_fifo_empty(
++          .clk_i(clk_i),
++          .rst_ni(rst_ni),
++          .we(intr_enable_fifo_empty_we),
++          .wd(intr_enable_fifo_empty_wd),
++          .de(1'b0),
++          .d(1'b0),
++          .qe(),
++          .q(reg2hw[316]),
++          .qs(intr_enable_fifo_empty_qs)
+   );
+-
+-
+-  //   F[hmac_err]: 2:2
+   prim_subreg #(
+-    .DW      (1),
+-    .SWACCESS("RW"),
+-    .RESVAL  (1'h0)
+-  ) u_intr_enable_hmac_err (
+-    .clk_i   (clk_i    ),
+-    .rst_ni  (rst_ni  ),
+-
+-    // from register interface
+-    .we     (intr_enable_hmac_err_we),
+-    .wd     (intr_enable_hmac_err_wd),
+-
+-    // from internal hardware
+-    .de     (1'b0),
+-    .d      ('0  ),
+-
+-    // to internal hardware
+-    .qe     (),
+-    .q      (reg2hw.intr_enable.hmac_err.q ),
+-
+-    // to register interface (read)
+-    .qs     (intr_enable_hmac_err_qs)
+-  );
+-
+-
+-  // R[intr_test]: V(True)
+-
+-  //   F[hmac_done]: 0:0
+-  prim_subreg_ext #(
+-    .DW    (1)
+-  ) u_intr_test_hmac_done (
+-    .re     (1'b0),
+-    .we     (intr_test_hmac_done_we),
+-    .wd     (intr_test_hmac_done_wd),
+-    .d      ('0),
+-    .qre    (),
+-    .qe     (reg2hw.intr_test.hmac_done.qe),
+-    .q      (reg2hw.intr_test.hmac_done.q ),
+-    .qs     ()
+-  );
+-
+-
+-  //   F[fifo_empty]: 1:1
+-  prim_subreg_ext #(
+-    .DW    (1)
+-  ) u_intr_test_fifo_empty (
+-    .re     (1'b0),
+-    .we     (intr_test_fifo_empty_we),
+-    .wd     (intr_test_fifo_empty_wd),
+-    .d      ('0),
+-    .qre    (),
+-    .qe     (reg2hw.intr_test.fifo_empty.qe),
+-    .q      (reg2hw.intr_test.fifo_empty.q ),
+-    .qs     ()
+-  );
+-
+-
+-  //   F[hmac_err]: 2:2
+-  prim_subreg_ext #(
+-    .DW    (1)
+-  ) u_intr_test_hmac_err (
+-    .re     (1'b0),
+-    .we     (intr_test_hmac_err_we),
+-    .wd     (intr_test_hmac_err_wd),
+-    .d      ('0),
+-    .qre    (),
+-    .qe     (reg2hw.intr_test.hmac_err.qe),
+-    .q      (reg2hw.intr_test.hmac_err.q ),
+-    .qs     ()
+-  );
+-
+-
+-  // R[cfg]: V(True)
+-
+-  //   F[hmac_en]: 0:0
+-  prim_subreg_ext #(
+-    .DW    (1)
+-  ) u_cfg_hmac_en (
+-    .re     (cfg_hmac_en_re),
+-    .we     (cfg_hmac_en_we),
+-    .wd     (cfg_hmac_en_wd),
+-    .d      (hw2reg.cfg.hmac_en.d),
+-    .qre    (),
+-    .qe     (reg2hw.cfg.hmac_en.qe),
+-    .q      (reg2hw.cfg.hmac_en.q ),
+-    .qs     (cfg_hmac_en_qs)
++          .DW(1),
++          .SWACCESS("RW"),
++          .RESVAL(1'h0)
++  ) u_intr_enable_hmac_err(
++          .clk_i(clk_i),
++          .rst_ni(rst_ni),
++          .we(intr_enable_hmac_err_we),
++          .wd(intr_enable_hmac_err_wd),
++          .de(1'b0),
++          .d(1'b0),
++          .qe(),
++          .q(reg2hw[315]),
++          .qs(intr_enable_hmac_err_qs)
++  );
++  prim_subreg_ext #(.DW(1)) u_intr_test_hmac_done(
++          .re(1'b0),
++          .we(intr_test_hmac_done_we),
++          .wd(intr_test_hmac_done_wd),
++          .d(1'b0),
++          .qre(),
++          .qe(reg2hw[313]),
++          .q(reg2hw[314]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(1)) u_intr_test_fifo_empty(
++          .re(1'b0),
++          .we(intr_test_fifo_empty_we),
++          .wd(intr_test_fifo_empty_wd),
++          .d(1'b0),
++          .qre(),
++          .qe(reg2hw[311]),
++          .q(reg2hw[312]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(1)) u_intr_test_hmac_err(
++          .re(1'b0),
++          .we(intr_test_hmac_err_we),
++          .wd(intr_test_hmac_err_wd),
++          .d(1'b0),
++          .qre(),
++          .qe(reg2hw[309]),
++          .q(reg2hw[310]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(1)) u_cfg_hmac_en(
++          .re(cfg_hmac_en_re),
++          .we(cfg_hmac_en_we),
++          .wd(cfg_hmac_en_wd),
++          .d(hw2reg[621]),
++          .qre(),
++          .qe(reg2hw[307]),
++          .q(reg2hw[308]),
++          .qs(cfg_hmac_en_qs)
++  );
++  prim_subreg_ext #(.DW(1)) u_cfg_sha_en(
++          .re(cfg_sha_en_re),
++          .we(cfg_sha_en_we),
++          .wd(cfg_sha_en_wd),
++          .d(hw2reg[620]),
++          .qre(),
++          .qe(reg2hw[305]),
++          .q(reg2hw[306]),
++          .qs(cfg_sha_en_qs)
++  );
++  prim_subreg_ext #(.DW(1)) u_cfg_endian_swap(
++          .re(cfg_endian_swap_re),
++          .we(cfg_endian_swap_we),
++          .wd(cfg_endian_swap_wd),
++          .d(hw2reg[619]),
++          .qre(),
++          .qe(reg2hw[303]),
++          .q(reg2hw[304]),
++          .qs(cfg_endian_swap_qs)
++  );
++  prim_subreg_ext #(.DW(1)) u_cfg_digest_swap(
++          .re(cfg_digest_swap_re),
++          .we(cfg_digest_swap_we),
++          .wd(cfg_digest_swap_wd),
++          .d(hw2reg[618]),
++          .qre(),
++          .qe(reg2hw[301]),
++          .q(reg2hw[302]),
++          .qs(cfg_digest_swap_qs)
++  );
++  prim_subreg_ext #(.DW(1)) u_cmd_hash_start(
++          .re(1'b0),
++          .we(cmd_hash_start_we),
++          .wd(cmd_hash_start_wd),
++          .d(1'b0),
++          .qre(),
++          .qe(reg2hw[299]),
++          .q(reg2hw[300]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(1)) u_cmd_hash_process(
++          .re(1'b0),
++          .we(cmd_hash_process_we),
++          .wd(cmd_hash_process_wd),
++          .d(1'b0),
++          .qre(),
++          .qe(reg2hw[297]),
++          .q(reg2hw[298]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(1)) u_status_fifo_empty(
++          .re(status_fifo_empty_re),
++          .we(1'b0),
++          .wd(1'b0),
++          .d(hw2reg[617]),
++          .qre(),
++          .qe(),
++          .q(),
++          .qs(status_fifo_empty_qs)
++  );
++  prim_subreg_ext #(.DW(1)) u_status_fifo_full(
++          .re(status_fifo_full_re),
++          .we(1'b0),
++          .wd(1'b0),
++          .d(hw2reg[616]),
++          .qre(),
++          .qe(),
++          .q(),
++          .qs(status_fifo_full_qs)
++  );
++  prim_subreg_ext #(.DW(5)) u_status_fifo_depth(
++          .re(status_fifo_depth_re),
++          .we(1'b0),
++          .wd({5 {1'b0}}),
++          .d(hw2reg[615-:5]),
++          .qre(),
++          .qe(),
++          .q(),
++          .qs(status_fifo_depth_qs)
+   );
+-
+-
+-  //   F[sha_en]: 1:1
+-  prim_subreg_ext #(
+-    .DW    (1)
+-  ) u_cfg_sha_en (
+-    .re     (cfg_sha_en_re),
+-    .we     (cfg_sha_en_we),
+-    .wd     (cfg_sha_en_wd),
+-    .d      (hw2reg.cfg.sha_en.d),
+-    .qre    (),
+-    .qe     (reg2hw.cfg.sha_en.qe),
+-    .q      (reg2hw.cfg.sha_en.q ),
+-    .qs     (cfg_sha_en_qs)
+-  );
+-
+-
+-  //   F[endian_swap]: 2:2
+-  prim_subreg_ext #(
+-    .DW    (1)
+-  ) u_cfg_endian_swap (
+-    .re     (cfg_endian_swap_re),
+-    .we     (cfg_endian_swap_we),
+-    .wd     (cfg_endian_swap_wd),
+-    .d      (hw2reg.cfg.endian_swap.d),
+-    .qre    (),
+-    .qe     (reg2hw.cfg.endian_swap.qe),
+-    .q      (reg2hw.cfg.endian_swap.q ),
+-    .qs     (cfg_endian_swap_qs)
+-  );
+-
+-
+-  //   F[digest_swap]: 3:3
+-  prim_subreg_ext #(
+-    .DW    (1)
+-  ) u_cfg_digest_swap (
+-    .re     (cfg_digest_swap_re),
+-    .we     (cfg_digest_swap_we),
+-    .wd     (cfg_digest_swap_wd),
+-    .d      (hw2reg.cfg.digest_swap.d),
+-    .qre    (),
+-    .qe     (reg2hw.cfg.digest_swap.qe),
+-    .q      (reg2hw.cfg.digest_swap.q ),
+-    .qs     (cfg_digest_swap_qs)
+-  );
+-
+-
+-  // R[cmd]: V(True)
+-
+-  //   F[hash_start]: 0:0
+-  prim_subreg_ext #(
+-    .DW    (1)
+-  ) u_cmd_hash_start (
+-    .re     (1'b0),
+-    .we     (cmd_hash_start_we),
+-    .wd     (cmd_hash_start_wd),
+-    .d      ('0),
+-    .qre    (),
+-    .qe     (reg2hw.cmd.hash_start.qe),
+-    .q      (reg2hw.cmd.hash_start.q ),
+-    .qs     ()
+-  );
+-
+-
+-  //   F[hash_process]: 1:1
+-  prim_subreg_ext #(
+-    .DW    (1)
+-  ) u_cmd_hash_process (
+-    .re     (1'b0),
+-    .we     (cmd_hash_process_we),
+-    .wd     (cmd_hash_process_wd),
+-    .d      ('0),
+-    .qre    (),
+-    .qe     (reg2hw.cmd.hash_process.qe),
+-    .q      (reg2hw.cmd.hash_process.q ),
+-    .qs     ()
+-  );
+-
+-
+-  // R[status]: V(True)
+-
+-  //   F[fifo_empty]: 0:0
+-  prim_subreg_ext #(
+-    .DW    (1)
+-  ) u_status_fifo_empty (
+-    .re     (status_fifo_empty_re),
+-    .we     (1'b0),
+-    .wd     ('0),
+-    .d      (hw2reg.status.fifo_empty.d),
+-    .qre    (),
+-    .qe     (),
+-    .q      (),
+-    .qs     (status_fifo_empty_qs)
+-  );
+-
+-
+-  //   F[fifo_full]: 1:1
+-  prim_subreg_ext #(
+-    .DW    (1)
+-  ) u_status_fifo_full (
+-    .re     (status_fifo_full_re),
+-    .we     (1'b0),
+-    .wd     ('0),
+-    .d      (hw2reg.status.fifo_full.d),
+-    .qre    (),
+-    .qe     (),
+-    .q      (),
+-    .qs     (status_fifo_full_qs)
+-  );
+-
+-
+-  //   F[fifo_depth]: 8:4
+-  prim_subreg_ext #(
+-    .DW    (5)
+-  ) u_status_fifo_depth (
+-    .re     (status_fifo_depth_re),
+-    .we     (1'b0),
+-    .wd     ('0),
+-    .d      (hw2reg.status.fifo_depth.d),
+-    .qre    (),
+-    .qe     (),
+-    .q      (),
+-    .qs     (status_fifo_depth_qs)
+-  );
+-
+-
+-  // R[err_code]: V(False)
+-
+   prim_subreg #(
+-    .DW      (32),
+-    .SWACCESS("RO"),
+-    .RESVAL  (32'h0)
+-  ) u_err_code (
+-    .clk_i   (clk_i    ),
+-    .rst_ni  (rst_ni  ),
+-
+-    .we     (1'b0),
+-    .wd     ('0  ),
+-
+-    // from internal hardware
+-    .de     (hw2reg.err_code.de),
+-    .d      (hw2reg.err_code.d ),
+-
+-    // to internal hardware
+-    .qe     (),
+-    .q      (),
+-
+-    // to register interface (read)
+-    .qs     (err_code_qs)
+-  );
+-
+-
+-  // R[wipe_secret]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_wipe_secret (
+-    .re     (1'b0),
+-    .we     (wipe_secret_we),
+-    .wd     (wipe_secret_wd),
+-    .d      ('0),
+-    .qre    (),
+-    .qe     (reg2hw.wipe_secret.qe),
+-    .q      (reg2hw.wipe_secret.q ),
+-    .qs     ()
+-  );
+-
+-
+-
+-  // Subregister 0 of Multireg key
+-  // R[key0]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_key0 (
+-    .re     (1'b0),
+-    .we     (key0_we),
+-    .wd     (key0_wd),
+-    .d      (hw2reg.key[0].d),
+-    .qre    (),
+-    .qe     (reg2hw.key[0].qe),
+-    .q      (reg2hw.key[0].q ),
+-    .qs     ()
+-  );
+-
+-  // Subregister 1 of Multireg key
+-  // R[key1]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_key1 (
+-    .re     (1'b0),
+-    .we     (key1_we),
+-    .wd     (key1_wd),
+-    .d      (hw2reg.key[1].d),
+-    .qre    (),
+-    .qe     (reg2hw.key[1].qe),
+-    .q      (reg2hw.key[1].q ),
+-    .qs     ()
+-  );
+-
+-  // Subregister 2 of Multireg key
+-  // R[key2]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_key2 (
+-    .re     (1'b0),
+-    .we     (key2_we),
+-    .wd     (key2_wd),
+-    .d      (hw2reg.key[2].d),
+-    .qre    (),
+-    .qe     (reg2hw.key[2].qe),
+-    .q      (reg2hw.key[2].q ),
+-    .qs     ()
+-  );
+-
+-  // Subregister 3 of Multireg key
+-  // R[key3]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_key3 (
+-    .re     (1'b0),
+-    .we     (key3_we),
+-    .wd     (key3_wd),
+-    .d      (hw2reg.key[3].d),
+-    .qre    (),
+-    .qe     (reg2hw.key[3].qe),
+-    .q      (reg2hw.key[3].q ),
+-    .qs     ()
+-  );
+-
+-  // Subregister 4 of Multireg key
+-  // R[key4]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_key4 (
+-    .re     (1'b0),
+-    .we     (key4_we),
+-    .wd     (key4_wd),
+-    .d      (hw2reg.key[4].d),
+-    .qre    (),
+-    .qe     (reg2hw.key[4].qe),
+-    .q      (reg2hw.key[4].q ),
+-    .qs     ()
+-  );
+-
+-  // Subregister 5 of Multireg key
+-  // R[key5]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_key5 (
+-    .re     (1'b0),
+-    .we     (key5_we),
+-    .wd     (key5_wd),
+-    .d      (hw2reg.key[5].d),
+-    .qre    (),
+-    .qe     (reg2hw.key[5].qe),
+-    .q      (reg2hw.key[5].q ),
+-    .qs     ()
+-  );
+-
+-  // Subregister 6 of Multireg key
+-  // R[key6]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_key6 (
+-    .re     (1'b0),
+-    .we     (key6_we),
+-    .wd     (key6_wd),
+-    .d      (hw2reg.key[6].d),
+-    .qre    (),
+-    .qe     (reg2hw.key[6].qe),
+-    .q      (reg2hw.key[6].q ),
+-    .qs     ()
+-  );
+-
+-  // Subregister 7 of Multireg key
+-  // R[key7]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_key7 (
+-    .re     (1'b0),
+-    .we     (key7_we),
+-    .wd     (key7_wd),
+-    .d      (hw2reg.key[7].d),
+-    .qre    (),
+-    .qe     (reg2hw.key[7].qe),
+-    .q      (reg2hw.key[7].q ),
+-    .qs     ()
++          .DW(32),
++          .SWACCESS("RO"),
++          .RESVAL(32'h00000000)
++  ) u_err_code(
++          .clk_i(clk_i),
++          .rst_ni(rst_ni),
++          .we(1'b0),
++          .wd({32 {1'b0}}),
++          .de(hw2reg[578]),
++          .d(hw2reg[610-:32]),
++          .qe(),
++          .q(),
++          .qs(err_code_qs)
++  );
++  prim_subreg_ext #(.DW(32)) u_wipe_secret(
++          .re(1'b0),
++          .we(wipe_secret_we),
++          .wd(wipe_secret_wd),
++          .d({32 {1'b0}}),
++          .qre(),
++          .qe(reg2hw[264]),
++          .q(reg2hw[296-:32]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(32)) u_key0(
++          .re(1'b0),
++          .we(key0_we),
++          .wd(key0_wd),
++          .d(hw2reg[353-:32]),
++          .qre(),
++          .qe(reg2hw[0]),
++          .q(reg2hw[32-:32]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(32)) u_key1(
++          .re(1'b0),
++          .we(key1_we),
++          .wd(key1_wd),
++          .d(hw2reg[385-:32]),
++          .qre(),
++          .qe(reg2hw[33]),
++          .q(reg2hw[65-:32]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(32)) u_key2(
++          .re(1'b0),
++          .we(key2_we),
++          .wd(key2_wd),
++          .d(hw2reg[417-:32]),
++          .qre(),
++          .qe(reg2hw[66]),
++          .q(reg2hw[98-:32]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(32)) u_key3(
++          .re(1'b0),
++          .we(key3_we),
++          .wd(key3_wd),
++          .d(hw2reg[449-:32]),
++          .qre(),
++          .qe(reg2hw[99]),
++          .q(reg2hw[131-:32]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(32)) u_key4(
++          .re(1'b0),
++          .we(key4_we),
++          .wd(key4_wd),
++          .d(hw2reg[481-:32]),
++          .qre(),
++          .qe(reg2hw[132]),
++          .q(reg2hw[164-:32]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(32)) u_key5(
++          .re(1'b0),
++          .we(key5_we),
++          .wd(key5_wd),
++          .d(hw2reg[513-:32]),
++          .qre(),
++          .qe(reg2hw[165]),
++          .q(reg2hw[197-:32]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(32)) u_key6(
++          .re(1'b0),
++          .we(key6_we),
++          .wd(key6_wd),
++          .d(hw2reg[545-:32]),
++          .qre(),
++          .qe(reg2hw[198]),
++          .q(reg2hw[230-:32]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(32)) u_key7(
++          .re(1'b0),
++          .we(key7_we),
++          .wd(key7_wd),
++          .d(hw2reg[577-:32]),
++          .qre(),
++          .qe(reg2hw[231]),
++          .q(reg2hw[263-:32]),
++          .qs()
++  );
++  prim_subreg_ext #(.DW(32)) u_digest0(
++          .re(digest0_re),
++          .we(1'b0),
++          .wd({32 {1'b0}}),
++          .d(hw2reg[97-:32]),
++          .qre(),
++          .qe(),
++          .q(),
++          .qs(digest0_qs)
++  );
++  prim_subreg_ext #(.DW(32)) u_digest1(
++          .re(digest1_re),
++          .we(1'b0),
++          .wd({32 {1'b0}}),
++          .d(hw2reg[129-:32]),
++          .qre(),
++          .qe(),
++          .q(),
++          .qs(digest1_qs)
++  );
++  prim_subreg_ext #(.DW(32)) u_digest2(
++          .re(digest2_re),
++          .we(1'b0),
++          .wd({32 {1'b0}}),
++          .d(hw2reg[161-:32]),
++          .qre(),
++          .qe(),
++          .q(),
++          .qs(digest2_qs)
++  );
++  prim_subreg_ext #(.DW(32)) u_digest3(
++          .re(digest3_re),
++          .we(1'b0),
++          .wd({32 {1'b0}}),
++          .d(hw2reg[193-:32]),
++          .qre(),
++          .qe(),
++          .q(),
++          .qs(digest3_qs)
++  );
++  prim_subreg_ext #(.DW(32)) u_digest4(
++          .re(digest4_re),
++          .we(1'b0),
++          .wd({32 {1'b0}}),
++          .d(hw2reg[225-:32]),
++          .qre(),
++          .qe(),
++          .q(),
++          .qs(digest4_qs)
++  );
++  prim_subreg_ext #(.DW(32)) u_digest5(
++          .re(digest5_re),
++          .we(1'b0),
++          .wd({32 {1'b0}}),
++          .d(hw2reg[257-:32]),
++          .qre(),
++          .qe(),
++          .q(),
++          .qs(digest5_qs)
++  );
++  prim_subreg_ext #(.DW(32)) u_digest6(
++          .re(digest6_re),
++          .we(1'b0),
++          .wd({32 {1'b0}}),
++          .d(hw2reg[289-:32]),
++          .qre(),
++          .qe(),
++          .q(),
++          .qs(digest6_qs)
++  );
++  prim_subreg_ext #(.DW(32)) u_digest7(
++          .re(digest7_re),
++          .we(1'b0),
++          .wd({32 {1'b0}}),
++          .d(hw2reg[321-:32]),
++          .qre(),
++          .qe(),
++          .q(),
++          .qs(digest7_qs)
+   );
+-
+-
+-
+-  // Subregister 0 of Multireg digest
+-  // R[digest0]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_digest0 (
+-    .re     (digest0_re),
+-    .we     (1'b0),
+-    .wd     ('0),
+-    .d      (hw2reg.digest[0].d),
+-    .qre    (),
+-    .qe     (),
+-    .q      (),
+-    .qs     (digest0_qs)
+-  );
+-
+-  // Subregister 1 of Multireg digest
+-  // R[digest1]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_digest1 (
+-    .re     (digest1_re),
+-    .we     (1'b0),
+-    .wd     ('0),
+-    .d      (hw2reg.digest[1].d),
+-    .qre    (),
+-    .qe     (),
+-    .q      (),
+-    .qs     (digest1_qs)
+-  );
+-
+-  // Subregister 2 of Multireg digest
+-  // R[digest2]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_digest2 (
+-    .re     (digest2_re),
+-    .we     (1'b0),
+-    .wd     ('0),
+-    .d      (hw2reg.digest[2].d),
+-    .qre    (),
+-    .qe     (),
+-    .q      (),
+-    .qs     (digest2_qs)
+-  );
+-
+-  // Subregister 3 of Multireg digest
+-  // R[digest3]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_digest3 (
+-    .re     (digest3_re),
+-    .we     (1'b0),
+-    .wd     ('0),
+-    .d      (hw2reg.digest[3].d),
+-    .qre    (),
+-    .qe     (),
+-    .q      (),
+-    .qs     (digest3_qs)
+-  );
+-
+-  // Subregister 4 of Multireg digest
+-  // R[digest4]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_digest4 (
+-    .re     (digest4_re),
+-    .we     (1'b0),
+-    .wd     ('0),
+-    .d      (hw2reg.digest[4].d),
+-    .qre    (),
+-    .qe     (),
+-    .q      (),
+-    .qs     (digest4_qs)
+-  );
+-
+-  // Subregister 5 of Multireg digest
+-  // R[digest5]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_digest5 (
+-    .re     (digest5_re),
+-    .we     (1'b0),
+-    .wd     ('0),
+-    .d      (hw2reg.digest[5].d),
+-    .qre    (),
+-    .qe     (),
+-    .q      (),
+-    .qs     (digest5_qs)
+-  );
+-
+-  // Subregister 6 of Multireg digest
+-  // R[digest6]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_digest6 (
+-    .re     (digest6_re),
+-    .we     (1'b0),
+-    .wd     ('0),
+-    .d      (hw2reg.digest[6].d),
+-    .qre    (),
+-    .qe     (),
+-    .q      (),
+-    .qs     (digest6_qs)
+-  );
+-
+-  // Subregister 7 of Multireg digest
+-  // R[digest7]: V(True)
+-
+-  prim_subreg_ext #(
+-    .DW    (32)
+-  ) u_digest7 (
+-    .re     (digest7_re),
+-    .we     (1'b0),
+-    .wd     ('0),
+-    .d      (hw2reg.digest[7].d),
+-    .qre    (),
+-    .qe     (),
+-    .q      (),
+-    .qs     (digest7_qs)
+-  );
+-
+-
+-  // R[msg_length_lower]: V(False)
+-
+   prim_subreg #(
+-    .DW      (32),
+-    .SWACCESS("RO"),
+-    .RESVAL  (32'h0)
+-  ) u_msg_length_lower (
+-    .clk_i   (clk_i    ),
+-    .rst_ni  (rst_ni  ),
+-
+-    .we     (1'b0),
+-    .wd     ('0  ),
+-
+-    // from internal hardware
+-    .de     (hw2reg.msg_length_lower.de),
+-    .d      (hw2reg.msg_length_lower.d ),
+-
+-    // to internal hardware
+-    .qe     (),
+-    .q      (),
+-
+-    // to register interface (read)
+-    .qs     (msg_length_lower_qs)
++          .DW(32),
++          .SWACCESS("RO"),
++          .RESVAL(32'h00000000)
++  ) u_msg_length_lower(
++          .clk_i(clk_i),
++          .rst_ni(rst_ni),
++          .we(1'b0),
++          .wd({32 {1'b0}}),
++          .de(hw2reg[33]),
++          .d(hw2reg[65-:32]),
++          .qe(),
++          .q(),
++          .qs(msg_length_lower_qs)
+   );
+-
+-
+-  // R[msg_length_upper]: V(False)
+-
+   prim_subreg #(
+-    .DW      (32),
+-    .SWACCESS("RO"),
+-    .RESVAL  (32'h0)
+-  ) u_msg_length_upper (
+-    .clk_i   (clk_i    ),
+-    .rst_ni  (rst_ni  ),
+-
+-    .we     (1'b0),
+-    .wd     ('0  ),
+-
+-    // from internal hardware
+-    .de     (hw2reg.msg_length_upper.de),
+-    .d      (hw2reg.msg_length_upper.d ),
+-
+-    // to internal hardware
+-    .qe     (),
+-    .q      (),
+-
+-    // to register interface (read)
+-    .qs     (msg_length_upper_qs)
++          .DW(32),
++          .SWACCESS("RO"),
++          .RESVAL(32'h00000000)
++  ) u_msg_length_upper(
++          .clk_i(clk_i),
++          .rst_ni(rst_ni),
++          .we(1'b0),
++          .wd({32 {1'b0}}),
++          .de(hw2reg[0]),
++          .d(hw2reg[32-:32]),
++          .qe(),
++          .q(),
++          .qs(msg_length_upper_qs)
+   );
+ 
+ 
+@@ -912,7 +642,7 @@ module hmac_reg_top (
+ 
+   logic [25:0] addr_hit;
+   always_comb begin
+-    addr_hit = '0;
++    addr_hit = {26{1'b0}};
+     addr_hit[ 0] = (reg_addr == HMAC_INTR_STATE_OFFSET);
+     addr_hit[ 1] = (reg_addr == HMAC_INTR_ENABLE_OFFSET);
+     addr_hit[ 2] = (reg_addr == HMAC_INTR_TEST_OFFSET);
+@@ -1077,7 +807,7 @@ module hmac_reg_top (
+ 
+   // Read data return
+   always_comb begin
+-    reg_rdata_next = '0;
++    reg_rdata_next = {DW{1'b0}};
+     unique case (1'b1)
+       addr_hit[0]: begin
+         reg_rdata_next[0] = intr_state_hmac_done_qs;
+@@ -1092,9 +822,9 @@ module hmac_reg_top (
+       end
+ 
+       addr_hit[2]: begin
+-        reg_rdata_next[0] = '0;
+-        reg_rdata_next[1] = '0;
+-        reg_rdata_next[2] = '0;
++        reg_rdata_next[0] = 1'b0;
++        reg_rdata_next[1] = 1'b0;
++        reg_rdata_next[2] = 1'b0;
+       end
+ 
+       addr_hit[3]: begin
+@@ -1105,8 +835,8 @@ module hmac_reg_top (
+       end
+ 
+       addr_hit[4]: begin
+-        reg_rdata_next[0] = '0;
+-        reg_rdata_next[1] = '0;
++        reg_rdata_next[0] = 1'b0;
++        reg_rdata_next[1] = 1'b0;
+       end
+ 
+       addr_hit[5]: begin
+@@ -1120,39 +850,39 @@ module hmac_reg_top (
+       end
+ 
+       addr_hit[7]: begin
+-        reg_rdata_next[31:0] = '0;
++        reg_rdata_next[31:0] = {32{1'b0}};
+       end
+ 
+       addr_hit[8]: begin
+-        reg_rdata_next[31:0] = '0;
++        reg_rdata_next[31:0] = {32{1'b0}};
+       end
+ 
+       addr_hit[9]: begin
+-        reg_rdata_next[31:0] = '0;
++        reg_rdata_next[31:0] = {32{1'b0}};
+       end
+ 
+       addr_hit[10]: begin
+-        reg_rdata_next[31:0] = '0;
++        reg_rdata_next[31:0] = {32{1'b0}};
+       end
+ 
+       addr_hit[11]: begin
+-        reg_rdata_next[31:0] = '0;
++        reg_rdata_next[31:0] = {32{1'b0}};
+       end
+ 
+       addr_hit[12]: begin
+-        reg_rdata_next[31:0] = '0;
++        reg_rdata_next[31:0] = {32{1'b0}};
+       end
+ 
+       addr_hit[13]: begin
+-        reg_rdata_next[31:0] = '0;
++        reg_rdata_next[31:0] = {32{1'b0}};
+       end
+ 
+       addr_hit[14]: begin
+-        reg_rdata_next[31:0] = '0;
++        reg_rdata_next[31:0] = {32{1'b0}};
+       end
+ 
+       addr_hit[15]: begin
+-        reg_rdata_next[31:0] = '0;
++        reg_rdata_next[31:0] = {32{1'b0}};
+       end
+ 
+       addr_hit[16]: begin
+@@ -1196,7 +926,7 @@ module hmac_reg_top (
+       end
+ 
+       default: begin
+-        reg_rdata_next = '1;
++        reg_rdata_next = {DW{1'b1}};
+       end
+     endcase
+   end
 diff --git a/hw/ip/hmac/rtl/sha2_pad.sv b/hw/ip/hmac/rtl/sha2_pad.sv
 index 5ee90881c..2667008be 100644
 --- a/hw/ip/hmac/rtl/sha2_pad.sv
