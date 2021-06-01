@@ -85,8 +85,6 @@ flash_ctrl_reg_top.sv \
 flash_ctrl.sv \
 flash_mp.sv \
 gpio.sv \
-hmac_reg_top.sv \
-hmac.sv \
 jtag_mux.sv \
 padring.sv \
 padctrl.sv \
@@ -139,6 +137,7 @@ pinmux_pkg.sv \
 pinmux_reg_pkg.sv \
 rv_timer_reg_pkg.sv \
 rv_plic_reg_pkg.sv \
+hmac_reg_pkg.sv \
 ibex_compressed_decoder.sv \
 ibex_alu.sv \
 ibex_controller.sv \
@@ -315,6 +314,8 @@ rv_plic.sv \
 pwrmgr_cdc.sv \
 pwrmgr_reg_top.sv \
 pwrmgr.sv \
+hmac_reg_top.sv \
+hmac.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -444,6 +445,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top rv_timer \
 			-top rv_plic \
 			-top pwrmgr \
+			-top hmac \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
