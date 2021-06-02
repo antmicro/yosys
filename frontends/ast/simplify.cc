@@ -2049,11 +2049,16 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 								_width /= r_width;
  								int start_idx = 0;
-								if (idx == 0 && ranges->children[1]->range_swapped) {
-									start_idx = ranges->children[1]->children[1]->integer;
-									_width = r_width;
-									_range_left  = (start_idx - (s->range_left))  * _width + (_width - 1) + _offset;
-									_range_right = (start_idx - (s->range_right)) * _width                + _offset;
+								if (ranges->children[1]->range_swapped) {
+									if (idx == 0 ) {
+										start_idx = ranges->children[1]->children[1]->integer;
+										_width = r_width;
+										_range_left  = (start_idx - (s->range_left))  * _width + (_width - 1) + _offset;
+										_range_right = (start_idx - (s->range_right)) * _width                + _offset;
+									} else {
+										_range_left  += (s->range_left - ranges->children[0]->range_left);
+										_range_right += (s->range_right - ranges->children[0]->range_right);
+									}
 								} else {
 									_range_left  = ((s->range_left))  * _width + (_width - 1) + _offset;
 									_range_right = ((s->range_right)) * _width                + _offset;
