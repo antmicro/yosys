@@ -712,7 +712,7 @@ void UhdmAst::process_module() {
 			module_node->str = "$paramod" + type + module_parameters;
 		auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
 		typeNode->str = module_node->str;
-		current_node->children.push_back(typeNode);
+		current_node->children.insert(current_node->children.begin(), typeNode);
 		shared.top_node_templates[module_node->str] = module_node;
 		shared.top_nodes[module_node->str] = module_node;
 		visit_one_to_many({vpiVariables,
