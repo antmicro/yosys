@@ -688,9 +688,19 @@ void UhdmAst::process_module() {
 								 if (parent_node != module_node->children.end()) {
 									if ((*parent_node)->type == AST::AST_PARAMETER) {
 										if (cell_instance || (node->children.size() > 0 && node->children[0]->type != AST::AST_CONSTANT)) { //if cell is a blackbox or we need to simplify parameter first, left setting parameters to yosys
-											auto clone = node->clone();
-											clone->type = AST::AST_PARASET;
-											current_node->children.push_back(clone);
+											// We only want to add AST_PARASET for parameters that is different than already set
+											// to match the name yosys gives to the module.
+											// Note: this should also be applied for other (not only cell_instance) modules
+											// but as we are using part of the modules parsed by sv2v and other
+											// part by uhdm, we need to always rename module if it is parametrized,
+											// Otherwise, verilog frontend can use module parsed by uhdm and try to set
+											// parameters, but this module would be already parametrized
+											if ((node->children[0]->integer != (*parent_node)->children[0]->integer ||
+                                                                                             node->children[0]->str != (*parent_node)->children[0]->str)) {
+												auto clone = node->clone();
+												clone->type = AST::AST_PARASET;
+												current_node->children.push_back(clone);
+											}
 										} else {
 											if (node->children[0]->str != "")
 												module_parameters += node->str + "=" + node->children[0]->str;
@@ -712,7 +722,7 @@ void UhdmAst::process_module() {
 			module_node->str = "$paramod" + type + module_parameters;
 		auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
 		typeNode->str = module_node->str;
-		current_node->children.push_back(typeNode);
+		current_node->children.insert(current_node->children.begin(), typeNode);
 		shared.top_node_templates[module_node->str] = module_node;
 		shared.top_nodes[module_node->str] = module_node;
 		visit_one_to_many({vpiVariables,
