@@ -133,15 +133,15 @@ module padring (
 				assign unused_oe = mio_oe_i[k];
 			end
 			else begin : gen_mio_tie_off
-				wire unused_out;
+				/*wire unused_out;
 				wire unused_oe;
 				wire unused_pad;
-				wire [AttrDw - 1:0] unused_attr;
+				wire [AttrDw - 1:0] unused_attr;*/
 				assign mio_pad_io[k] = 1'b0;
-				assign unused_pad = mio_pad_io[k];
+				/*assign unused_pad = mio_pad_io[k];
 				assign unused_out = mio_out_i[k];
 				assign unused_oe = mio_oe_i[k];
-				assign unused_attr = mio_attr_i[k * AttrDw+:AttrDw];
+				assign unused_attr = mio_attr_i[k * AttrDw+:AttrDw];*/
 				assign mio_in_o[k] = 1'b0;
 			end
 		end
@@ -196,15 +196,15 @@ module padring (
 				assign unused_oe = dio_oe_i[k];
 			end
 			else begin : gen_dio_tie_off
-				wire unused_out;
+				/*wire unused_out;
 				wire unused_oe;
 				wire unused_pad;
-				wire [AttrDw - 1:0] unused_attr;
+				wire [AttrDw - 1:0] unused_attr;*/
 				assign dio_pad_io[k] = 1'b0;
-				assign unused_pad = dio_pad_io[k];
+				/*assign unused_pad = dio_pad_io[k];
 				assign unused_out = dio_out_i[k];
 				assign unused_oe = dio_oe_i[k];
-				assign unused_attr = dio_attr_i[k * AttrDw+:AttrDw];
+				assign unused_attr = dio_attr_i[k * AttrDw+:AttrDw];*/
 				assign dio_in_o[k] = 1'b0;
 			end
 		end
