@@ -1284,6 +1284,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 	if (const_fold && type == AST_CASE)
 	{
+		while (children[0]->simplify(const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param)) { }
 		int width_hint;
 		bool sign_hint;
 		detectSignWidth(width_hint, sign_hint);
