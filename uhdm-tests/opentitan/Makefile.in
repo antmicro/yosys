@@ -514,13 +514,19 @@ ${UHDM_file}: ${SV2V_FILE}
 	# Delete -top otbn when top_earlgrey will be added to uhdm
 	# Delete -top spi_device when top_earlgrey will be added to uhdm
 
-uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT}
+yosys/plugins:
+	(export PATH=${root_dir}/../image/bin:${PATH} && \
+		cd ${root_dir}/../yosys-symbiflow-plugins && $(MAKE) install && cd ..)
+
+
+uhdm/yosys/synth-opentitan: ${UHDM_file} ${SV2V_FILE} | ${VENV_OT} yosys/plugins
 	(cd ${root_dir}/build && \
 	${root_dir}/../image/bin/yosys \
 		-p "verilog_defines -DBootRomInitFile=boot_rom_fpga_nexysvideo.32.vmem" \
 		-p "verilog_defines -DPRIM_DEFAULT_IMPL=prim_pkg::ImplGeneric" \
 		-p "verilog_defaults -push" \
 		-p "verilog_defaults -add -defer" \
+		-p "plugin -i uhdm" \
 		-p "read_uhdm ${UHDM_file}" \
 		-p "read_verilog ${SV2V_FILE}" \
 		-p "read_verilog -overwrite ${CUSTOM_FILES}" \
