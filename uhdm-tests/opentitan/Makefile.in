@@ -69,7 +69,6 @@ tlul_adapter_reg.sv \
 tlul_adapter_sram.sv \
 tlul_err_resp.sv \
 tlul_socket_1n.sv \
-sram2tlul.sv \
 debug_rom_one_scratch.sv \
 aes_reg_top.sv \
 aes_core.sv \
@@ -316,6 +315,7 @@ pwrmgr_reg_top.sv \
 pwrmgr.sv \
 hmac_reg_top.sv \
 hmac.sv \
+sram2tlul.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
