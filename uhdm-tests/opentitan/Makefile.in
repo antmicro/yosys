@@ -68,13 +68,6 @@ tlul_adapter_sram.sv \
 tlul_err_resp.sv \
 tlul_socket_1n.sv \
 debug_rom_one_scratch.sv \
-aes_core.sv \
-aes_sbox.sv \
-aes_sbox_lut.sv \
-aes_sbox_canright.sv \
-aes_sbox_canright_masked_noreuse.sv \
-aes_sbox_canright_masked.sv \
-aes.sv \
 alert_handler_reg_wrap.sv \
 alert_handler.sv \
 flash_ctrl_reg_top.sv \
@@ -315,8 +308,15 @@ hmac.sv \
 ibex_icache.sv \
 ibex_dummy_instr.sv \
 sram2tlul.sv \
+aes_core.sv \
 aes_reg_pkg.sv \
 aes_reg_top.sv \
+aes_sbox.sv \
+aes_sbox_lut.sv \
+aes_sbox_canright.sv \
+aes_sbox_canright_masked_noreuse.sv \
+aes_sbox_canright_masked.sv \
+aes.sv \
 
 UHDM_FILES_FULL = \
 	$(shell \
@@ -447,7 +447,7 @@ ${UHDM_file}: ${SV2V_FILE}
 			-top rv_plic \
 			-top pwrmgr \
 			-top hmac \
-			-top aes_reg_top \
+			-top aes \
 			$(EARLGRAY_INCLUDE) \
 			$(UHDM_FILES_FULL) && \
 	cp ${EARLGRAY_BUILD}/slpp_all/surelog.uhdm ${UHDM_file})
