@@ -2212,7 +2212,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				look_str = str;
 				sname = str.substr(0, str.rfind("."));
 			}
-			if (current_scope.count(sname) > 0) {
+			if ((current_scope.count(sname) > 0) && (current_scope[sname]->type == AST_STRUCT_ITEM || current_scope[sname]->type == AST_STRUCT)) {
 				while(current_scope[sname]->simplify(true, false, false, 1, -1, false, false)) { }
 			}
 			if (current_scope.count(look_str) > 0) {
