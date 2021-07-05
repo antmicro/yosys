@@ -1561,15 +1561,12 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			// Insert clones children from template at beginning
 			for (int i  = 0; i < GetSize(template_node->children); i++) {
 				if (template_node->children[i]->type == AST_RANGE && range_mult > 1) {
-					template_node->children[i]->dumpAst(NULL, "rang >");
 					auto *clone = template_node->children[i]->clone();
 					int size = clone->range_left - clone->range_right + 1;
 					clone->range_left = size * range_mult - 1;
 					clone->children[0]->integer = clone->range_left;
 					range_left = clone->range_left;
-					clone->dumpAst(NULL, "clone >");
 					children.insert(children.begin() + i, clone);
-					dumpAst(NULL, "this >");
 				} else {
 					children.insert(children.begin() + i, template_node->children[i]->clone());
 				}
