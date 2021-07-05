@@ -469,7 +469,7 @@ static AstNode *slice_range(AstNode *rnode, AstNode *snode)
 }
 
 
-static AstNode *make_struct_member_range(AstNode *node, AstNode *member_node)
+static AstNode *make_struct_member_range(AstNode *node, AstNode *member_node, int move)
 {
 	// Work out the range in the packed array that corresponds to a struct member
 	// taking into account any range operations applicable to the current node
@@ -478,18 +478,18 @@ static AstNode *make_struct_member_range(AstNode *node, AstNode *member_node)
 	int range_right = member_node->range_right;
 	if (node->children.empty()) {
 		// no range operations apply, return the whole width
-		return make_range(range_left, range_right);
+		return make_range(range_left + move, range_right + move);
 	}
 	int stride = get_struct_array_width(member_node);
 	if (node->children.size() == 1 && node->children[0]->type == AST_RANGE) {
 		// bit or array indexing e.g. s.a[2] or s.a[1:0]
-		return make_struct_index_range(node, node->children[0], stride, range_right);
+		return make_struct_index_range(node, node->children[0], stride, range_right + move);
 	}
 	else if (node->children.size() == 1 && node->children[0]->type == AST_MULTIRANGE) {
 		// multirange, i.e. bit slice after array index, e.g. s.a[i][p:q]
 		log_assert(stride > 1);
 		auto mrnode = node->children[0];
-		auto element_range = make_struct_index_range(node, mrnode->children[0], stride, range_right);
+		auto element_range = make_struct_index_range(node, mrnode->children[0], stride, range_right + move);
 		// then apply bit slice range
 		auto range = slice_range(element_range, mrnode->children[1]);
 		delete element_range;
@@ -2200,10 +2200,10 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 				}
 				look_str = sname + sfield;
-				/*if (current_scope.count(sname) > 0) {
-					current_scope[sname]->dumpAst(NULL, "s >");
-					if (current_scope[sname]->attributes.count(ID::wiretype)) {
-						auto wiretype = current_scope[sname]->attributes[ID::wiretype];
+				if (current_scope.count(sname) > 0 && current_scope.count(str) == 0) {
+					auto wire = current_scope[sname];
+					if (wire->attributes.count(ID::wiretype)) {
+						auto wiretype = wire->attributes[ID::wiretype];
 						if (wiretype->children.size() > 0) {
 							struct_size = wiretype->children[0]->range_left + 1;
 							if(wiretype->children[1]->range_swapped) {
@@ -2213,7 +2213,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 							struct_size = wiretype->integer;
 						}
 					}
-				}*/
+				}
 			}
 			if (current_scope.count(look_str) < 1) {
 				look_str = str;
@@ -2226,7 +2226,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				auto item_node = current_scope[look_str];
 				if (item_node->type == AST_STRUCT_ITEM || item_node->type == AST_STRUCT) {
 					// structure member, rewrite this node to reference the packed struct wire
-					auto range = make_struct_member_range(this, item_node);
+					auto range = make_struct_member_range(this, item_node, struct_size * struct_mult);
 					newNode = new AstNode(AST_IDENTIFIER, range);
 					newNode->str = sname;
 					newNode->basic_prep = true;
