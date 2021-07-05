@@ -41,7 +41,6 @@ prim_lfsr.sv \
 prim_intr_hw.sv \
 alert_handler_reg_top.sv \
 padctrl_reg_top.sv \
-ibex_icache.sv \
 prim_dom_and_2share.sv \
 prim_arbiter_fixed.sv \
 prim_fifo_async.sv \
@@ -59,7 +58,6 @@ prim_ram_1p_adv.sv \
 prim_ram_2p_async_adv.sv \
 prim_alert_sender.sv \
 tlul_adapter_host.sv \
-ibex_dummy_instr.sv \
 tlul_fifo_sync.sv \
 tlul_fifo_async.sv \
 tlul_assert.sv \
@@ -315,6 +313,8 @@ pwrmgr_reg_top.sv \
 pwrmgr.sv \
 hmac_reg_top.sv \
 hmac.sv \
+ibex_icache.sv \
+ibex_dummy_instr.sv \
 sram2tlul.sv \
 
 UHDM_FILES_FULL = \
