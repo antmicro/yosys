@@ -358,7 +358,7 @@ static int size_packed_struct(AstNode *snode, int base_offset)
 				node->children.clear();
 			}
 			else if (node->children.size() == 1 && node->children[0]->type == AST_ENUM) {
-				width = node->children[0]->children[0]->range_left - node->children[0]->children[0]->range_right + 2;
+				width = node->children[0]->children[0]->range_left - node->children[0]->children[0]->range_right + 1;
 			}
 			else if (node->range_left < 0) {
 				// 1 bit signal: bit, logic or reg
