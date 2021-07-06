@@ -7,6 +7,7 @@ use_modelsim=false
 verbose=false
 keeprunning=false
 makejmode=false
+force_system_verilog=false
 frontend="verilog -noblackbox"
 backend_opts="-noattr -noexpr -siminit"
 autotb_opts=""
@@ -29,7 +30,7 @@ if [ ! -f $toolsdir/cmp_tbdata -o $toolsdir/cmp_tbdata.c -nt $toolsdir/cmp_tbdat
 	( set -ex; ${CC:-gcc} -Wall -o $toolsdir/cmp_tbdata $toolsdir/cmp_tbdata.c; ) || exit 1
 fi
 
-while getopts xmGl:wkjvref:s:p:n:S:I:A:-: opt; do
+while getopts xmGl:wkjvref:s:p:n:t:S:I:A:-: opt; do
 	case "$opt" in
 		x)
 			use_xsim=true ;;
@@ -47,6 +48,8 @@ while getopts xmGl:wkjvref:s:p:n:S:I:A:-: opt; do
 			makejmode=true ;;
 		v)
 			verbose=true ;;
+		t)
+			force_system_verilog=true ;;
 		r)
 			backend_opts="$backend_opts -norename" ;;
 		e)
@@ -85,14 +88,14 @@ while getopts xmGl:wkjvref:s:p:n:S:I:A:-: opt; do
 				;;
 			esac;;
 		*)
-			echo "Usage: $0 [-x|-m] [-G] [-w] [-k] [-j] [-v] [-r] [-e] [-l libs] [-f frontend] [-s script] [-p cmdstring] [-n iters] [-S seed] [-I incdir] [--xfirrtl FIRRTL test exclude file] [--firrtl2verilog command to generate verilog from firrtl] verilog-files\n" >&2
+			echo "Usage: $0 [-x|-m] [-G] [-w] [-k] [-j] [-v] [-r] [-e] [-T] [-l libs] [-f frontend] [-s script] [-p cmdstring] [-n iters] [-S seed] [-I incdir] [--xfirrtl FIRRTL test exclude file] [--firrtl2verilog command to generate verilog from firrtl] verilog-files\n" >&2
 			exit 1
 	esac
 done
 
 compile_and_run() {
 	exe="$1"; output="$2"; shift 2
-	if [ "${2##*.}" == "sv" ]; then
+	if [ "${2##*.}" == "sv" ] || [ $force_system_verilog == true ] ; then
 		language_gen="-g2012"
 	else
 		language_gen="-g2005"
