@@ -301,6 +301,13 @@ AstNode::~AstNode()
 	delete_children();
 }
 
+void AstNode::visitEachDescendant(const std::function<void(AST::AstNode*)>& f) {
+	for (auto child : children) {
+		f(child);
+		child->visitEachDescendant(f);
+	}
+}
+
 // create a nice text representation of the node
 // (traverse tree by recursion, use 'other' pointer for diffing two AST trees)
 void AstNode::dumpAst(FILE *f, std::string indent) const
@@ -385,13 +392,6 @@ void AstNode::dumpAst(FILE *f, std::string indent) const
 		children[i]->dumpAst(f, indent + "  ");
 
 	fflush(f);
-}
-
-void AstNode::visitEachDescendant(const std::function<void(AST::AstNode*)>& f) {
-	for (auto child : children) {
-		f(child);
-		child->visitEachDescendant(f);
-	}
 }
 
 // helper function for AstNode::dumpVlog()
