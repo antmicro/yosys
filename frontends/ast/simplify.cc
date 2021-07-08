@@ -1535,7 +1535,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			range_right = template_node->range_right;
 
 			int range_mult = 1;
-			if(children.size() == 1 && children[0]->type == AST_RANGE) {
+			if(children.size() == 1 && children[0]->type == AST_RANGE && this->type != AST_MEMORY) {
 				range_mult = children[0]->children[1]->integer + 1;
 				attributes[ID::wiretype] = mkconst_int(template_node->range_left + 1, false, 32);
 				children.pop_back();
