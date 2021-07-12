@@ -1297,10 +1297,6 @@ void AST::process(RTLIL::Design *design, AstNode *ast, bool dump_ast1, bool dump
 							e->str = n->str + std::string("::") + e->str.substr(1);
 						}
 					} else {
-						if (cloned_node->type == AST::AST_FUNCTION && cloned_node->children.back()->type == AST_ASSIGN_EQ &&
-							cloned_node->children.back()->children.size() > 1 && cloned_node->children.back()->children[0]->type == AST_IDENTIFIER) {
-						    cloned_node->children.back()->children[0]->str = cloned_node->str;
-						}
 						cloned_node->str = n->str + std::string("::") + cloned_node->str.substr(1);
 					}
 					child->children.push_back(cloned_node);
