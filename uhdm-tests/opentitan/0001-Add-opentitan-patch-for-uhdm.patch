@@ -99,6 +99,46 @@ index ed35dc5ef..d1b6b560f 100644
      .clk_i                  ( clk_i                ),
      .rst_ni                 ( rst_ni               ),
  
+diff --git a/hw/ip/aes/rtl/aes_core.sv b/hw/ip/aes/rtl/aes_core.sv
+index ee2afd47f..609389ff1 100644
+--- a/hw/ip/aes/rtl/aes_core.sv
++++ b/hw/ip/aes/rtl/aes_core.sv
+@@ -46,13 +46,13 @@ module aes_core #(
+   ctrl_reg_t            ctrl_d, ctrl_q;
+   logic                 ctrl_err_update, ctrl_err_storage;
+ 
+-  logic [3:0][3:0][7:0] state_in;
++  logic [127:0] state_in;
+   si_sel_e              state_in_sel;
+-  logic [3:0][3:0][7:0] add_state_in;
++  logic [127:0] add_state_in;
+   add_si_sel_e          add_state_in_sel;
+ 
+-  logic [3:0][3:0][7:0] state_init;
+-  logic [3:0][3:0][7:0] state_done;
++  logic [127:0] state_init;
++  logic [127:0] state_done;
+ 
+   logic     [7:0][31:0] key_init;
+   logic     [7:0]       key_init_qe;
+@@ -82,7 +82,7 @@ module aes_core #(
+   logic     [3:0]       data_in_qe;
+   logic                 data_in_we;
+ 
+-  logic [3:0][3:0][7:0] add_state_out;
++  logic [127:0] add_state_out;
+   add_so_sel_e          add_state_out_sel;
+ 
+   logic     [3:0][31:0] data_out_d;
+@@ -327,7 +327,7 @@ module aes_core #(
+   prim_subreg_shadow #(
+     .DW       ( $bits(ctrl_reg_t) ),
+     .SWACCESS ( "WO"              ),
+-    .RESVAL   ( CTRL_RESET        )
++    .RESVAL   ( {AES_ENC, AES_NONE, AES_128, 1'b0 } ) // https://github.com/chipsalliance/Surelog/issues/1488
+   ) ctrl_shadowed_reg (
+     .clk_i       ( clk_i            ),
+     .rst_ni      ( rst_ni           ),
 diff --git a/hw/ip/aes/rtl/aes_key_expand.sv b/hw/ip/aes/rtl/aes_key_expand.sv
 index c030089b7..65f0bdc94 100644
 --- a/hw/ip/aes/rtl/aes_key_expand.sv
@@ -156,6 +196,14 @@ index ddc3b7992..6d4e2a759 100644
      end
    end
    return transpose;
+ endfunction
+ 
+ // Extract single column from state matrix
+-function automatic logic [3:0][7:0] aes_col_get(logic [3:0][3:0][7:0] in, logic [1:0] idx);
++function automatic logic [3:0][7:0] aes_col_get(logic [127:0] in, logic [1:0] idx);
+   logic [3:0][7:0] out;
+   for (int i=0; i<4; i++) begin
+     out[i] = in[i][idx];
 diff --git a/hw/ip/aes/rtl/aes_prng.sv b/hw/ip/aes/rtl/aes_prng.sv
 index 08e2a94e6..a94dbdd43 100644
 --- a/hw/ip/aes/rtl/aes_prng.sv
