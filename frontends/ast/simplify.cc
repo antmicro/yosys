@@ -2248,6 +2248,18 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					delete children[0];
 					children[0] = range;
 					basic_prep = true;
+				}else if(current_scope[str]->attributes.count(ID::wiretype) && current_scope.count(current_scope[str]->attributes[ID::wiretype]->str))
+				{
+					auto wiretype = current_scope[str]->attributes[ID::wiretype];
+
+					auto *curr_range = children[0]->children[0];
+					int struct_mult = curr_range->integer;
+					auto *range = make_range(current_scope[str]->range_left+3*struct_mult, current_scope[str]->range_right+3*struct_mult);
+					delete children[0];
+					children[0] = range;
+					this->dumpAst(NULL, "wire >");
+					std::cout << "@@@@#&#&&#A@H@@(@(# " << str << wiretype->integer << std::endl;
+					basic_prep = true;
 				}
 			}
 
