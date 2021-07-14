@@ -1551,23 +1551,24 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			range_left = template_node->range_left;
 			range_right = template_node->range_right;
 
-			int range_mult = 1;
-			if(children.size() == 1 && children[0]->type == AST_RANGE && this->type != AST_MEMORY) {
-				range_mult = children[0]->children[1]->integer + 1;
-				attributes[ID::wiretype] = mkconst_int(template_node->range_left + 1, false, 32);
+			const bool wire_has_range = children.size() == 1 && children[0]->type == AST_RANGE && this->type != AST_MEMORY;
+			const int range_span = wire_has_range ? children[0]->children[1]->integer + 1 : 1;
+
+			if(range_span > 1) {
 				children.pop_back();
+				attributes[ID::wiretype] = mkconst_int(template_node->range_left + 1, false, 32);
+			}else{
+				attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
 			}
-
-
 			// if an enum then add attributes to support simulator tracing
 			annotateTypedEnums(template_node);
 
 			// Insert clones children from template at beginning
 			for (int i  = 0; i < GetSize(template_node->children); i++) {
-				if (template_node->children[i]->type == AST_RANGE && range_mult > 1) {
+				if (template_node->children[i]->type == AST_RANGE && range_span > 1) {
 					auto *clone = template_node->children[i]->clone();
 					int size = clone->range_left - clone->range_right + 1;
-					clone->range_left = size * range_mult - 1;
+					clone->range_left = size * range_span - 1;
 					clone->children[0]->integer = clone->range_left;
 					range_left = clone->range_left;
 					children.insert(children.begin() + i, clone);
