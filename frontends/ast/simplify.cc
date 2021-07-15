@@ -1516,7 +1516,6 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				newNode = make_packed_struct(template_node, str);
 				if (children.size() == 2 && children[1]->type == AST_RANGE && port_id == 0 && type == AST_WIRE) {
 					newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
-					newNode->attributes[ID::wiretype]->children.push_back(newNode->children[0]->clone()); // save original (size of struct) size
 					newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
 
  					int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
@@ -2217,11 +2216,14 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				if (current_scope.count(sname) > 0 && current_scope.count(str) == 0) {
 					auto wire = current_scope[sname];
 					if (wire->attributes.count(ID::wiretype)) {
-						auto wiretype = wire->attributes[ID::wiretype];
+						const auto *wiretype_ref = wire->attributes[ID::wiretype];
+						const auto *wiretype = current_scope[wiretype_ref->str];
+						const auto *wiretype_range = wiretype->children[0]->children[0];
+
 						if (wiretype->children.size() > 0) {
-							struct_size = wiretype->children[0]->range_left + 1;
-							if(wiretype->children[1]->range_swapped) {
-								struct_mult = wiretype->children[1]->range_left - struct_mult;
+							struct_size = wiretype_range->range_left + 1;
+							if(wiretype_ref->children[0]->range_swapped) {
+								struct_mult = wiretype_ref->children[0]->range_left - struct_mult;
 							}
 						} else {
 							struct_size = wiretype->integer;
@@ -2264,9 +2266,9 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					int upper_bound = size*element_idx+(size-1);
 					int lower_bound = size*element_idx;
 
-					if(wiretype_ref->children.size() == 2)
+					if(wiretype_ref->children.size() == 1)
 					{
-						const bool range_inversed = wiretype_ref->children[1]->range_swapped;
+						const bool range_inversed = wiretype_ref->children[0]->range_swapped;
 						if(range_inversed)
 						{
 							int upper_bound_cpy = upper_bound;
@@ -2275,19 +2277,6 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 						}
 					}
 					auto *range = make_range(upper_bound, lower_bound);
-					delete children[0];
-					children[0] = range;
-					basic_prep = true;
-				}else if(current_scope[str]->attributes.count(ID::wiretype)&& current_scope[str]->type != AST_MEMORY
-						&& current_scope.count(current_scope[str]->attributes[ID::wiretype]->str))
-				{
-					auto *wiretype = current_scope[current_scope[str]->attributes[ID::wiretype]->str];
-					auto *wiretype_range = wiretype->children[0]->children[0];
-					auto *current_range = children[0]->children[0];
-					int element_idx = current_range->integer;
-					int size = wiretype_range->range_left - wiretype_range->range_right + 1;
-
-					auto *range = make_range(size*element_idx+(size-1), size*element_idx);
 					delete children[0];
 					children[0] = range;
 					basic_prep = true;
