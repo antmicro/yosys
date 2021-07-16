@@ -1515,14 +1515,15 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				// replace with wire representing the packed structure
 				newNode = make_packed_struct(template_node, str);
 				if (children.size() == 2 && children[1]->type == AST_RANGE && port_id == 0 && type == AST_WIRE) {
-					newNode->attributes[ID::wiretype] = new AstNode(AST_CONSTANT);
-					newNode->attributes[ID::wiretype]->children.push_back(newNode->children[0]->clone()); // save original (size of struct) size
+					newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
+					newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
+
  					int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
  					newNode->children[0]->range_left = (newNode->children[0]->range_left + 1) * s;
  					newNode->children[0]->children[0]->integer = (newNode->children[0]->children[0]->integer + 1) * s;
  					newNode->children[0]->range_left -= 1;
  					newNode->children[0]->children[0]->integer -= 1;
-					newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
+
 				} else if(children.size() == 2 && children[1]->type == AST_RANGE) {
 					newNode->children.push_back(children[1]->clone());
 				}
@@ -2209,17 +2210,19 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 							break;
 						}
 					}
-
 				}
 				look_str = sname + sfield;
 				if (current_scope.count(sname) > 0 && current_scope.count(str) == 0) {
 					auto wire = current_scope[sname];
-					if (wire->attributes.count(ID::wiretype)) {
-						auto wiretype = wire->attributes[ID::wiretype];
-						if (wiretype->children.size() > 0) {
-							struct_size = wiretype->children[0]->range_left + 1;
-							if(wiretype->children[1]->range_swapped) {
-								struct_mult = wiretype->children[1]->range_left - struct_mult;
+					if (wire->attributes.count(ID::wiretype) && current_scope.count(wire->attributes[ID::wiretype]->str)) {
+						const auto *attributes = wire->attributes[ID::wiretype];
+						const auto *wiretype = current_scope[attributes->str];
+						const auto *wiretype_range = wiretype->children[0]->children[0];
+
+						if (attributes->children.size() > 0) {
+							struct_size = wiretype_range->range_left + 1;
+							if(attributes->children[0]->range_swapped) {
+								struct_mult = attributes->children[0]->range_left - struct_mult;
 							}
 						} else {
 							struct_size = wiretype->integer;
@@ -2248,33 +2251,29 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		} else if (children.size() == 1 && children[0]->type == AST_RANGE) {
 			if (current_scope.count(str) > 0) {
 				while(current_scope[str]->simplify(true, false, false, 1, -1, false, false)) { }
-				if (current_scope[str]->attributes.count(ID::wiretype) && current_scope[str]->attributes[ID::wiretype]->str == "") {
-					auto wiretype = current_scope[str]->attributes[ID::wiretype];
-					auto *curr_range = children[0]->children[0];
-					int struct_size = 0;
-					int struct_mult = curr_range->integer;
-					if (wiretype->children.size() > 0) {
-						struct_size = wiretype->children[0]->range_left + 1;
-						if(wiretype->children[1]->range_swapped) {
-							struct_mult = wiretype->children[1]->range_left - struct_mult;
-						}
-					} else {
-						struct_size = wiretype->integer;
-					}
-					auto *range = make_range((struct_size * (struct_mult + 1)) - 1, struct_size * struct_mult);
-					delete children[0];
-					children[0] = range;
-					basic_prep = true;
-				}else if(current_scope[str]->attributes.count(ID::wiretype)&& current_scope[str]->type != AST_MEMORY
+				if(current_scope[str]->attributes.count(ID::wiretype) && current_scope[str]->type != AST_MEMORY
 						&& current_scope.count(current_scope[str]->attributes[ID::wiretype]->str))
 				{
-					auto *wiretype = current_scope[current_scope[str]->attributes[ID::wiretype]->str];
-					auto *wiretype_range = wiretype->children[0]->children[0];
-					auto *current_range = children[0]->children[0];
-					int element_idx = current_range->integer;
-					int size = wiretype_range->range_left - wiretype_range->range_right + 1;
+					const auto *attributes = current_scope[str]->attributes[ID::wiretype];
 
-					auto *range = make_range(size*element_idx+(size-1), size*element_idx);
+					const auto *wiretype = current_scope[attributes->str];
+					const auto *wiretype_range = wiretype->children[0]->children[0];
+					const auto *current_range = children[0]->children[0];
+					int  element_idx = current_range->integer;
+					const int  size = wiretype_range->range_left + 1;
+
+					if(attributes->children.size() == 1)
+					{
+						const bool range_inversed = attributes->children[0]->range_swapped;
+						if(range_inversed)
+						{
+							element_idx = attributes->children[0]->range_left - element_idx;
+						}
+					}
+					const int upper_bound = size*(element_idx+1)-1;
+					const int lower_bound = size*element_idx;
+
+					auto *range = make_range(upper_bound, lower_bound);
 					delete children[0];
 					children[0] = range;
 					basic_prep = true;
