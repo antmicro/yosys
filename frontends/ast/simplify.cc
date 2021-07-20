@@ -31,6 +31,7 @@
 #include "frontends/verilog/verilog_frontend.h"
 #include "ast.h"
 
+#include <algorithm>
 #include <sstream>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -682,6 +683,49 @@ void add_wire_for_ref(const RTLIL::Wire *ref, const std::string &str)
 
 	current_ast_mod->children.push_back(wire);
 	current_scope[str] = wire;
+}
+
+static void flatten_ranges(AstNode *node)
+{
+	if ((node->children.size() <= 1)) {
+		return;
+	}
+
+	unsigned ranges = std::count_if(node->children.begin(),
+			node->children.end(),
+			[](AstNode *n){return n->type == AST_RANGE;});
+
+	if (ranges <= 1) {
+		return;
+	}
+
+	int size = 1;
+	// count size of vector (width)
+	for (const auto& itr : node->children) {
+		if (itr->type != AST_RANGE)
+			continue;
+
+		const int width = itr->range_left - itr->range_right + 1;
+		size *= width;
+	}
+
+	// remove ranges
+	size_t i = 0;
+	while(i < node->children.size())
+	{
+		if (node->children[i]->type != AST_RANGE){
+			i++;
+			continue;
+		}
+		node->children.erase(node->children.begin() + i);
+	}
+
+	// Place new one-dimensional range (packed vector)
+	AstNode* simple_range = new AstNode(AST_RANGE);
+	simple_range->integer = size;
+	simple_range->children.push_back(node->mkconst_int(size - 1, false, 32));
+	simple_range->children.push_back(node->mkconst_int(0, false, 32));
+	node->children.push_back(simple_range);
 }
 
 // convert the AST into a simpler AST that has all parameters substituted by their
@@ -1698,6 +1742,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
  					newNode->children[0]->children[0]->integer = (newNode->children[0]->children[0]->integer + 1) * s;
  					newNode->children[0]->range_left -= 1;
  					newNode->children[0]->children[0]->integer -= 1;
+					flatten_ranges(newNode);
 
 				} else if(children.size() == 2 && children[1]->type == AST_RANGE) {
 					newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
@@ -1755,6 +1800,9 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					children.insert(children.begin() + i, template_node->children[i]->clone());
 				}
 			}
+			if(type != AST_MEMORY){
+				flatten_ranges(this);
+			}
 
 			if (type == AST_MEMORY && GetSize(children) == 1) {
 				// Single-bit memories must have [0:0] range
@@ -1765,46 +1813,8 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		}
 
 		// Convert only port wires
-		if ((children.size() > 1) && (port_id > 0)) {
-			unsigned ranges = 0; // count number of ranges
-			for (const auto& itr : children) {
-				if (itr->type == AST_RANGE)
-					ranges += 1;
-			}
-
-			int size = 1;
-			if (ranges > 1) {
-				log_assert(type == AST_WIRE);
-
-				// count size of vector (width)
-				int elem_size = 0;
-				for (const auto& itr : children) {
-					if (itr->type != AST_RANGE)
-						continue ;
-
-					int width = itr->range_left - itr->range_right + 1;
-					if(elem_size == 0) elem_size = width;
-					size *= width;
-				}
-
-				// Move ranges under attributes
-				size_t i = 0;
-				while(i < children.size())
-				{
-					if (children[i]->type != AST_RANGE){
-						i++;
-						continue;
-					}
-					children.erase(children.begin() + i);
-				}
-
-				// Replace with one-dimensional range (packed vector)
-				AstNode* simple_range = new AstNode(AST_RANGE);
-				simple_range->integer = elem_size;
-				simple_range->children.push_back(mkconst_int(size - 1, false, 32));
-				simple_range->children.push_back(mkconst_int(0, false, 32));
-				children.push_back(simple_range);
-			}
+		if ((port_id > 0)) {
+			flatten_ranges(this);
 		}
 
 		// FIXME: Basically same thing as above, should be merged
