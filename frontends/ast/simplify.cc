@@ -728,6 +728,40 @@ static void flatten_ranges(AstNode *node)
 	node->children.push_back(simple_range);
 }
 
+static bool make_mutliranges(AstNode *node, bool packed = false)
+{
+	if ((node->children.size() <= 1)) {
+		return false;
+	}
+
+	unsigned ranges = std::count_if(node->children.begin(),
+			node->children.end(),
+			[](AstNode *n){return n->type == AST_RANGE;});
+
+	if (ranges <= 1) {
+		return false;
+	}
+
+	AstNode* simple_multirange = new AstNode(AST_MULTIRANGE);
+	// remove ranges
+	size_t i = 0;
+	while(i < node->children.size())
+	{
+		if (node->children[i]->type != AST_RANGE){
+			i++;
+			continue;
+		}
+		simple_multirange->children.push_back(node->children[i]);
+		node->children.erase(node->children.begin() + i);
+	}
+
+	// Place new one-dimensional range (packed vector)
+	simple_multirange->integer = ranges;
+	simple_multirange->is_packed = packed;
+	node->children.push_back(simple_multirange);
+	return true;
+}
+
 // convert the AST into a simpler AST that has all parameters substituted by their
 // values, unrolled for-loops, expanded generate blocks, etc. when this function
 // is done with an AST it can be converted into RTLIL using genRTLIL().
@@ -1734,19 +1768,23 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				newNode = make_packed_struct(template_node, str);
 				newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
 				if (children.size() == 2 && children[1]->type == AST_RANGE && port_id == 0 && type == AST_WIRE) {
-					newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
-					newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
-
+					if(!make_mutliranges(this, true)){
+						constexpr int has_unpacked_range = 1;
+						newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
+						newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
+						newNode->attributes[ID::wiretype]->is_packed= has_unpacked_range;
+					}
  					int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
  					newNode->children[0]->range_left = (newNode->children[0]->range_left + 1) * s;
  					newNode->children[0]->children[0]->integer = (newNode->children[0]->children[0]->integer + 1) * s;
  					newNode->children[0]->range_left -= 1;
  					newNode->children[0]->children[0]->integer -= 1;
-					flatten_ranges(newNode);
 
 				} else if(children.size() == 2 && children[1]->type == AST_RANGE) {
+					constexpr int has_unpacked_range = 1;
 					newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
 					newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
+					newNode->attributes[ID::wiretype]->is_packed = has_unpacked_range;
 					newNode->children.push_back(children[1]->clone());
 				}
 				newNode->is_input = this->is_input;
@@ -1774,7 +1812,6 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			range_left = template_node->range_left;
 			range_right = template_node->range_right;
 
-			attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
 
 			// if an enum then add attributes to support simulator tracing
 			annotateTypedEnums(template_node);
@@ -1801,7 +1838,11 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				}
 			}
 			if(type != AST_MEMORY){
-				flatten_ranges(this);
+				if(!make_mutliranges(this, true))
+				{
+					attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
+					attributes[ID::wiretype]->is_packed= wire_has_range;
+				}
 			}
 
 			if (type == AST_MEMORY && GetSize(children) == 1) {
@@ -2450,7 +2491,8 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			if (current_scope.count(str) > 0) {
 				while(current_scope[str]->simplify(true, false, false, 1, -1, false, false)) { }
 				if(current_scope[str]->attributes.count(ID::wiretype) && current_scope[str]->type != AST_MEMORY
-						&& current_scope.count(current_scope[str]->attributes[ID::wiretype]->str))
+						&& current_scope.count(current_scope[str]->attributes[ID::wiretype]->str)
+						&& current_scope[str]->attributes[ID::wiretype]->is_packed)
 				{
 					const auto *attributes = current_scope[str]->attributes[ID::wiretype];
 
