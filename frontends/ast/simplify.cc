@@ -1561,6 +1561,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				if (children.size() == 2 && children[1]->type == AST_RANGE && port_id == 0 && type == AST_WIRE) {
 					newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
 					newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
+					newNode->attributes[ID::wiretype]->is_packed=1;
 
  					int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
  					newNode->children[0]->range_left = (newNode->children[0]->range_left + 1) * s;
@@ -1572,6 +1573,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				} else if(children.size() == 2 && children[1]->type == AST_RANGE) {
 					newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
 					newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
+					newNode->attributes[ID::wiretype]->is_packed=1;
 					newNode->children.push_back(children[1]->clone());
 				}
 				newNode->is_input = this->is_input;
@@ -1606,10 +1608,12 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 			const bool wire_has_range = children.size() == 1 && children[0]->type == AST_RANGE && this->type != AST_MEMORY;
 			const int range_span = wire_has_range ? children[0]->children[1]->integer + 1 : 1;
+			attributes[ID::wiretype]->is_packed = false;
 			if(range_span > 1)
 			{
 				delete children[0];
 				children.pop_back();
+				attributes[ID::wiretype]->is_packed = true;
 			}
 
 			// Insert clones children from template at beginning
@@ -2258,16 +2262,15 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			if (current_scope.count(str) > 0) {
 				while(current_scope[str]->simplify(true, false, false, 1, -1, false, false)) { }
 				if(current_scope[str]->attributes.count(ID::wiretype) && current_scope[str]->type != AST_MEMORY
-						&& current_scope.count(current_scope[str]->attributes[ID::wiretype]->str))
+						&& current_scope.count(current_scope[str]->attributes[ID::wiretype]->str)
+						&& current_scope[str]->attributes[ID::wiretype]->is_packed)
 				{
 					const auto *attributes = current_scope[str]->attributes[ID::wiretype];
-
 					const auto *wiretype = current_scope[attributes->str];
 					const auto *wiretype_range = wiretype->children[0]->children[0];
 					const auto *current_range = children[0]->children[0];
 					int  element_idx = current_range->integer;
 					const int  size = wiretype_range->range_left + 1;
-
 					if(attributes->children.size() == 1)
 					{
 						const bool range_inversed = attributes->children[0]->range_swapped;
