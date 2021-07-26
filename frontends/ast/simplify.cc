@@ -1866,9 +1866,8 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				[](const AstNode* node) {
 					return node->type == AST_RANGE;
 				});
-
 			// More than two dimensions should be supported, but tested only 2.
-			if ((ranges == 2) && (ranges == multirange->children.size())) {
+			if ((ranges == multirange->children.size())) {
 				size_t size = 1;
 
 				auto* attr_ranges = new AstNode;
@@ -2202,7 +2201,6 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				const auto* ranges = temp->attributes.at(ID::multirange);
 				log_assert(ranges);
 				log_assert(ranges->type == AST_CONSTANT);
-				log_assert(ranges->children.size() == 2); // FIXME: support more dimensions
 
 				if (attributes.count(ID::multirange) == 0) {
 					attributes[ID::multirange] = ranges->clone();
@@ -2228,12 +2226,6 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 							// for logic [a:b][c] arr;
 							// and arr[d]
 							// generates arr[ ((d*c) + d - 1 : (d*c) ];
-
-							// (d + 1)
-							/*auto* x1 = new AstNode;
-							x1->type = AST_ADD;
-							x1->children.push_back(id->clone());
-							x1->children.push_back(mkconst_int(1, false, 32));*/
 
 							// d * c
 							auto* x2 = new AstNode;
@@ -2281,10 +2273,14 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 						}
 					} else if (children.size() == 1 && children[0]->type == AST_MULTIRANGE) {
 						multi = children[0];
-						log_assert(multi->children.size() == 2);
 					}
 
 					if (multi) {
+						if(multi->children.size() > ranges->children.size())
+						{
+							log_error("Access to not existing element\n");
+						}
+
 						AstNode* simple_range = new AstNode(AST_RANGE);
 						for (size_t idx = 0 ; idx < multi->children.size() ; ++idx) {
 							if (multi->children[0]->children[0]->type != AST_CONSTANT) {
@@ -2297,7 +2293,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 								mul->children.push_back(width);
 								simple_range->children.push_back(mul);
 							} else {
-								const size_t r_idx = idx;//ranges->children.size() - idx - 1;
+								const size_t r_idx = idx;
 
 								const auto* s = multi->children[idx]; // s as Selected range
 
@@ -2307,7 +2303,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 								_width /= r_width;
  								int start_idx = 0;
 								if (ranges->children[1]->range_swapped) {
-									if (idx == 0 ) {
+									if (idx == 0) {
 										start_idx = ranges->children[1]->children[1]->integer;
 										_width = r_width;
 										_range_left  = (start_idx - (s->range_left))  * _width + (_width - 1) + _offset;
@@ -2322,13 +2318,6 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
  								}
 								_offset = _range_right;
 							}
-
-							//log("idx: %ld, s->range_left: %d, s->range_right: %d\n",
-							//	idx, s->range_left, s->range_right);
-							//log("idx: %ld, r->range_left: %d, r->range_right: %d, r_width: %ld\n",
-							//	idx, r->range_left, r->range_right, r_width);
-							//log("idx: %ld, _width: %ld, _range_left: %ld, _range_right: %ld, _offset: %ld\n",
-							//	idx, _width, _range_left, _range_right, _offset);
 						}
 
 						// remove multirange
