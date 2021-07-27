@@ -209,9 +209,6 @@ static AstNode *checkRange(AstNode *type_node, AstNode *range_node)
 			range_node = makeRange(type_node->range_left, type_node->range_right, false);
 		}
 	}
-	if (range_node && range_node->children.size() != 2) {
-		frontend_verilog_yyerror("wire/reg/logic packed dimension must be of the form: [<expr>:<expr>], [<expr>+:<expr>], or [<expr>-:<expr>]");
-	}
 	return range_node;
 }
 
@@ -564,18 +561,20 @@ module_arg:
 		delete astbuf1; // really only needed if multiple instances of same type.
 	} module_arg_opt_assignment |
 //	attr wire_type range TOK_ID { // use multirange_dimensions or sth...
-	attr wire_type range TOK_ID range {
+	attr wire_type range_or_multirange TOK_ID range {
 		AstNode *node = $2;
 		node->str = *$4;
 		SET_AST_NODE_LOC(node, @4, @4);
 		node->port_id = ++port_counter;
 		AstNode *range = checkRange(node, $3);
-		if (range != NULL)
+		if (range != NULL){
 			node->children.push_back(range);
+			node->range_valid=true;
+		}
 		if ($5 != NULL) {
 			// we should really re-use code from wire_name
 			auto *rangeNode = $5;
-			if (rangeNode->type == AST_RANGE && rangeNode->children.size() == 1) {
+			if (rangeNode->type == AST_RANGE) {
 				// SV array size [n], rewrite as [n-1:0]
 				rangeNode->children[0] = new AstNode(AST_SUB, rangeNode->children[0], AstNode::mkconst_int(1, true));
 				rangeNode->children.push_back(AstNode::mkconst_int(0, false));
