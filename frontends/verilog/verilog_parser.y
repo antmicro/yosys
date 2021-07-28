@@ -588,34 +588,18 @@ module_arg:
 		append_attr(node, $1);
 		delete $4;
 	} module_arg_opt_assignment |
-	attr wire_type non_opt_multirange TOK_ID range {
+	attr wire_type non_opt_multirange {
 		AstNode *node = $2;
-		node->str = *$4;
-		SET_AST_NODE_LOC(node, @4, @4);
-		node->port_id = ++port_counter;
-		AstNode *range = $3;
-		if (range != NULL){
-			node->children.push_back(range);
-			range->is_packed = true;
+		AstNode *multirange = $3;
+		do_not_require_port_stubs = true;
+		if (multirange != NULL){
+			multirange->is_packed = true;
+			node->children.push_back(multirange);
 		}
-		if ($5 != NULL) {
-			// we should really re-use code from wire_name
-			auto *rangeNode = $5;
-			if (rangeNode->type == AST_RANGE && rangeNode->children.size() == 1) {
-				// SV array size [n], rewrite as [n-1:0]
-				rangeNode->children[0] = new AstNode(AST_SUB, rangeNode->children[0], AstNode::mkconst_int(1, true));
-				rangeNode->children.push_back(AstNode::mkconst_int(0, false));
-			}
-			node->children.push_back(rangeNode);
-		}
-		if (!node->is_input && !node->is_output)
-			frontend_verilog_yyerror("Module port `%s' is neither input nor output.", $4->c_str());
-		if (node->is_reg && node->is_input && !node->is_output && !sv_mode)
-			frontend_verilog_yyerror("Input port `%s' is declared as register.", $4->c_str());
-		ast_stack.back()->children.push_back(node);
-		append_attr(node, $1);
-		delete $4;
-	} module_arg_opt_assignment |
+
+		albuf = $1;
+		astbuf1 = node;
+	} wire_name  module_arg_opt_assignment |
 	'.' '.' '.' {
 		do_not_require_port_stubs = true;
 	};
