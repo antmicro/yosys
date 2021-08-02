@@ -176,6 +176,17 @@ static AstNode *getTypeDefinitionNode(std::string type_name)
 	log_error("typedef for user type `%s' not found", type_name.c_str());
 }
 
+static void expandImport(const std::string &pkg_name, const char *item_name)
+{
+	log_assert(item_name);
+
+	if(strncmp(item_name, "*", 1) == 0 && pkg_user_types.count(pkg_name))
+	{
+		AstNode *pkg = pkg_user_types[pkg_name];
+		ast_stack.back()->children.push_back(pkg->clone());
+	}
+}
+
 static AstNode *copyTypeDefinition(std::string type_name)
 {
 	// return a copy of the template from a typedef definition
@@ -276,7 +287,7 @@ static void checkLabelsMatch(const char *element, const std::string *before, con
 %token TOK_ASSERT TOK_ASSUME TOK_RESTRICT TOK_COVER TOK_FINAL
 %token ATTR_BEGIN ATTR_END DEFATTR_BEGIN DEFATTR_END
 %token TOK_MODULE TOK_ENDMODULE TOK_PARAMETER TOK_LOCALPARAM TOK_DEFPARAM
-%token TOK_PACKAGE TOK_ENDPACKAGE TOK_PACKAGESEP
+%token TOK_PACKAGE TOK_ENDPACKAGE TOK_PACKAGESEP TOK_IMPORT
 %token TOK_INTERFACE TOK_ENDINTERFACE TOK_MODPORT TOK_VAR TOK_WILDCARD_CONNECT
 %token TOK_INPUT TOK_OUTPUT TOK_INOUT TOK_WIRE TOK_WAND TOK_WOR TOK_REG TOK_LOGIC
 %token TOK_INTEGER TOK_SIGNED TOK_ASSIGN TOK_ALWAYS TOK_INITIAL
@@ -307,6 +318,7 @@ static void checkLabelsMatch(const char *element, const std::string *before, con
 %type <integer> integer_atom_type
 %type <al> attr case_attr
 %type <ast> struct_union
+%type <ast> module_import_package
 %type <ast_node_type> asgn_binop
 
 %type <specify_target_ptr> specify_target
@@ -477,6 +489,11 @@ module:
 		delete $11;
 		exitTypeScope();
 	};
+
+module_import_package:
+	    TOK_IMPORT TOK_ID TOK_PACKAGESEP '*' { 
+		expandImport(*$2, "*");
+	    }
 
 module_para_opt:
 	'#' '(' { astbuf1 = nullptr; } module_para_list { if (astbuf1) delete astbuf1; } ')' | %empty;
@@ -826,6 +843,7 @@ range_or_multirange:
 
 module_body:
 	module_body module_body_stmt |
+	module_import_package |
 	/* the following line makes the generate..endgenrate keywords optional */
 	module_body gen_stmt |
 	module_body gen_block |
