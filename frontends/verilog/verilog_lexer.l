@@ -222,6 +222,7 @@ static bool isUserType(std::string &s)
 "posedge"      { return TOK_POSEDGE; }
 "negedge"      { return TOK_NEGEDGE; }
 "or"           { return TOK_OR; }
+"import"       { return TOK_IMPORT; }
 "case"         { return TOK_CASE; }
 "casex"        { return TOK_CASEX; }
 "casez"        { return TOK_CASEZ; }
