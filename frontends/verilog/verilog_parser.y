@@ -605,8 +605,12 @@ module_arg:
 		append_attr(node, $1);
 		delete $4;
 	} module_arg_opt_assignment |
-	attr wire_type non_opt_multirange {
+	attr wire_type non_opt_multirange TOK_ID {
 		AstNode *node = $2;
+		node->str = *$4;
+		SET_AST_NODE_LOC(node, @4, @4);
+		node->port_id = ++port_counter;
+
 		AstNode *multirange = $3;
 		do_not_require_port_stubs = true;
 		if (multirange != NULL){
@@ -614,9 +618,14 @@ module_arg:
 			node->children.push_back(multirange);
 		}
 
-		albuf = $1;
-		astbuf1 = node;
-	} wire_name  module_arg_opt_assignment |
+		if (!node->is_input && !node->is_output)
+			frontend_verilog_yyerror("Module port `%s' is neither input nor output.", $4->c_str());
+		if (node->is_reg && node->is_input && !node->is_output && !sv_mode)
+			frontend_verilog_yyerror("Input port `%s' is declared as register.", $4->c_str());
+		ast_stack.back()->children.push_back(node);
+		append_attr(node, $1);
+		delete $4;
+	} module_arg_opt_assignment |
 	'.' '.' '.' {
 		do_not_require_port_stubs = true;
 	};
