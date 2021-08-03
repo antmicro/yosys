@@ -180,10 +180,19 @@ static void expandImport(const std::string &pkg_name, const char *item_name)
 {
 	log_assert(item_name);
 
-	if(strncmp(item_name, "*", 1) == 0 && pkg_user_types.count(pkg_name))
+	AstNode *fnode = nullptr;
+	for(auto mod : ast_stack){
+		for(auto *n : mod->children)
+		{
+			if(pkg_name == n->str)
+				fnode = n;
+		}
+	}
+
+	if( item_name[0] == '*' && fnode )
 	{
-		AstNode *pkg = pkg_user_types[pkg_name];
-		ast_stack.back()->children.push_back(pkg->clone());
+		for(auto *child : fnode->children)
+			ast_stack.back()->children.push_back(child->clone());
 	}
 }
 
@@ -491,7 +500,7 @@ module:
 	};
 
 module_import_package:
-	    TOK_IMPORT TOK_ID TOK_PACKAGESEP '*' { 
+	    TOK_IMPORT TOK_ID TOK_PACKAGESEP '*' {
 		expandImport(*$2, "*");
 	    }
 
