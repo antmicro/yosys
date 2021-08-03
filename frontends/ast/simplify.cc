@@ -717,6 +717,7 @@ static void flatten_ranges(AstNode *node)
 			i++;
 			continue;
 		}
+		delete *(node->children.begin() + i);
 		node->children.erase(node->children.begin() + i);
 	}
 
@@ -751,7 +752,8 @@ static bool make_mutliranges(AstNode *node, bool packed = false)
 			i++;
 			continue;
 		}
-		simple_multirange->children.push_back(node->children[i]);
+		simple_multirange->children.push_back(node->children[i]->clone());
+		delete *(node->children.begin() + i);
 		node->children.erase(node->children.begin() + i);
 	}
 
@@ -2260,6 +2262,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 							AstNode* simple_range = new AstNode(AST_RANGE);
 							simple_range->children.push_back(x3);
 							simple_range->children.push_back(x4_add);
+							delete children[0];
 							children.erase(children.begin());
 							children.insert(children.begin(), simple_range);
 						} else {
