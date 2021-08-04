@@ -1928,13 +1928,18 @@ wire_name:
 		append_attr_clone(node, albuf);
 		if (astbuf2 != NULL)
 			node->children.push_back(astbuf2->clone());
+
 		if ($2 != NULL) {
 			if (node->is_input || node->is_output)
 				frontend_verilog_yyerror("input/output/inout ports cannot have unpacked dimensions.");
-			if (!astbuf2 && !node->is_custom_type) {
-				addRange(node, 0, 0, false);
+			if(astbuf2 != NULL)
+				rewriteAsMemoryNode(node, $2);
+			else{
+				AstNode *range = $2;
+				rewriteRange(range);
+				node->children.push_back(range);
 			}
-			rewriteAsMemoryNode(node, $2);
+
 		}
 		if (current_function_or_task) {
 			if (node->is_input || node->is_output)
