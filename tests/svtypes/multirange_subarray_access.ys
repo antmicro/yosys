@@ -1,4 +1,3 @@
-logger -expect error "Insufficient number of array indices for a." 1
 read_verilog -sv <<EOT
 module foo;
 logic a [6:0][4:0][1:0];

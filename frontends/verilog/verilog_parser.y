@@ -245,11 +245,14 @@ static void rewriteAsMemoryNode(AstNode *node, AstNode *rangeNode)
 {
 	node->type = AST_MEMORY;
 	if (rangeNode->type == AST_MULTIRANGE) {
-		for (auto *itr : rangeNode->children)
+		for (auto *itr : rangeNode->children) {
 			rewriteRange(itr);
-	} else
+			node->children.push_back(itr);
+		}
+	} else {
 		rewriteRange(rangeNode);
-	node->children.push_back(rangeNode);
+		node->children.push_back(rangeNode);
+	}
 }
 
 static void checkLabelsMatch(const char *element, const std::string *before, const std::string *after)
@@ -1936,8 +1939,13 @@ wire_name:
 				rewriteAsMemoryNode(node, $2);
 			else{
 				AstNode *range = $2;
-				rewriteRange(range);
-				node->children.push_back(range);
+				if(range->type == AST_MULTIRANGE) {
+					range->is_packed = true;
+					rewriteAsMemoryNode(node, range);
+				}else{
+					rewriteRange(range);
+					node->children.push_back(range);
+				}
 			}
 
 		}
