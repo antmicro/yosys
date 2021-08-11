@@ -176,11 +176,22 @@ static AstNode *getTypeDefinitionNode(std::string type_name)
 	log_error("typedef for user type `%s' not found", type_name.c_str());
 }
 
+static AstNode *getTypeFromPackage(const std::string &pkg_name, const std::string &type_name)
+{
+	auto *pkg = ast_stack[0]->find_child(AST_PACKAGE, pkg_name);
+	if(pkg)
+	{
+		return pkg->find_child(type_name);
+	}
+	return nullptr;
+}
+
 static void expandImport(const std::string &pkg_name, const char *item_name)
 {
 	log_assert(item_name);
 
 	AstNode *fnode = nullptr;
+	// TODO change this to ndoe->find_child
 	for(auto mod : ast_stack){
 		for(auto *n : mod->children)
 		{
@@ -245,10 +256,12 @@ static void rewriteAsMemoryNode(AstNode *node, AstNode *rangeNode)
 {
 	node->type = AST_MEMORY;
 	if (rangeNode->type == AST_MULTIRANGE) {
-		for (auto *itr : rangeNode->children)
+		for (auto *itr : rangeNode->children){
 			rewriteRange(itr);
-	} else
+		}
+	} else {
 		rewriteRange(rangeNode);
+	}
 	node->children.push_back(rangeNode);
 }
 
@@ -1926,20 +1939,46 @@ wire_name:
 		AstNode *node = astbuf1->clone();
 		node->str = *$1;
 		append_attr_clone(node, albuf);
-		if (astbuf2 != NULL)
+		bool custom_type_with_range = false;
+		AstNode *type_node = nullptr;
+		if(node->children.size() && node->children[0]->type == AST_WIRETYPE)
+		{
+			auto wiretype_name = node->children[0]->str;
+			size_t colon_pos = wiretype_name.find("::");
+			if(colon_pos != std::string::npos)
+			{
+				std::string pkg_name = wiretype_name.substr(0, colon_pos);
+				wiretype_name = wiretype_name.substr(colon_pos+1);
+				wiretype_name[0] = '\\';
+				type_node = getTypeFromPackage(pkg_name, wiretype_name);
+				log_assert(type_node);
+			}else
+			{
+				type_node = getTypeDefinitionNode(wiretype_name);
+			}
+			custom_type_with_range = type_node->children.size() && (type_node->children[0]->type == AST_RANGE || type_node->children[0]->type == AST_MULTIRANGE);
+		}
+
+		if (astbuf2 != NULL) {
 			node->children.push_back(astbuf2->clone());
+		}
 
 		if ($2 != NULL) {
 			if (node->is_input || node->is_output)
 				frontend_verilog_yyerror("input/output/inout ports cannot have unpacked dimensions.");
-			if(astbuf2 != NULL)
+			if(astbuf2 != NULL) {
 				rewriteAsMemoryNode(node, $2);
-			else{
+			}else{
 				AstNode *range = $2;
-				rewriteRange(range);
-				node->children.push_back(range);
+				if(range->type == AST_MULTIRANGE) {
+					range->is_packed = true;
+				}
+				if(!custom_type_with_range)
+				{
+					addRange(node, 0, 0, false);
+				}
+				rewriteAsMemoryNode(node, range);
 			}
-
 		}
 		if (current_function_or_task) {
 			if (node->is_input || node->is_output)
