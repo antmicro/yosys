@@ -160,6 +160,16 @@ static bool isInLocalScope(const std::string *name)
 	return (user_types.count(*name) > 0);
 }
 
+static AstNode *getTypeFromPackage(const std::string &pkg_name, const std::string &type_name)
+{
+	auto *pkg = ast_stack[0]->find_child(AST_PACKAGE, pkg_name);
+	if(pkg)
+	{
+		return pkg->find_child(type_name);
+	}
+	return nullptr;
+}
+
 static AstNode *getTypeDefinitionNode(std::string type_name)
 {
 	// check current scope then outer scopes for a name
@@ -1932,6 +1942,26 @@ wire_name:
 		if (astbuf2 != NULL)
 			node->children.push_back(astbuf2->clone());
 
+		bool custom_type_with_range = false;
+		AstNode *type_node = nullptr;
+		if(node->children.size() && node->children[0]->type == AST_WIRETYPE)
+		{
+			auto wiretype_name = node->children[0]->str;
+			size_t colon_pos = wiretype_name.find("::");
+			if(colon_pos != std::string::npos)
+			{
+				std::string pkg_name = wiretype_name.substr(0, colon_pos);
+				wiretype_name = wiretype_name.substr(colon_pos+1);
+				wiretype_name[0] = '\\';
+				type_node = getTypeFromPackage(pkg_name, wiretype_name);
+				log_assert(type_node);
+			}else
+			{
+				type_node = getTypeDefinitionNode(wiretype_name);
+			}
+			custom_type_with_range = type_node->children.size() && (type_node->children[0]->type == AST_RANGE || type_node->children[0]->type == AST_MULTIRANGE);
+		}
+
 		if ($2 != NULL) {
 			if (node->is_input || node->is_output)
 				frontend_verilog_yyerror("input/output/inout ports cannot have unpacked dimensions.");
@@ -1939,7 +1969,7 @@ wire_name:
 				rewriteAsMemoryNode(node, $2);
 			else{
 				AstNode *range = $2;
-				if(range->type == AST_MULTIRANGE) {
+				if(range->type == AST_MULTIRANGE || custom_type_with_range) {
 					range->is_packed = true;
 					rewriteAsMemoryNode(node, range);
 				}else{
