@@ -2006,7 +2006,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 	if (type == AST_IDENTIFIER) {
 		if (current_scope.count(str)) {
 			const auto* temp = current_scope.at(str);
-			log_assert(temp); // can someone put null element inside?
+			log_assert(temp);
 
 			// is this multidimensional array?
 			if (temp->is_packed && temp->attributes.count(ID::multirange)) {
@@ -2018,10 +2018,10 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					attributes[ID::multirange] = ranges->clone();
 
 					// FIXME: messy, clean this up
+					size_t _offset = 0;
 					size_t _range_left  = ranges->range_left;
 					size_t _range_right = ranges->range_right;
 					size_t _width = _range_left - _range_right + 1;
-					size_t _offset = 0;
 
 					const AstNode* multi = nullptr;
 
@@ -3783,7 +3783,15 @@ skip_dynamic_range_lvalue_expansion:;
 					result = right;
 				else if (str == "\\$size")
 					result = width;
-				else {
+				else if(str == "\\$bits"){
+					result = 1;
+					for(auto *child : id_ast->children)
+					{
+						if(child->type != AST_RANGE)
+							continue;
+						result *= (child->range_left - child->range_right + 1);
+					}
+				}else {
 					result = width * mem_depth;
 				}
 				newNode = mkconst_int(result, false);
