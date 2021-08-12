@@ -3731,7 +3731,14 @@ skip_dynamic_range_lvalue_expansion:;
 							if (mem_range->type == AST_RANGE) {
 								if (!mem_range->range_valid)
 									log_file_error(filename, location.first_line, "Failed to detect width of memory access `%s'!\n", buf->str.c_str());
-								mem_depth = mem_range->range_left - mem_range->range_right + 1;
+								mem_depth = 1;
+								for(auto *child : id_ast->children)
+								{
+									if(child->type != AST_RANGE)
+										continue;
+									mem_depth *= (child->range_left - child->range_right + 1);
+								}
+								high = low = 0;
 							} else
 								log_file_error(filename, location.first_line, "Unknown memory depth AST type in `%s'!\n", buf->str.c_str());
 						} else {
@@ -3783,15 +3790,7 @@ skip_dynamic_range_lvalue_expansion:;
 					result = right;
 				else if (str == "\\$size")
 					result = width;
-				else if(str == "\\$bits"){
-					result = 1;
-					for(auto *child : id_ast->children)
-					{
-						if(child->type != AST_RANGE)
-							continue;
-						result *= (child->range_left - child->range_right + 1);
-					}
-				}else {
+				else {
 					result = width * mem_depth;
 				}
 				newNode = mkconst_int(result, false);
