@@ -257,12 +257,11 @@ static void rewriteAsMemoryNode(AstNode *node, AstNode *rangeNode)
 	if (rangeNode->type == AST_MULTIRANGE) {
 		for (auto *itr : rangeNode->children) {
 			rewriteRange(itr);
-			node->children.push_back(itr);
 		}
 	} else {
 		rewriteRange(rangeNode);
-		node->children.push_back(rangeNode);
 	}
+	node->children.push_back(rangeNode);
 }
 
 static void checkLabelsMatch(const char *element, const std::string *before, const std::string *after)
@@ -1955,7 +1954,7 @@ wire_name:
 				wiretype_name[0] = '\\';
 				type_node = getTypeFromPackage(pkg_name, wiretype_name);
 				log_assert(type_node);
-			}else
+			} else
 			{
 				type_node = getTypeDefinitionNode(wiretype_name);
 			}
@@ -1969,16 +1968,18 @@ wire_name:
 				rewriteAsMemoryNode(node, $2);
 			else{
 				AstNode *range = $2;
+
 				if(range->type == AST_MULTIRANGE || custom_type_with_range) {
-					range->is_packed = true;
+					if(!custom_type_with_range)
+						addRange(node, 0, 0, false);
 					rewriteAsMemoryNode(node, range);
 				}else{
 					rewriteRange(range);
 					node->children.push_back(range);
 				}
 			}
-
 		}
+
 		if (current_function_or_task) {
 			if (node->is_input || node->is_output)
 				node->port_id = current_function_or_task_port_id++;

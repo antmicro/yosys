@@ -596,7 +596,7 @@ static void flatten_ranges(AstNode *node)
 		if (itr->type != AST_RANGE)
 			continue;
 
-		const int width = itr->range_left - itr->range_right + 1;
+		const int width = std::abs(itr->range_left - itr->range_right) + 1;
 		size *= width;
 	}
 
@@ -618,6 +618,24 @@ static void flatten_ranges(AstNode *node)
 	simple_range->children.push_back(node->mkconst_int(size - 1, false, 32));
 	simple_range->children.push_back(node->mkconst_int(0, false, 32));
 	node->children.push_back(simple_range);
+}
+
+static AstNode* convert_multirange_to_single_range(AstNode *node)
+{
+	log_assert(node->type == AST_MULTIRANGE);
+
+	int size = 1;
+	for(auto *child : node->children)
+	{
+		size *= std::abs(child->range_left - child->range_right) + 1;
+	}
+
+	AstNode* simple_range = new AstNode(AST_RANGE);
+	simple_range->integer = size;
+	simple_range->children.push_back(node->mkconst_int(size - 1, false, 32));
+	simple_range->children.push_back(node->mkconst_int(0, false, 32));
+
+	return simple_range;
 }
 
 static bool make_mutliranges(AstNode *node, bool packed = false)
@@ -1922,6 +1940,13 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 	{
 		int total_size = 1;
 		multirange_dimensions.clear();
+
+		if(children[0]->type == AST_MULTIRANGE){
+			auto single_range = convert_multirange_to_single_range(children[0]);
+			delete children[0];
+			children[0] = single_range;
+		}
+
 		multirange_swapped.clear();
 		for (auto range : children[1]->children) {
 			if (!range->range_valid)
