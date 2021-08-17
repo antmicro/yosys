@@ -576,10 +576,10 @@ static std::string prefix_id(const std::string &prefix, const std::string &str)
 	return prefix + str;
 }
 
-static void flatten_ranges(AstNode *node)
+static bool flatten_ranges(AstNode *node)
 {
 	if ((node->children.size() <= 1)) {
-		return;
+		return false;
 	}
 
 	unsigned ranges = std::count_if(node->children.begin(),
@@ -587,7 +587,7 @@ static void flatten_ranges(AstNode *node)
 			[](AstNode *n){return n->type == AST_RANGE;});
 
 	if (ranges <= 1) {
-		return;
+		return false;
 	}
 
 	int size = 1;
@@ -618,6 +618,8 @@ static void flatten_ranges(AstNode *node)
 	simple_range->children.push_back(node->mkconst_int(size - 1, false, 32));
 	simple_range->children.push_back(node->mkconst_int(0, false, 32));
 	node->children.push_back(simple_range);
+
+	return true;
 }
 
 static bool make_mutliranges(AstNode *node, bool packed = false)
@@ -1594,20 +1596,22 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			if (template_node->type == AST_STRUCT || template_node->type == AST_UNION) {
 				// replace with wire representing the packed structure
 				newNode = make_packed_struct(template_node, str);
-				if (children.size() == 2 && children[1]->type == AST_RANGE && port_id == 0 && type == AST_WIRE) {
-					if(!make_mutliranges(this, true)){
-						constexpr int has_unpacked_range = 1;
-						newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
-						newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
-						newNode->attributes[ID::wiretype]->is_packed= has_unpacked_range;
-					}
+				if (children.size() == 2 && children[1]->type == AST_RANGE && port_id == 0) {
+					constexpr int has_unpacked_range = 1;
+					newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
+					newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
+					newNode->attributes[ID::wiretype]->is_packed= has_unpacked_range;
+
  					int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
  					newNode->children[0]->range_left = (newNode->children[0]->range_left + 1) * s;
  					newNode->children[0]->children[0]->integer = (newNode->children[0]->children[0]->integer + 1) * s;
  					newNode->children[0]->range_left -= 1;
  					newNode->children[0]->children[0]->integer -= 1;
-
-				} else if(children.size() == 2 && children[1]->type == AST_RANGE) {
+				} else if(children.size() >= 2 && children[1]->type == AST_RANGE) {
+					if(!flatten_ranges(this))
+					{
+						newNode->children.push_back(make_range(0,0));
+					}
 					constexpr int has_unpacked_range = 1;
 					newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
 					newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
