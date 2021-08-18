@@ -1,0 +1,5 @@
+read_verilog -sv multirange_2.sv
+prep -flatten -top \dut
+hierarchy; proc; opt
+select -module dut
+sat -verify -seq 1 -tempinduct -prove-asserts -show-all
