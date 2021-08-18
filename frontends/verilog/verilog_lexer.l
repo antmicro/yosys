@@ -222,7 +222,6 @@ static bool isUserType(std::string &s)
 "posedge"      { return TOK_POSEDGE; }
 "negedge"      { return TOK_NEGEDGE; }
 "or"           { return TOK_OR; }
-"import"       { return TOK_IMPORT; }
 "case"         { return TOK_CASE; }
 "casex"        { return TOK_CASEX; }
 "casez"        { return TOK_CASEZ; }
@@ -237,7 +236,6 @@ static bool isUserType(std::string &s)
 "unique"       { SV_KEYWORD(TOK_UNIQUE); }
 "unique0"      { SV_KEYWORD(TOK_UNIQUE0); }
 "priority"     { SV_KEYWORD(TOK_PRIORITY); }
-"inside"       { SV_KEYWORD(TOK_INSIDE); }
 
 "always_comb"  { SV_KEYWORD(TOK_ALWAYS_COMB); }
 "always_ff"    { SV_KEYWORD(TOK_ALWAYS_FF); }

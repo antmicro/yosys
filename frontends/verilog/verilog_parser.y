@@ -195,25 +195,6 @@ static AstNode *getTypeDefinitionNode(std::string type_name)
 	log_error("typedef for user type `%s' not found", type_name.c_str());
 }
 
-static void expandImport(const std::string &pkg_name, const char *item_name)
-{
-	log_assert(item_name);
-
-	AstNode *fnode = nullptr;
-	for(auto mod : ast_stack){
-		for(auto *n : mod->children)
-		{
-			if(pkg_name == n->str)
-				fnode = n;
-		}
-	}
-
-	if( item_name[0] == '*' && fnode )
-	{
-		for(auto *child : fnode->children)
-			ast_stack.back()->children.push_back(child->clone());
-	}
-}
 static AstNode *copyTypeDefinition(std::string type_name)
 {
 	// return a copy of the template from a typedef definition
@@ -263,12 +244,10 @@ static void rewriteAsMemoryNode(AstNode *node, AstNode *rangeNode)
 {
 	node->type = AST_MEMORY;
 	if (rangeNode->type == AST_MULTIRANGE) {
-		for (auto *itr : rangeNode->children) {
+		for (auto *itr : rangeNode->children)
 			rewriteRange(itr);
-		}
-	} else {
+	} else
 		rewriteRange(rangeNode);
-	}
 	node->children.push_back(rangeNode);
 }
 
@@ -316,7 +295,7 @@ static void checkLabelsMatch(const char *element, const std::string *before, con
 %token TOK_ASSERT TOK_ASSUME TOK_RESTRICT TOK_COVER TOK_FINAL
 %token ATTR_BEGIN ATTR_END DEFATTR_BEGIN DEFATTR_END
 %token TOK_MODULE TOK_ENDMODULE TOK_PARAMETER TOK_LOCALPARAM TOK_DEFPARAM
-%token TOK_PACKAGE TOK_ENDPACKAGE TOK_PACKAGESEP TOK_IMPORT
+%token TOK_PACKAGE TOK_ENDPACKAGE TOK_PACKAGESEP
 %token TOK_INTERFACE TOK_ENDINTERFACE TOK_MODPORT TOK_VAR TOK_WILDCARD_CONNECT
 %token TOK_INPUT TOK_OUTPUT TOK_INOUT TOK_WIRE TOK_WAND TOK_WOR TOK_REG TOK_LOGIC
 %token TOK_INTEGER TOK_SIGNED TOK_ASSIGN TOK_ALWAYS TOK_INITIAL
@@ -333,7 +312,7 @@ static void checkLabelsMatch(const char *element, const std::string *before, con
 %token TOK_RAND TOK_CONST TOK_CHECKER TOK_ENDCHECKER TOK_EVENTUALLY
 %token TOK_INCREMENT TOK_DECREMENT TOK_UNIQUE TOK_UNIQUE0 TOK_PRIORITY
 %token TOK_STRUCT TOK_PACKED TOK_UNSIGNED TOK_INT TOK_BYTE TOK_SHORTINT TOK_LONGINT TOK_UNION
-%token TOK_BIT_OR_ASSIGN TOK_BIT_AND_ASSIGN TOK_BIT_XOR_ASSIGN TOK_ADD_ASSIGN TOK_INSIDE
+%token TOK_BIT_OR_ASSIGN TOK_BIT_AND_ASSIGN TOK_BIT_XOR_ASSIGN TOK_ADD_ASSIGN
 %token TOK_SUB_ASSIGN TOK_DIV_ASSIGN TOK_MOD_ASSIGN TOK_MUL_ASSIGN
 %token TOK_SHL_ASSIGN TOK_SHR_ASSIGN TOK_SSHL_ASSIGN TOK_SSHR_ASSIGN
 %token TOK_BIND
@@ -348,7 +327,6 @@ static void checkLabelsMatch(const char *element, const std::string *before, con
 %type <integer> integer_atom_type integer_vector_type
 %type <al> attr case_attr
 %type <ast> struct_union
-%type <ast> module_import_package
 %type <ast_node_type> asgn_binop
 
 %type <specify_target_ptr> specify_target
@@ -521,11 +499,6 @@ module:
 		exitTypeScope();
 	};
 
-module_import_package:
-	    TOK_IMPORT TOK_ID TOK_PACKAGESEP '*' {
-		expandImport(*$2, "*");
-	    }
-
 module_para_opt:
 	'#' '(' { astbuf1 = nullptr; } module_para_list { if (astbuf1) delete astbuf1; } ')' | %empty;
 
@@ -608,16 +581,15 @@ module_arg:
 		ast_stack.back()->children.push_back(astbuf2);
 		delete astbuf1; // really only needed if multiple instances of same type.
 	} module_arg_opt_assignment |
-//	attr wire_type range TOK_ID { // use multirange_dimensions or sth...
 	attr wire_type range TOK_ID range {
 		AstNode *node = $2;
 		node->str = *$4;
 		SET_AST_NODE_LOC(node, @4, @4);
 		node->port_id = ++port_counter;
 		AstNode *range = checkRange(node, $3);
-		if (range != NULL){
+		if (range != NULL)
 			node->children.push_back(range);
-		}
+		
 		if ($5 != NULL) {
 			// we should really re-use code from wire_name
 			auto *rangeNode = $5;
@@ -944,7 +916,6 @@ range_or_multirange:
 
 module_body:
 	module_body module_body_stmt |
-	module_import_package |
 	/* the following line makes the generate..endgenrate keywords optional */
 	module_body gen_stmt |
 	module_body gen_block |
@@ -2051,7 +2022,6 @@ wire_name:
 				}
 			}
 		}
-
 		if (current_function_or_task) {
 			if (node->is_input || node->is_output)
 				node->port_id = current_function_or_task_port_id++;
@@ -2657,20 +2627,6 @@ assert_property:
 		}
 	};
 
-local_definition_stmt:
-	non_io_wire_type TOK_ID '=' delay expr {
-		if (!sv_mode)
-			frontend_verilog_yyerror("Found variable declaration in for declaration (%s). This is not supported unless read_verilog is called with -sv!", $2->c_str());
-		astbuf3->str = *($2);
-		AstNode *node = new AstNode(AST_ASSIGN_EQ, astbuf3->clone(), $5);
-		delete astbuf3;
-		ast_stack.back()->children.push_back(node);
-		SET_AST_NODE_LOC(node, @2, @5);
-	};
-
-for_initialization:
-	 local_definition_stmt | simple_behavioral_stmt;
-
 simple_behavioral_stmt:
 	attr lvalue '=' delay expr {
 		AstNode *node = new AstNode(AST_ASSIGN_EQ, $2, $5);
@@ -2781,14 +2737,11 @@ behavioral_stmt:
 		ast_stack.pop_back();
 	} |
 	attr TOK_FOR '(' {
-		AstNode *block = new AstNode(AST_BLOCK);
 		AstNode *node = new AstNode(AST_FOR);
-		block->str = std::string("$loopvar$") + std::to_string(autoidx++);
-		block->children.push_back(node);
-		ast_stack.back()->children.push_back(block);
+		ast_stack.back()->children.push_back(node);
 		ast_stack.push_back(node);
 		append_attr(node, $1);
-	} for_initialization ';' expr {
+	} simple_behavioral_stmt ';' expr {
 		ast_stack.back()->children.push_back($7);
 	} ';' simple_behavioral_stmt ')' {
 		AstNode *block = new AstNode(AST_BLOCK);
@@ -3058,7 +3011,7 @@ gen_stmt:
 		AstNode *node = new AstNode(AST_GENFOR);
 		ast_stack.back()->children.push_back(node);
 		ast_stack.push_back(node);
-	} for_initialization ';' expr {
+	} simple_behavioral_stmt ';' expr {
 		ast_stack.back()->children.push_back($6);
 	} ';' simple_behavioral_stmt ')' gen_stmt_block {
 		SET_AST_NODE_LOC(ast_stack.back(), @1, @11);
@@ -3135,22 +3088,7 @@ expr:
 		$$->children.push_back($6);
 		SET_AST_NODE_LOC($$, @1, @$);
 		append_attr($$, $3);
-	} |
-	inside_begin inside_list '}' {
-		$$ = ast_stack.back()->children.back();
-		ast_stack.back()->children.pop_back();
-		SET_AST_NODE_LOC($$, @1, @2);
 	};
-
-inside_begin:
-	basic_expr TOK_INSIDE '{' {
-		ast_stack.back()->children.push_back(new AstNode(AST_INSIDE, $1));
-	};
-
-inside_list:
-	rvalue {
-		ast_stack.back()->children.back()->children.back()->children.push_back($1);
-	} | inside_list ',' inside_list;
 
 basic_expr:
 	rvalue {

@@ -115,7 +115,6 @@ namespace AST
 		AST_LOGIC_OR,
 		AST_LOGIC_NOT,
 		AST_TERNARY,
-		AST_INSIDE,
 		AST_MEMRD,
 		AST_MEMWR,
 		AST_MEMINIT,
@@ -285,16 +284,13 @@ namespace AST
 		bool is_recursive_function() const;
 		std::pair<AstNode*, AstNode*> get_tern_choice();
 
-		// Visit each descendant of this node and call the passed function on it
-		void visitEachDescendant(const std::function<void(AST::AstNode*)>& f);
-
 		// create a human-readable text representation of the AST (for debugging)
 		void dumpAst(FILE *f, std::string indent) const;
 		void dumpVlog(FILE *f, std::string indent) const;
 
 		// Generate RTLIL for a bind construct
 		std::vector<RTLIL::Binding *> genBindings() const;
-		// Visit each descendant of this node and call the passed function on it
+
 		// used by genRTLIL() for detecting expression width and sign
 		void detectSignWidthWorker(int &width_hint, bool &sign_hint, bool *found_real = NULL);
 		void detectSignWidth(int &width_hint, bool &sign_hint, bool *found_real = NULL);
@@ -312,7 +308,6 @@ namespace AST
 
 		// helper functions for creating AST nodes for constants
 		static AstNode *mkconst_int(uint32_t v, bool is_signed, int width = 32);
-		static AstNode *mkconst_real(double v);
 		static AstNode *mkconst_bits(const std::vector<RTLIL::State> &v, bool is_signed, bool is_unsized);
 		static AstNode *mkconst_bits(const std::vector<RTLIL::State> &v, bool is_signed);
 		static AstNode *mkconst_str(const std::vector<RTLIL::State> &v);
@@ -385,7 +380,7 @@ namespace AST
 	void set_src_attr(RTLIL::AttrObject *obj, const AstNode *ast);
 
 	// struct helper exposed from simplify for genrtlil
-	AstNode *make_struct_member_range(AstNode *node, AstNode *member_node, int move);
+	AstNode *make_struct_member_range(AstNode *node, AstNode *member_node);
 }
 
 namespace AST_INTERNAL
