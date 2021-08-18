@@ -4925,6 +4925,7 @@ bool AstNode::mem2reg_check(pool<AstNode*> &mem2reg_set)
 {
 	if (type != AST_IDENTIFIER || !id2ast || !mem2reg_set.count(id2ast))
 		return false;
+
 	if (children.empty() || children[0]->type != AST_RANGE || GetSize(children[0]->children) != 1)
 		log_file_error(filename, location.first_line, "Invalid array access.\n");
 

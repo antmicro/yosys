@@ -581,15 +581,16 @@ module_arg:
 		ast_stack.back()->children.push_back(astbuf2);
 		delete astbuf1; // really only needed if multiple instances of same type.
 	} module_arg_opt_assignment |
+//	attr wire_type range TOK_ID { // use multirange_dimensions or sth...
 	attr wire_type range TOK_ID range {
 		AstNode *node = $2;
 		node->str = *$4;
 		SET_AST_NODE_LOC(node, @4, @4);
 		node->port_id = ++port_counter;
 		AstNode *range = checkRange(node, $3);
-		if (range != NULL)
+		if (range != NULL){
 			node->children.push_back(range);
-		
+		}
 		if ($5 != NULL) {
 			// we should really re-use code from wire_name
 			auto *rangeNode = $5;
@@ -2012,9 +2013,10 @@ wire_name:
 			else{
 				AstNode *range = $2;
 
-				if(range->type == AST_MULTIRANGE || custom_type_with_range) {
-					if(!custom_type_with_range)
-						addRange(node, 0, 0, false);
+				if(custom_type_with_range)
+					rewriteAsMemoryNode(node, range);
+				else if(range->type == AST_MULTIRANGE){
+					addRange(node, 0, 0, false);
 					rewriteAsMemoryNode(node, range);
 				}else{
 					rewriteRange(range);
