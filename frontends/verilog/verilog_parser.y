@@ -172,8 +172,7 @@ static bool isInLocalScope(const std::string *name)
 static AstNode *getTypeFromPackage(const std::string &pkg_name, const std::string &type_name)
 {
 	auto *pkg = ast_stack[0]->find_child(AST_PACKAGE, pkg_name);
-	if(pkg)
-	{
+	if (pkg) {
 		return pkg->find_child(type_name);
 	}
 	return nullptr;
@@ -588,11 +587,10 @@ module_arg:
 		SET_AST_NODE_LOC(node, @4, @4);
 		node->port_id = ++port_counter;
 		AstNode *range = checkRange(node, $3);
-		if (range != NULL){
+		if (range != NULL) {
 			node->children.push_back(range);
 		}
 		if ($5 != NULL) {
-			// we should really re-use code from wire_name
 			auto *rangeNode = $5;
 			if (rangeNode->type == AST_RANGE && rangeNode->children.size() == 1) {
 				// SV array size [n], rewrite as [n-1:0]
@@ -617,7 +615,7 @@ module_arg:
 
 		AstNode *multirange = $3;
 		do_not_require_port_stubs = true;
-		if (multirange != NULL){
+		if (multirange != NULL) {
 			multirange->is_packed = true;
 			node->children.push_back(multirange);
 		}
@@ -1987,19 +1985,16 @@ wire_name:
 
 		bool custom_type_with_range = false;
 		AstNode *type_node = nullptr;
-		if(node->children.size() && node->children[0]->type == AST_WIRETYPE)
-		{
+		if (node->children.size() && node->children[0]->type == AST_WIRETYPE) {
 			auto wiretype_name = node->children[0]->str;
 			size_t colon_pos = wiretype_name.find("::");
-			if(colon_pos != std::string::npos)
-			{
+			if (colon_pos != std::string::npos) {
 				std::string pkg_name = wiretype_name.substr(0, colon_pos);
 				wiretype_name = wiretype_name.substr(colon_pos+1);
 				wiretype_name[0] = '\\';
 				type_node = getTypeFromPackage(pkg_name, wiretype_name);
 				log_assert(type_node);
-			} else
-			{
+			} else {
 				type_node = getTypeDefinitionNode(wiretype_name);
 			}
 			custom_type_with_range = type_node->children.size() && (type_node->children[0]->type == AST_RANGE || type_node->children[0]->type == AST_MULTIRANGE);
@@ -2008,17 +2003,17 @@ wire_name:
 		if ($2 != NULL) {
 			if (node->is_input || node->is_output)
 				frontend_verilog_yyerror("input/output/inout ports cannot have unpacked dimensions.");
-			if(astbuf2 != NULL)
+			if (astbuf2 != NULL) {
 				rewriteAsMemoryNode(node, $2);
-			else{
+			} else {
 				AstNode *range = $2;
 
-				if(custom_type_with_range)
+				if (custom_type_with_range) {
 					rewriteAsMemoryNode(node, range);
-				else if(range->type == AST_MULTIRANGE){
+				} else if (range->type == AST_MULTIRANGE) {
 					addRange(node, 0, 0, false);
 					rewriteAsMemoryNode(node, range);
-				}else{
+				} else {
 					rewriteRange(range);
 					node->children.push_back(range);
 				}
