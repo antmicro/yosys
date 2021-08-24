@@ -1562,7 +1562,7 @@ param_real:
 	};
 
 param_range:
-	range {
+	range_or_multirange {
 		if ($1 != NULL) {
 			astbuf1->children.push_back($1);
 		}
