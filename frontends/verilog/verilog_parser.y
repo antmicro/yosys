@@ -580,7 +580,6 @@ module_arg:
 		ast_stack.back()->children.push_back(astbuf2);
 		delete astbuf1; // really only needed if multiple instances of same type.
 	} module_arg_opt_assignment |
-//	attr wire_type range TOK_ID { // use multirange_dimensions or sth...
 	attr wire_type range TOK_ID range {
 		AstNode *node = $2;
 		node->str = *$4;
@@ -1863,7 +1862,7 @@ wire_decl:
 		astbuf2 = checkRange(astbuf1, $3);
 
 		if (astbuf2 && astbuf2->type == AST_MULTIRANGE) {
-			astbuf2->is_packed = true; // packed multirange
+			astbuf2->is_packed = true;
 		}
 	} delay wire_name_list {
 		delete astbuf1;

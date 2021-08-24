@@ -1076,7 +1076,6 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					log_warning("reg '%s' is assigned in a continuous assignment at %s.\n", children[0]->str.c_str(), loc_string().c_str());
 			}
 			children[0]->was_checked = true;
-
 		}
 		break;
 

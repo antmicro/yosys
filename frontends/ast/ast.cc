@@ -1486,7 +1486,6 @@ void AstModule::reprocess_module(RTLIL::Design *design, const dict<RTLIL::IdStri
 							AstModule *ast_module_of_interface = (AstModule*)intfmodule;
 							std::string interface_modport_compare_str = "\\" + interface_modport;
 							AstNode *modport = find_modport(ast_module_of_interface->ast, interface_modport_compare_str); // modport == NULL if no modport
-
 							// Iterate over all wires in the interface and add them to the module:
 							explode_interface_port(new_ast, intfmodule, name_port, modport);
 						}
