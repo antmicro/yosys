@@ -1549,34 +1549,15 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			// if an enum then add attributes to support simulator tracing
 			annotateTypedEnums(template_node);
 
-			const bool wire_has_range = children.size() == 1 && children[0]->type == AST_RANGE && this->type != AST_MEMORY;
-			const int range_span = wire_has_range ? children[0]->children[1]->integer + 1 : 1;
-			if(range_span > 1)
-			{
-				delete children[0];
-				children.pop_back();
-			}
-
 			// Insert clones children from template at beginning
 			for (int i  = 0; i < GetSize(template_node->children); i++) {
-				if (template_node->children[i]->type == AST_RANGE && range_span > 1) {
-					auto *template_range = template_node->children[i]->clone();
-					const int size = !template_range->range_swapped ?
-															(template_range->range_left - template_range->range_right + 1):
-															(template_range->range_right - template_range->range_left + 1);
-					template_range->range_left = size * range_span - 1;
-					template_range->children[0]->integer = template_range->range_left;
-					range_left = template_range->range_left;
-					children.insert(children.begin() + i, template_range);
-				} else {
-					children.insert(children.begin() + i, template_node->children[i]->clone());
-				}
+				children.insert(children.begin() + i, template_node->children[i]->clone());
 			}
+
 			if(type != AST_MEMORY){
 				if(!make_multiranges(this, true))
 				{
 					attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
-					attributes[ID::wiretype]->is_packed= wire_has_range;
 				}
 			}
 
