@@ -1604,8 +1604,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			if ((ranges == multirange->children.size())) {
 				size_t size = 1;
 
-				auto* attr_ranges = new AstNode;
-				attr_ranges->type = AST_CONSTANT;
+				auto* attr_ranges = new AstNode(AST_CONSTANT);
 
 				for (const auto& itr : multirange->children) {
 					log_assert(itr->type == AST_RANGE);
