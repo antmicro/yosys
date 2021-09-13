@@ -1619,7 +1619,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				// Replace with one-dimensional range (packed vector)
 				delete children[0];
 				children.clear();
-				children.push_back(make_range(size-1, 0, false));
+				children.push_back(make_range(size - 1, 0, false));
 
 				is_packed = true;
 				did_something = true;
