@@ -620,7 +620,7 @@ static AstNode* convert_multirange_to_single_range(AstNode *node)
 		size *= width;
 	}
 
-	return make_range(size, 0,false);
+	return make_range(size, 0, false);
 }
 
 static bool make_multiranges(AstNode *node, bool packed = false)
