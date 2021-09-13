@@ -604,7 +604,7 @@ static void flatten_ranges(AstNode *node)
 	}
 
 	// Place new one-dimensional range (packed vector)
-	node->children.push_back(make_range(size, 0,false));
+	node->children.push_back(make_range(size, 0, false));
 }
 
 static AstNode* convert_multirange_to_single_range(AstNode *node)
