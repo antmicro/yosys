@@ -584,7 +584,10 @@ static void flatten_ranges(AstNode *node)
 			continue;
 		itr->simplify(true, false, false, 0, -1, false, true);
 
+		// just for now we support ranges that starts from 0
+		// this is neccessary cause further code for accessing the range elements wouldn't be working
 		log_assert(!itr->range_swapped ? (itr->range_right == 0) : (itr->range_left == 0));
+
 		const int width = !itr->range_swapped ? (itr->range_left - itr->range_right + 1) :
 												(itr->range_right - itr->range_left + 1);
 		size *= width;
@@ -613,6 +616,8 @@ static AstNode* convert_multirange_to_single_range(AstNode *node)
 	int size = 1;
 	for(auto *child : node->children)
 	{
+		// just for now we support ranges that starts from 0
+		// this is neccessary cause further code for accessing the range elements wouldn't be working
 		log_assert(!child->range_swapped ? (child->range_right == 0) : (child->range_left == 0));
 
 		const int width = !child->range_swapped ? (child->range_left - child->range_right + 1) :
