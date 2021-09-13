@@ -570,9 +570,8 @@ static void flatten_ranges(AstNode *node)
 		return;
 	}
 
-	unsigned ranges = std::count_if(node->children.begin(),
-			node->children.end(),
-			[](AstNode *n){return n->type == AST_RANGE;});
+	unsigned ranges = std::count_if(node->children.begin(), node->children.end(),
+			[](AstNode *n) { return n->type == AST_RANGE; });
 
 	if (ranges <= 1) {
 		return;
