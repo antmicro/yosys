@@ -625,7 +625,7 @@ static AstNode* convert_multirange_to_single_range(AstNode *node)
 		size *= width;
 	}
 
-	return make_range(size, 0, false);
+	return make_range(size-1, 0, false);
 }
 
 static bool make_multiranges(AstNode *node, bool packed = false)
@@ -1566,36 +1566,30 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		}
 
 		if (children.size() == 1 && children[0]->type == AST_MULTIRANGE && children[0]->is_packed) {
+
 			const auto* multirange = children[0];
-			const size_t ranges = std::count_if(
-				multirange->children.begin(), multirange->children.end(),
-				[](const AstNode* node) {
-					return node->type == AST_RANGE;
-				});
-			if ((ranges == multirange->children.size())) {
-				size_t size = 1;
+			size_t size = 1;
 
-				auto* attr_ranges = new AstNode(AST_CONSTANT);
+			auto* attr_ranges = new AstNode(AST_CONSTANT);
 
-				for (const auto& itr : multirange->children) {
-					log_assert(itr->type == AST_RANGE);
-					const int width = !itr->range_swapped ? (itr->range_left - itr->range_right + 1) :
-															(itr->range_right - itr->range_left + 1);
-					size *= width;
-					attr_ranges->children.push_back(itr->clone());
-				}
-				attr_ranges->range_left  = size - 1;
-				attr_ranges->range_right = 0;
-				attributes[ID::multirange] = attr_ranges;
-
-				// Replace with one-dimensional range (packed vector)
-				delete children[0];
-				children.clear();
-				children.push_back(make_range(size - 1, 0, false));
-
-				is_packed = true;
-				did_something = true;
+			for (const auto& itr : multirange->children) {
+				log_assert(itr->type == AST_RANGE);
+				const int width = !itr->range_swapped ? (itr->range_left - itr->range_right + 1) :
+														(itr->range_right - itr->range_left + 1);
+				size *= width;
+				attr_ranges->children.push_back(itr->clone());
 			}
+			attr_ranges->range_left  = size - 1;
+			attr_ranges->range_right = 0;
+			attributes[ID::multirange] = attr_ranges;
+
+			// Replace with one-dimensional range (packed vector)
+			delete children[0];
+			children.clear();
+			children.push_back(make_range(size - 1, 0, false));
+
+			is_packed = true;
+			did_something = true;
 		}
 
 		log_assert(!is_custom_type);
