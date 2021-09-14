@@ -1981,11 +1981,20 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			varbuf->children[0] = buf;
 		}
 
-		if (type == AST_FOR) {
+		if (type == AST_FOR && init_ast->children[0]->id2ast->str.find("$fordecl_block") == std::string::npos) {
 			AstNode *buf = next_ast->clone();
 			delete buf->children[1];
 			buf->children[1] = varbuf->children[0]->clone();
 			current_block->children.insert(current_block->children.begin() + current_block_idx++, buf);
+		} else {
+			// When variable that is used to control a for-loop was declared within the loop,
+			// making it local to the loop scope, we need to remove no longer used wires,
+			// that are already converted to localparams
+			for(auto it = current_ast_mod->children.begin(); it != current_ast_mod->children.end(); it++) {
+				if ((*it) == init_ast->children[0]->id2ast) {
+					current_ast_mod->children.erase(it);
+				}
+			}
 		}
 
 		current_scope[varbuf->str] = backup_scope_varbuf;
