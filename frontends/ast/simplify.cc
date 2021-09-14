@@ -2789,19 +2789,28 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 			if (buf->type != AST_CONSTANT)
 				log_file_error(filename, location.first_line, "Right hand side of 3rd expression of %s for-loop is not constant (%s)!\n", loop_type_str, type2str(buf->type).c_str());
-
 			delete varbuf->children[0];
 			varbuf->children[0] = buf;
 		}
 
-		if (type == AST_FOR) {
+		if (type == AST_FOR && init_ast->children[0]->id2ast->str.find("$fordecl_block") == std::string::npos) {
 			AstNode *buf = next_ast->clone();
 			delete buf->children[1];
 			buf->children[1] = varbuf->children[0]->clone();
 			current_block->children.insert(current_block->children.begin() + current_block_idx++, buf);
+		} else {
+			// if init was declared in procedular for initialization
+			// we need to remove no longer used wires, that were converted to localparams
+			// and skip assignment to last value of for
+			for(auto it = current_ast_mod->children.begin(); it != current_ast_mod->children.end(); it++) {
+				if ((*it) == init_ast->children[0]->id2ast) {
+					current_ast_mod->children.erase(it);
+				}
+			}
 		}
 
 		current_scope[varbuf->str] = backup_scope_varbuf;
+
 		delete varbuf;
 		delete_children();
 		did_something = true;
