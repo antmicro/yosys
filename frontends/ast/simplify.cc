@@ -497,7 +497,7 @@ static void add_members_to_scope(AstNode *snode, std::string name)
 		if (node->type != AST_STRUCT_ITEM) {
 			// embedded struct or union
 			add_members_to_scope(node, name + "." + node->str);
-		}else{
+		} else {
 			auto member_name = name + "." + node->str;
 			current_scope[member_name] = node;
 		}
