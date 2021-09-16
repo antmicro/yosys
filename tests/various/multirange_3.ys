@@ -1,4 +1,4 @@
-read_verilog -sv multirange.sv
+read_verilog -sv multirange_3.sv
 hierarchy; proc; opt
 select -module dut
 sat -verify -seq 1 -tempinduct -prove-asserts -show-all

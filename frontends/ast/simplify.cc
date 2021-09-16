@@ -1509,8 +1509,20 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			while (template_node->simplify(const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param)) {};
 
 			if (template_node->type == AST_STRUCT || template_node->type == AST_UNION) {
-				// replace with wire representing the packed structure
 				newNode = make_packed_struct(template_node, str);
+				if (children.size() == 2 && children[1]->type == AST_RANGE) {
+					newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
+					newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
+					newNode->attributes[ID::wiretype]->is_packed = true;
+					if(port_id == 0 && type == AST_WIRE) {
+						int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
+						newNode->children[0]->range_left = (newNode->children[0]->range_left + 1) * s;
+						newNode->children[0]->children[0]->integer = (newNode->children[0]->children[0]->integer + 1) * s;
+						newNode->children[0]->range_left -= 1;
+						newNode->children[0]->children[0]->integer -= 1;
+					}
+				}
+				// replace with wire representing the packed structure
 				newNode->is_input = this->is_input;
 				newNode->is_output = this->is_output;
 				current_scope[str] = this;
@@ -1851,6 +1863,27 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 							did_something = true;
 						}
 					}
+				}
+			}
+		}
+	}
+
+	if(type == AST_IDENTIFIER && current_scope.count(str) && current_scope[str]->attributes.count(ID::wiretype))
+	{
+		auto wiretype = current_scope[str]->attributes[ID::wiretype];
+		if(current_scope.count(wiretype->str))
+		{
+			auto orig_struct = current_scope[wiretype->str];
+			if(orig_struct->children.size() &&
+				(orig_struct->children[0]->type == AST_STRUCT ||
+				 orig_struct->children[0]->type == AST_UNION)){
+
+				auto width = size_packed_struct(orig_struct, 0);
+
+				if(children.size() && children[0]->range_left == children[0]->range_right)
+				{
+					children[0]->range_left = width*(children[0]->range_left+1)-1;
+					children[0]->range_right = width*children[0]->range_right;
 				}
 			}
 		}
