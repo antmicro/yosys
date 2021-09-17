@@ -1510,16 +1510,26 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 			if (template_node->type == AST_STRUCT || template_node->type == AST_UNION) {
 				newNode = make_packed_struct(template_node, str);
-				if (children.size() == 2 && children[1]->type == AST_RANGE) {
+				// here we can have struct composed of the ast_range|ast_multirange|none and ast_range|ast_multirange|none
+				if (children.size() >= 2 && (children[1]->type == AST_RANGE || children[1]->type == AST_MULTIRANGE)) {
 					newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
 					newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
 					newNode->attributes[ID::wiretype]->is_packed = true;
-					if(port_id == 0 && type == AST_WIRE) {
+					if(children[1]->type == AST_MULTIRANGE) {
+						auto *range = convert_multirange_to_single_range(children[1]);
+						delete children[1];
+						children[1] = range;
+					}
+					if (port_id == 0) {
 						int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
 						newNode->children[0]->range_left = (newNode->children[0]->range_left + 1) * s;
 						newNode->children[0]->children[0]->integer = (newNode->children[0]->children[0]->integer + 1) * s;
 						newNode->children[0]->range_left -= 1;
 						newNode->children[0]->children[0]->integer -= 1;
+						if(children.size() == 3 && (children[2]->type == AST_RANGE || children[2]->type == AST_MULTIRANGE))
+						{
+							newNode->children.push_back(children[2]->clone());
+						}
 					}
 				}
 				// replace with wire representing the packed structure
@@ -1800,6 +1810,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			children[1] = new AstNode(AST_RANGE, AstNode::mkconst_int(0, true), AstNode::mkconst_int(total_size-1, true));
 			did_something = true;
 		}
+		this->range_left = (children[0]->range_left+1)*(children[1]->range_left+1)-1;
 	}
 
 	// Access multirange array replaced by registers?
