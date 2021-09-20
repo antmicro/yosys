@@ -3008,11 +3008,11 @@ skip_dynamic_range_lvalue_expansion:;
 		}
 	}
 
-	if(children.size() > 0) {
+	if(children.size() > 0 && type != AST_NONE) {
 		for (auto *c : children) {
 			if (c->type == AST_ASSIGN_EQ || c->type == AST_ASSIGN_LE || c->type == AST_ASSIGN) {
 				const auto *lhs = c->children[0];
-				if(lhs->type == AST_IDENTIFIER && lhs->id2ast && lhs->id2ast->type == AST_MEMORY && lhs->children.size() == 0 && lhs->id2ast->children.size() == 2) {
+				if(c->children.size() && lhs->type == AST_IDENTIFIER && lhs->id2ast && lhs->id2ast->type == AST_MEMORY && lhs->children.size() == 0 && lhs->id2ast->children.size() == 2) {
 					AstNode *mem = lhs->id2ast;
 					AstNode *force_reg = new AstNode(AST_CONSTANT);
 					force_reg->integer = 1;
@@ -3034,19 +3034,16 @@ skip_dynamic_range_lvalue_expansion:;
 					AstNode *clone = c->clone();
 					auto pos = std::find(children.begin(), children.end(), c); // find position of current node
 					log_assert(pos != children.end());
-					int left = range->range_left;
-					int right = range->range_right;
+					volatile int left = range->range_left;
+					volatile int right = range->range_right;
 					if (left > right) {
-						int tmp = left;
-						left = right;
-						right = tmp;
+						std::swap(left,right);
 					}
 					for (int i = left; i <= right ; ++i) {
+						std::cout << i << std::endl;
 						AstNode *cl;
-						if (i == left)
-							cl = c;
-						else
-							cl = clone->clone();
+						cl = clone->clone();
+
 						cl->children[0]->children[0]->range_left = i;
 						cl->children[0]->children[0]->range_right = i;
 						cl->children[0]->children[0]->children[0]->integer = i;
@@ -3060,14 +3057,15 @@ skip_dynamic_range_lvalue_expansion:;
 						else if (cl->children[1]->type == AST_CONCAT) {
 							cl->children[1] = cl->children[1]->children[i];
 						}
-						if (i != left)
-							children.insert(pos, cl);
+
+						if (i != left && cl->type != AST_NONE) {
+							children.push_back(cl);
+						}
 					}
 					did_something = true;
 				}
 			}
 		}
-
 	}
 	// assignment with memory in left-hand side expression -> replace with memory write port
 	if (stage > 1 && (type == AST_ASSIGN_EQ || type == AST_ASSIGN_LE) && children[0]->type == AST_IDENTIFIER &&
