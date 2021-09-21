@@ -3008,9 +3008,9 @@ skip_dynamic_range_lvalue_expansion:;
 		}
 	}
 
-	if(children.size() > 0 && type != AST_NONE) {
+	if(children.size() > 0) {
 		for (auto *c : children) {
-			if (c->type == AST_ASSIGN_EQ || c->type == AST_ASSIGN_LE || c->type == AST_ASSIGN) {
+			if (c->type == AST_ASSIGN_EQ || c->type == AST_ASSIGN_LE || c->type == AST_ASSIGN || c->type == AST_EQ) {
 				const auto *lhs = c->children[0];
 				if(c->children.size() && lhs->type == AST_IDENTIFIER && lhs->id2ast && lhs->id2ast->type == AST_MEMORY && lhs->children.size() == 0 && lhs->id2ast->children.size() == 2) {
 					AstNode *mem = lhs->id2ast;
@@ -3040,7 +3040,6 @@ skip_dynamic_range_lvalue_expansion:;
 						std::swap(left,right);
 					}
 					for (int i = left; i <= right ; ++i) {
-						std::cout << i << std::endl;
 						AstNode *cl;
 						cl = clone->clone();
 

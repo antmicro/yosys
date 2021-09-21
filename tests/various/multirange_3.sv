@@ -62,6 +62,14 @@ always_comb begin
 
   assert(mtimecmp[0][0][3:2] == mtimecmp[1][0][1:0]);
   assert(mtimecmp_update[0][0] == 1);
+
+  assert(complex_hw_cpy == complex_hw[1]);
+
+  assert(complex_hw_cpy[3] == 1);
+  assert(complex_hw_cpy[3] != 0);
+
+  assert(complex_hw_cpy == 12'b110010011100);
+
 end
 
 endmodule
