@@ -29,6 +29,9 @@ logic [2:0] pinout_part_cpy;
 complex_struct_t complex_hw [3];
 complex_struct_t complex_hw_cpy;
 
+pinout_t[1:0][1:0] complex_hw_multirange[2:0][1:0];
+pinout_t[1:0][1:0] hw_multirange_cpy[2:0][1:0];
+
 localparam int N_HARTS  = 2;
 localparam int N_TIMERS = 1;
 logic [3:0] mtime            [N_HARTS];
@@ -44,6 +47,9 @@ assign pinout_part_cpy = pinout[4:2];
 
 assign complex_hw[1] = 12'b110010011100;
 assign complex_hw_cpy = complex_hw[1];
+
+assign complex_hw_multirange = 48'b100101100101100101100101100101100101100101100101;
+assign hw_multirange_cpy = complex_hw_multirange;
 
 assign mtime[0] = 4'b1100;
 assign mtime[1] = 4'b0011;
@@ -69,6 +75,9 @@ always_comb begin
   assert(complex_hw_cpy[3] != 0);
 
   assert(complex_hw_cpy == 12'b110010011100);
+
+  assert(complex_hw_multirange == hw_multirange_cpy);
+  assert(hw_multirange_cpy[1][1] == 8'b01100101);
 
 end
 

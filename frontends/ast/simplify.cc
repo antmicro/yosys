@@ -3039,7 +3039,7 @@ skip_dynamic_range_lvalue_expansion:;
 					if (left > right) {
 						std::swap(left,right);
 					}
-					for (int i = left; i <= right ; ++i) {
+					for (int i = left+1; i <= right ; ++i) {
 						AstNode *cl;
 						cl = clone->clone();
 
@@ -3057,9 +3057,7 @@ skip_dynamic_range_lvalue_expansion:;
 							cl->children[1] = cl->children[1]->children[i];
 						}
 
-						if (i != left && cl->type != AST_NONE) {
-							children.push_back(cl);
-						}
+						children.push_back(cl);
 					}
 					did_something = true;
 				}
