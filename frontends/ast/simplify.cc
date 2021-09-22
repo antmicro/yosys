@@ -3008,15 +3008,19 @@ skip_dynamic_range_lvalue_expansion:;
 		}
 	}
 
-	if(children.size() > 0) {
+	{
+		std::vector<AstNode*> tmp_nodes;
 		for (auto *c : children) {
 			if (c->type == AST_ASSIGN_EQ || c->type == AST_ASSIGN_LE || c->type == AST_ASSIGN || c->type == AST_EQ) {
 				const auto *lhs = c->children[0];
 				if(c->children.size() && lhs->type == AST_IDENTIFIER && lhs->id2ast && lhs->id2ast->type == AST_MEMORY && lhs->children.size() == 0 && lhs->id2ast->children.size() == 2) {
 					AstNode *mem = lhs->id2ast;
-					AstNode *force_reg = new AstNode(AST_CONSTANT);
-					force_reg->integer = 1;
-					mem->attributes[ID::mem2reg] = force_reg; //force mem to be changed to registers
+					if(!mem->attributes.count(ID::mem2reg)) {
+						AstNode *force_reg = new AstNode(AST_CONSTANT);
+						force_reg->integer = 1;
+						mem->attributes[ID::mem2reg] = force_reg; //force mem to be changed to registers
+					}
+
 
 					for (auto *cc : c->children) { //only for a = b
 						if (cc->type == AST_IDENTIFIER) {
@@ -3055,13 +3059,16 @@ skip_dynamic_range_lvalue_expansion:;
 							cl->children[1] = cl->children[1]->children[i];
 						}
 
-						children.push_back(cl);
+						tmp_nodes.push_back(cl);
 					}
 					did_something = true;
+					delete clone;
 				}
 			}
 		}
+		std::copy(tmp_nodes.begin(), tmp_nodes.end(), std::back_inserter(children));
 	}
+
 	// assignment with memory in left-hand side expression -> replace with memory write port
 	if (stage > 1 && (type == AST_ASSIGN_EQ || type == AST_ASSIGN_LE) && children[0]->type == AST_IDENTIFIER &&
 			children[0]->id2ast && children[0]->id2ast->type == AST_MEMORY && children[0]->id2ast->children.size() >= 2 &&
