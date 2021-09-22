@@ -3032,8 +3032,6 @@ skip_dynamic_range_lvalue_expansion:;
 					}
 					const auto *range = mem->children[1];
 					AstNode *clone = c->clone();
-					auto pos = std::find(children.begin(), children.end(), c); // find position of current node
-					log_assert(pos != children.end());
 					volatile int left = range->range_left;
 					volatile int right = range->range_right;
 					if (left > right) {
