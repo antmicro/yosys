@@ -161,7 +161,8 @@ namespace AST
 		AST_STRUCT,
 		AST_UNION,
 		AST_STRUCT_ITEM,
-		AST_BIND
+		AST_BIND,
+		AST_DOT
 	};
 
 	struct AstSrcLocType {
