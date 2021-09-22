@@ -1586,6 +1586,11 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		if ((port_id > 0)) {
 			flatten_ranges(this);
 		}
+		if(type == AST_MEMORY && attributes.count(ID::multirange) == 0 && children.size() >= 2 && children[0]->type == AST_MULTIRANGE)
+		{
+			attributes[ID::multirange] = new AstNode(AST_CONSTANT);
+			attributes[ID::multirange]->children.push_back(children[0]->clone());
+		}
 
 		if (children.size() == 1 && children[0]->type == AST_MULTIRANGE && children[0]->is_packed) {
 
@@ -1603,6 +1608,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			}
 			attr_ranges->range_left  = size - 1;
 			attr_ranges->range_right = 0;
+			log_assert(attributes.count(ID::multirange) == 0);
 			attributes[ID::multirange] = attr_ranges;
 
 			// Replace with one-dimensional range (packed vector)
@@ -1924,7 +1930,6 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 					// FIXME: more configurations
 					if (children.size() == 1 && children[0]->type == AST_RANGE) {
-
 						if (children[0]->children[0]->type == AST_IDENTIFIER) {
 							// FIXME: should be merged with below code
 							const auto* id = children[0]->children[0];
@@ -2071,6 +2076,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				index_expr = new AstNode(AST_ADD, new AstNode(AST_MUL, index_expr, AstNode::mkconst_int(id2ast->multirange_dimensions[2*i+1], true)), new_index_expr);
 		}
 
+		// TODO recalculate correct offset for packed dimentions
 		for (int i = GetSize(id2ast->multirange_dimensions)/2; i < GetSize(children[0]->children); i++)
 			children.push_back(children[0]->children[i]->clone());
 
