@@ -306,6 +306,21 @@ static int size_packed_struct(AstNode *snode, int base_offset)
 	bool is_union = (snode->type == AST_UNION);
 	int offset = 0;
 	int packed_width = -1;
+	// embeded struct or union with range?
+	std::vector<AstNode *> ranges;
+	for(auto it = snode->children.begin(); it != snode->children.end(); ) {
+		if ((*it)->type == AST_RANGE || (*it)->type == AST_MULTIRANGE) {
+			ranges.push_back((*it));
+			it = snode->children.erase(it);
+		} else {
+			it++;
+		}
+	}
+	if (!ranges.empty()) {
+		log_assert(ranges.size() == 1); //currently support only single range
+		snode->attributes[ID::multirange] = AstNode::mkconst_int(1, false, 1);
+		snode->attributes[ID::multirange]->children.push_back(ranges[0]->clone());
+	}
 	// examine members from last to first
 	for (auto it = snode->children.rbegin(); it != snode->children.rend(); ++it) {
 		auto node = *it;
@@ -313,6 +328,11 @@ static int size_packed_struct(AstNode *snode, int base_offset)
 		if (node->type == AST_STRUCT || node->type == AST_UNION) {
 			// embedded struct or union
 			width = size_packed_struct(node, base_offset + offset);
+			if (node->attributes.count(ID::multirange)) {
+				int number_of_structs = 1;
+				number_of_structs = range_width(node, node->attributes[ID::multirange]->children[0]);
+				width *= number_of_structs;
+			}
 			// set range of struct
 			node->range_right = base_offset + offset;
 			node->range_left = base_offset + offset + width - 1;
@@ -521,7 +541,7 @@ static int get_max_offset(AstNode *node)
 	// get the width from the MS member in the struct
 	// as members are laid out from left to right in the packed wire
 	log_assert(node->type==AST_STRUCT || node->type==AST_UNION);
-	while (node->type != AST_STRUCT_ITEM) {
+	while (node->type != AST_STRUCT_ITEM && (node->type == AST_STRUCT && node->str != "")) {
 		node = node->children[0];
 	}
 	return node->range_left;
