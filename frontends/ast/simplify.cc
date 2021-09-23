@@ -717,8 +717,8 @@ static AstNode* calcluate_access_offset(const AstNode *accessed_element_ranges, 
 		}
 	}
 	if (simple_range->children.size() == 0) {
-		simple_range->children.push_back(simple_range->mkconst_int(_range_left,  false, 32));
-		simple_range->children.push_back(simple_range->mkconst_int(_range_right, false, 32));
+		simple_range->children.push_back(AstNode::mkconst_int(_range_left,  false, 32));
+		simple_range->children.push_back(AstNode::mkconst_int(_range_right, false, 32));
 	}
 	return simple_range;
 }
@@ -1573,16 +1573,25 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				newNode = make_packed_struct(template_node, str);
 				// here we can have struct composed of the ast_range|ast_multirange|none and ast_range|ast_multirange|none
 				if (children.size() >= 2 && (children[1]->type == AST_RANGE || children[1]->type == AST_MULTIRANGE)) {
-					newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
-					newNode->attributes[ID::wiretype]->children.push_back(children[1]->clone()); // save unpacked size
-					newNode->attributes[ID::wiretype]->is_packed = true;
+					auto *attr_ranges = new AstNode(AST_CONSTANT);
 					if(children[1]->type == AST_MULTIRANGE) {
+						for(const auto *child : children[1]->children)
+							attr_ranges->children.push_back(child->clone()); // save unpacked size
 						auto *range = convert_multirange_to_single_range(children[1]);
 						delete children[1];
 						children[1] = range;
+					} else {
+						attr_ranges->children.push_back(children[1]->clone()); // save unpacked size
 					}
+
+					attr_ranges->children.push_back(newNode->children[0]->clone());
+					attr_ranges->range_left = children[1]->range_left;
+					attr_ranges->range_right = 0;
+					newNode->attributes[ID::multirange] = attr_ranges;
+
 					if (port_id == 0) {
 						int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
+
 						newNode->children[0]->range_left = (newNode->children[0]->range_left + 1) * s;
 						newNode->children[0]->children[0]->integer = (newNode->children[0]->children[0]->integer + 1) * s;
 						newNode->children[0]->range_left -= 1;
@@ -1590,6 +1599,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 						if(children.size() == 3 && (children[2]->type == AST_RANGE || children[2]->type == AST_MULTIRANGE))
 						{
 							newNode->children.push_back(children[2]->clone());
+							newNode->type = AST_MEMORY;
 						}
 					}
 				}
@@ -1899,9 +1909,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					int left = range->children[0]->integer;
 					int right = range->children[1]->integer;
 					if (left > right) {
-						int tmp = left;
-						left = right;
-						right = tmp;
+						std::swap(left,right);
 					}
 
 					if (current_scope.count(identifier->str)) {
