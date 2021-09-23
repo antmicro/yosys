@@ -28,6 +28,7 @@ assign multirange_wire[1][2][1][2][1][0] = 1'b1;
 
 assign multirange_reg[0][0][0][0][0][0] = 1'b0;
 assign multirange_reg[1][2][1][2][1][0] = 1'b1;
+assign multirange_reg[1][2][1][2][1][1] = 1'b0;
 
 always_comb begin
   assert(mode_i[0] == pkg::MODE_11);
@@ -41,6 +42,7 @@ always_comb begin
   
   assert(multirange_reg[0][0][0][0][0][0] == 1'b0);
   assert(multirange_reg[1][2][1][2][1][0] == 1'b1);
+  assert(multirange_reg[1][2][1][2][1][1] == 1'b0);
 end
 
 endmodule

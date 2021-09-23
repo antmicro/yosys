@@ -662,6 +662,67 @@ static bool make_multiranges(AstNode *node, bool packed = false)
 	return true;
 }
 
+static AstNode* calcluate_access_offset(const AstNode *accessed_element_ranges, const AstNode *original_ranges)
+{
+	size_t _offset = 0;
+	size_t _range_left  = original_ranges->range_left;
+	size_t _range_right = original_ranges->range_right;
+	size_t _width = _range_left - _range_right + 1;
+
+	log_assert(original_ranges->type == AST_CONSTANT);
+	if(accessed_element_ranges->children.size() > original_ranges->children.size())
+	{
+		log_error("Invalid array access\n");
+	}
+	accessed_element_ranges->dumpAst(NULL, "<<<<");
+	original_ranges->dumpAst(NULL, ">>>>");
+
+	AstNode* simple_range = new AstNode(AST_RANGE);
+	for (size_t idx = 0 ; idx < accessed_element_ranges->children.size() ; ++idx) {
+		if (accessed_element_ranges->children[0]->children[0]->type != AST_CONSTANT) {
+			AstNode *mul = new AstNode(AST_MUL);
+			mul->children.push_back(accessed_element_ranges->children[idx]->children[0]->clone());
+			const auto* r = original_ranges->children[1]; // r as (orig) Range
+			const size_t r_width = r->range_left - r->range_right + 1;
+			AstNode *width = new AstNode(AST_CONSTANT);
+			width->integer = r_width;
+			mul->children.push_back(width);
+			simple_range->children.push_back(mul);
+		} else {
+			const size_t r_idx = idx;
+
+			const auto* s = accessed_element_ranges->children[idx]; // s as Selected range
+
+			const auto* r = original_ranges->children[r_idx]; // r as (orig) Range
+
+			const size_t r_width = r->range_left - r->range_right + 1;
+
+			_width /= r_width;
+			int start_idx = 0;
+			if (original_ranges->children[1]->range_swapped) {
+				if (idx == 0) {
+					start_idx = original_ranges->children[1]->children[1]->integer;
+					_width = r_width;
+					_range_left  = (start_idx - (s->range_left))  * _width + (_width - 1) + _offset;
+					_range_right = (start_idx - (s->range_right)) * _width                + _offset;
+				} else {
+					_range_left  += (s->range_left - original_ranges->children[0]->range_left);
+					_range_right += (s->range_right - original_ranges->children[0]->range_right);
+				}
+			} else {
+				_range_left  = ((s->range_left))  * _width + (_width - 1) + _offset;
+				_range_right = ((s->range_right)) * _width                + _offset;
+			}
+			_offset = _range_right;
+		}
+	}
+	if (simple_range->children.size() == 0) {
+		simple_range->children.push_back(simple_range->mkconst_int(_range_left,  false, 32));
+		simple_range->children.push_back(simple_range->mkconst_int(_range_right, false, 32));
+	}
+	return simple_range;
+}
+
 // convert the AST into a simpler AST that has all parameters substituted by their
 // values, unrolled for-loops, expanded generate blocks, etc. when this function
 // is done with an AST it can be converted into RTLIL using genRTLIL().
@@ -1586,10 +1647,16 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		if ((port_id > 0)) {
 			flatten_ranges(this);
 		}
+
 		if(type == AST_MEMORY && attributes.count(ID::multirange) == 0 && children.size() >= 2 && children[0]->type == AST_MULTIRANGE)
 		{
 			attributes[ID::multirange] = new AstNode(AST_CONSTANT);
-			attributes[ID::multirange]->children.push_back(children[0]->clone());
+			attributes[ID::multirange]->integer = GetSize(children[0]->children);
+			for(const auto *child : children[0]->children)
+				attributes[ID::multirange]->children.push_back(child->clone());
+			auto range = convert_multirange_to_single_range(children[0]);
+			attributes[ID::multirange]->range_left = range->range_left;
+			attributes[ID::multirange]->range_right = 0;
 		}
 
 		if (children.size() == 1 && children[0]->type == AST_MULTIRANGE && children[0]->is_packed) {
@@ -1909,31 +1976,29 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 	// Replace multirange acces with vector and range access
 	if (type == AST_IDENTIFIER) {
 		if (current_scope.count(str)) {
-			const auto* temp = current_scope.at(str);
-			log_assert(temp);
+			const auto* ref_value = current_scope[str];
 
 			// is this multidimensional array?
-			if (temp->is_packed && temp->attributes.count(ID::multirange)) {
-				const auto* ranges = temp->attributes.at(ID::multirange);
-				log_assert(ranges);
-				log_assert(ranges->type == AST_CONSTANT);
+			if (ref_value->is_packed && ref_value->attributes.count(ID::multirange)) {
+				const auto* original_ranges = ref_value->attributes.at(ID::multirange);
+				log_assert(original_ranges);
+				log_assert(original_ranges->type == AST_CONSTANT);
 
 				if (attributes.count(ID::multirange) == 0) {
-					attributes[ID::multirange] = ranges->clone();
+					attributes[ID::multirange] = original_ranges->clone();
 
-					size_t _offset = 0;
-					size_t _range_left  = ranges->range_left;
-					size_t _range_right = ranges->range_right;
+					size_t _range_left  = original_ranges->range_left;
+					size_t _range_right = original_ranges->range_right;
 					size_t _width = _range_left - _range_right + 1;
 
-					const AstNode* multi = nullptr;
+					const AstNode* accessed_element_ranges = nullptr;
 
 					// FIXME: more configurations
+					// single range calculation
 					if (children.size() == 1 && children[0]->type == AST_RANGE) {
 						if (children[0]->children[0]->type == AST_IDENTIFIER) {
-							// FIXME: should be merged with below code
 							const auto* id = children[0]->children[0];
-							const auto* r = ranges->children[0]; // r as (orig) Range
+							const auto* r = original_ranges->children[0];
 							const size_t r_width = r->range_left - r->range_right + 1;
 							_width /= r_width;
 
@@ -1949,7 +2014,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 							auto *x2_self = new AstNode(AST_SELFSZ, x2);
 
-							auto* x3_add = new AstNode;
+							auto *x3_add = new AstNode;
 							x3_add->type = AST_ADD;
 							x3_add->children.push_back(x2_self);
 							x3_add->children.push_back(mkconst_int(_width, false, 32));
@@ -1978,75 +2043,24 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 							children.erase(children.begin());
 							children.insert(children.begin(), simple_range);
 						} else {
-							// replace with multirange
+							// convert single range to multirange
+							// to reuse the code for multirange offset calculation
 							AstNode* temp = new AstNode(AST_MULTIRANGE);
 							temp->children.push_back(children[0]);
 							children[0] = temp;
-
-							multi = children[0];
-							log_assert(multi->children.size() == 1);
+							accessed_element_ranges = children[0];
+							log_assert(accessed_element_ranges->children.size() == 1);
 						}
 					} else if (children.size() == 1 && children[0]->type == AST_MULTIRANGE) {
-						multi = children[0];
+						accessed_element_ranges = children[0];
 					}
 
-					if (multi) {
-						if(multi->children.size() > ranges->children.size())
-						{
-							log_error("Access to not existing element\n");
-						}
-
-						AstNode* simple_range = new AstNode(AST_RANGE);
-						for (size_t idx = 0 ; idx < multi->children.size() ; ++idx) {
-							if (multi->children[0]->children[0]->type != AST_CONSTANT) {
-								AstNode *mul = new AstNode(AST_MUL);
-								mul->children.push_back(multi->children[idx]->children[0]->clone());
-								const auto* r = ranges->children[1]; // r as (orig) Range
-								const size_t r_width = r->range_left - r->range_right + 1;
-								AstNode *width = new AstNode(AST_CONSTANT);
-								width->integer = r_width;
-								mul->children.push_back(width);
-								simple_range->children.push_back(mul);
-							} else {
-								const size_t r_idx = idx;
-
-								const auto* s = multi->children[idx]; // s as Selected range
-
-								const auto* r = ranges->children[r_idx]; // r as (orig) Range
-								const size_t r_width = r->range_left - r->range_right + 1;
-
-								_width /= r_width;
- 								int start_idx = 0;
-								if (ranges->children[1]->range_swapped) {
-									if (idx == 0) {
-										start_idx = ranges->children[1]->children[1]->integer;
-										_width = r_width;
-										_range_left  = (start_idx - (s->range_left))  * _width + (_width - 1) + _offset;
-										_range_right = (start_idx - (s->range_right)) * _width                + _offset;
-									} else {
-										_range_left  += (s->range_left - ranges->children[0]->range_left);
-										_range_right += (s->range_right - ranges->children[0]->range_right);
-									}
-								} else {
-									_range_left  = ((s->range_left))  * _width + (_width - 1) + _offset;
-									_range_right = ((s->range_right)) * _width                + _offset;
- 								}
-								_offset = _range_right;
-							}
-						}
-
+					if (accessed_element_ranges) {
+						AstNode *simple_range = calcluate_access_offset(accessed_element_ranges, original_ranges);
 						// remove multirange
 						children.erase(children.begin());
-						delete multi;
+						delete accessed_element_ranges;
 
-						// replace with simple (one-dimension) range (packed vector)
-						//log("replaced_range: [%ld:%ld]\n", _range_left, _range_right);
-						//if (_range_left < 0)  _range_left = 0;
-						//if (_range_right < 0) _range_right = 0;
-						if (simple_range->children.size() == 0) {
-							simple_range->children.push_back(mkconst_int(_range_left,  false, 32));
-							simple_range->children.push_back(mkconst_int(_range_right, false, 32));
-						}
 						children.insert(children.begin(), simple_range);
 					}
 				}
@@ -2077,8 +2091,20 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		}
 
 		// TODO recalculate correct offset for packed dimentions
-		for (int i = GetSize(id2ast->multirange_dimensions)/2; i < GetSize(children[0]->children); i++)
-			children.push_back(children[0]->children[i]->clone());
+		if(id2ast->attributes.count(ID::multirange)){
+			AstNode *accessed_element_ranges = new AstNode(AST_MULTIRANGE);	
+			for (int i = GetSize(id2ast->multirange_dimensions)/2; i < GetSize(children[0]->children); i++) {
+				accessed_element_ranges->children.push_back(children[0]->children[i]->clone());
+			}
+			auto *simple_range = calcluate_access_offset(accessed_element_ranges, id2ast->attributes[ID::multirange]);
+			children.push_back(simple_range);
+		}else
+		{
+			for (int i = GetSize(id2ast->multirange_dimensions)/2; i < GetSize(children[0]->children); i++) {
+				children.push_back(children[0]->children[i]->clone());
+			}
+		}
+
 
 		delete children[0];
 		if (index_expr == nullptr)
