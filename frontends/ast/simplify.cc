@@ -1648,18 +1648,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			flatten_ranges(this);
 		}
 
-		if(type == AST_MEMORY && attributes.count(ID::multirange) == 0 && children.size() >= 2 && children[0]->type == AST_MULTIRANGE)
-		{
-			attributes[ID::multirange] = new AstNode(AST_CONSTANT);
-			attributes[ID::multirange]->integer = GetSize(children[0]->children);
-			for(const auto *child : children[0]->children)
-				attributes[ID::multirange]->children.push_back(child->clone());
-			auto range = convert_multirange_to_single_range(children[0]);
-			attributes[ID::multirange]->range_left = range->range_left;
-			attributes[ID::multirange]->range_right = 0;
-		}
-
-		if (children.size() == 1 && children[0]->type == AST_MULTIRANGE && children[0]->is_packed) {
+		if (children.size() >= 1 && children[0]->type == AST_MULTIRANGE && children[0]->is_packed) {
 
 			const auto* multirange = children[0];
 			size_t size = 1;
@@ -1679,11 +1668,13 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			attributes[ID::multirange] = attr_ranges;
 
 			// Replace with one-dimensional range (packed vector)
-			delete children[0];
-			children.clear();
-			children.push_back(make_range(size - 1, 0, false));
+			if(type == AST_WIRE){
+				delete children[0];
+				children.clear();
+				children.push_back(make_range(size - 1, 0, false));
 
-			is_packed = true;
+				is_packed = true;
+			}
 			did_something = true;
 		}
 
