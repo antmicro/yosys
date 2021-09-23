@@ -22,13 +22,24 @@ assign mode_i[1] = pkg::MODE_01;
 
 assign multirange_logic[0][0][0][0][0][0] = 1'b0;
 assign multirange_logic[1][2][1][2][1][0] = 1'b1;
+assign multirange_logic[1][2][1][2][1][1] = 1'b0;
+
+assign multirange_logic[1][2][1][3][0]    = 8'b10100011;
+assign multirange_logic[1][2][1][3][1]    = 8'b00110110;
 
 assign multirange_wire[0][0][0][0][0][0] = 1'b0;
 assign multirange_wire[1][2][1][2][1][0] = 1'b1;
+assign multirange_wire[1][2][1][2][1][1] = 1'b0;
+
+assign multirange_wire[1][2][1][3][0]    = 8'b10100011;
+assign multirange_wire[1][2][1][3][1]    = 8'b00110110;
 
 assign multirange_reg[0][0][0][0][0][0] = 1'b0;
 assign multirange_reg[1][2][1][2][1][0] = 1'b1;
 assign multirange_reg[1][2][1][2][1][1] = 1'b0;
+
+assign multirange_reg[1][2][1][3][0]    = 8'b10100011;
+assign multirange_reg[1][2][1][3][1]    = 8'b00110110;
 
 always_comb begin
   assert(mode_i[0] == pkg::MODE_11);
@@ -36,13 +47,24 @@ always_comb begin
 
   assert(multirange_logic[0][0][0][0][0][0] == 1'b0);
   assert(multirange_logic[1][2][1][2][1][0] == 1'b1);
-  
+  assert(multirange_logic[1][2][1][2][1][1] == 1'b0);
+
+  assert(multirange_logic[1][2][1][3][0] == 8'b10100011);
+  assert(multirange_logic[1][2][1][3][1] == 8'b00110110);
+
   assert(multirange_wire[0][0][0][0][0][0] == 1'b0);
   assert(multirange_wire[1][2][1][2][1][0] == 1'b1);
-  
+  assert(multirange_wire[1][2][1][2][1][1] == 1'b0);
+
+  assert(multirange_wire[1][2][1][3][0] == 8'b10100011);
+  assert(multirange_wire[1][2][1][3][1] == 8'b00110110);
+
   assert(multirange_reg[0][0][0][0][0][0] == 1'b0);
   assert(multirange_reg[1][2][1][2][1][0] == 1'b1);
   assert(multirange_reg[1][2][1][2][1][1] == 1'b0);
+
+  assert(multirange_reg[1][2][1][3][0] == 8'b10100011);
+  assert(multirange_reg[1][2][1][3][1] == 8'b00110110);
 end
 
 endmodule

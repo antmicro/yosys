@@ -1668,7 +1668,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			attributes[ID::multirange] = attr_ranges;
 
 			// Replace with one-dimensional range (packed vector)
-			if(type == AST_WIRE){
+			if(type == AST_WIRE) {
 				delete children[0];
 				children.clear();
 				children.push_back(make_range(size - 1, 0, false));
