@@ -1581,11 +1581,8 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					} else {
 						attr_ranges->children.push_back(children[1]->clone()); // save unpacked size
 					}
-
+					// add range with custom packed struct/union size
 					attr_ranges->children.push_back(newNode->children[0]->clone());
-					attr_ranges->range_left = children[1]->range_left;
-					attr_ranges->range_right = 0;
-					newNode->attributes[ID::multirange] = attr_ranges;
 
 					if (port_id == 0) {
 						int s = std::abs(int(children[1]->children[0]->integer - children[1]->children[1]->integer)) + 1;
@@ -1600,6 +1597,9 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 							newNode->type = AST_MEMORY;
 						}
 					}
+					attr_ranges->range_left = newNode->children[0]->range_left;
+					attr_ranges->range_right = 0;
+					newNode->attributes[ID::multirange] = attr_ranges;
 				}
 				// replace with wire representing the packed structure
 				newNode->is_input = this->is_input;
