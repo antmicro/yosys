@@ -17,6 +17,10 @@ logic [3:0][3:0][7:0] multirange_logic [2:0][3:0][3:0];
 wire  [3:0][3:0][7:0] multirange_wire  [2:0][3:0][2:0];
 reg   [3:0][3:0][7:0] multirange_reg   [2:0][3:0][2:0];
 
+logic [3:0][3:0][7:0] multirange_logic_no_mem;
+logic [3:0][3:0][7:0] multirange_logic_single_mem[3:0];
+logic multirange_logic_only_mem[3:0][3:0][7:0];
+
 assign mode_i[0] = pkg::MODE_11;
 assign mode_i[1] = pkg::MODE_01;
 
@@ -40,6 +44,17 @@ assign multirange_reg[1][2][1][2][1][1] = 1'b0;
 
 assign multirange_reg[1][2][1][3][0]    = 8'b10100011;
 assign multirange_reg[1][2][1][3][1]    = 8'b00110110;
+
+assign multirange_logic_no_mem[3][1][7] = 1'b1;
+assign multirange_logic_no_mem[3][1][6] = 1'b0;
+assign multirange_logic_no_mem[3][2]    = 8'b11100010;
+
+assign multirange_logic_single_mem[2][3][1][7] = 1'b1;
+assign multirange_logic_single_mem[2][3][1][6] = 1'b0;
+assign multirange_logic_single_mem[2][3][2]    = 8'b11100010;
+
+assign multirange_logic_only_mem[3][1][7] = 1'b1;
+assign multirange_logic_only_mem[3][1][6] = 1'b0;
 
 always_comb begin
   assert(mode_i[0] == pkg::MODE_11);
@@ -65,6 +80,17 @@ always_comb begin
 
   assert(multirange_reg[1][2][1][3][0] == 8'b10100011);
   assert(multirange_reg[1][2][1][3][1] == 8'b00110110);
+
+  assert(multirange_logic_no_mem[3][1][7] == 1'b1);
+  assert(multirange_logic_no_mem[3][1][6] == 1'b0);
+  assert(multirange_logic_no_mem[3][2]    == 8'b11100010);
+
+  assert(multirange_logic_single_mem[2][3][1][7] == 1'b1);
+  assert(multirange_logic_single_mem[2][3][1][6] == 1'b0);
+  assert(multirange_logic_single_mem[2][3][2]    == 8'b11100010);
+
+  assert(multirange_logic_only_mem[3][1][7] == 1'b1);
+  assert(multirange_logic_only_mem[3][1][6] == 1'b0);
 end
 
 endmodule
