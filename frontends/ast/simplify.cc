@@ -1600,6 +1600,10 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 					attr_ranges->range_left = newNode->children[0]->range_left;
 					attr_ranges->range_right = 0;
 					newNode->attributes[ID::multirange] = attr_ranges;
+
+					newNode->range_left = newNode->children[0]->range_left;
+					newNode->range_right = 0;
+					newNode->is_packed = true;
 				}
 				// replace with wire representing the packed structure
 				newNode->is_input = this->is_input;
