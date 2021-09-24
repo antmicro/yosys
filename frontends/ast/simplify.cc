@@ -672,10 +672,8 @@ static AstNode* calcluate_access_offset(const AstNode *accessed_element_ranges, 
 	log_assert(original_ranges->type == AST_CONSTANT);
 	if(accessed_element_ranges->children.size() > original_ranges->children.size())
 	{
-		log_error("Invalid array access\n");
+		log_error("Invalid array access \n");
 	}
-	accessed_element_ranges->dumpAst(NULL, "<<<<");
-	original_ranges->dumpAst(NULL, ">>>>");
 
 	AstNode* simple_range = new AstNode(AST_RANGE);
 	for (size_t idx = 0 ; idx < accessed_element_ranges->children.size() ; ++idx) {
@@ -1959,7 +1957,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			auto orig_struct = current_scope[wiretype->str];
 			if(orig_struct->children.size() &&
 				(orig_struct->children[0]->type == AST_STRUCT ||
-				 orig_struct->children[0]->type == AST_UNION)){
+				 orig_struct->children[0]->type == AST_UNION)) {
 
 				auto width = size_packed_struct(orig_struct, 0);
 
@@ -2089,27 +2087,32 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				index_expr = new AstNode(AST_ADD, new AstNode(AST_MUL, index_expr, AstNode::mkconst_int(id2ast->multirange_dimensions[2*i+1], true)), new_index_expr);
 		}
 
-		// TODO recalculate correct offset for packed dimentions
-		if(id2ast->attributes.count(ID::multirange)){
-			AstNode *accessed_element_ranges = new AstNode(AST_MULTIRANGE);	
-			for (int i = GetSize(id2ast->multirange_dimensions)/2; i < GetSize(children[0]->children); i++) {
+		if(id2ast->attributes.count(ID::multirange)) {
+			int ref_has_unpacked_range = id2ast->children.size() > 1 && ((id2ast->children[1]->range_left - id2ast->children[1]->range_right) != 0);
+			size_t ref_unpacked_range_size = std::max(ref_has_unpacked_range, GetSize(id2ast->multirange_dimensions)/2);
+
+			AstNode *accessed_element_ranges = new AstNode(AST_MULTIRANGE);
+			for (int i = ref_unpacked_range_size; i < GetSize(children[0]->children); i++) {
 				accessed_element_ranges->children.push_back(children[0]->children[i]->clone());
 			}
+
+			if(ref_unpacked_range_size == 1 && GetSize(id2ast->multirange_dimensions) == 0)
+				children.push_back(children[0]->children[0]->clone());
+
 			auto *simple_range = calcluate_access_offset(accessed_element_ranges, id2ast->attributes[ID::multirange]);
 			children.push_back(simple_range);
-		}else
-		{
+		} else {
 			for (int i = GetSize(id2ast->multirange_dimensions)/2; i < GetSize(children[0]->children); i++) {
 				children.push_back(children[0]->children[i]->clone());
 			}
 		}
-
 
 		delete children[0];
 		if (index_expr == nullptr)
 			children.erase(children.begin());
 		else
 			children[0] = new AstNode(AST_RANGE, index_expr);
+
 
 		did_something = true;
 	}
