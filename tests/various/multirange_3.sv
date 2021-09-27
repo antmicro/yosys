@@ -23,8 +23,8 @@ module dut();
 logic [3:0][3:0][7:0] multirange_logic;
 logic [15:0] multirange_logic_cpy;
 
-pinout_t [Size*2-1:0] pinout = 8'b10110010;
-logic [2:0] pinout_part_cpy;
+pinout_t [Size*2-1:0] pinout = 16'b1011010110110010;
+logic [5:0] pinout_part_cpy;
 
 complex_struct_t complex_hw [3];
 complex_struct_t complex_hw_cpy;
@@ -62,22 +62,19 @@ assign mtimecmp[1][0][1:0] = mtime[1][1:0];
 always_comb begin
   assert(multirange_logic_cpy == 16'b1010101000000000);
 
-  assert(pinout_part_cpy == 3'b100);
+  assert(pinout_part_cpy == 6'b011011);
 
   assert(complex_hw_cpy == 12'b110010011100);
+  assert(complex_hw_cpy == complex_hw[1]);
+
+  assert(complex_hw_cpy[3] == 1);
 
   assert(mtimecmp[0][0][3:2] == mtimecmp[1][0][1:0]);
   assert(mtimecmp_update[0][0] == 1);
 
-  assert(complex_hw_cpy == complex_hw[1]);
-
-  assert(complex_hw_cpy[3] == 1);
-  assert(complex_hw_cpy[3] != 0);
-
-  assert(complex_hw_cpy == 12'b110010011100);
-
   assert(complex_hw_multirange == hw_multirange_cpy);
-  assert(hw_multirange_cpy[1][1] == 8'b01100101);
+  // TODO fix mem access
+  assert(hw_multirange_cpy[0][1] == 8'b01011001);
 
 end
 

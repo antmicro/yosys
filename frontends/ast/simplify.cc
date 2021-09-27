@@ -1953,34 +1953,12 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		}
 	}
 
-	if(type == AST_IDENTIFIER && current_scope.count(str) && current_scope[str]->attributes.count(ID::wiretype))
-	{
-		auto wiretype = current_scope[str]->attributes[ID::wiretype];
-		if(current_scope.count(wiretype->str))
-		{
-			auto orig_struct = current_scope[wiretype->str];
-			if(orig_struct->children.size() &&
-				(orig_struct->children[0]->type == AST_STRUCT ||
-				 orig_struct->children[0]->type == AST_UNION)) {
-
-				auto width = size_packed_struct(orig_struct, 0);
-
-				if(children.size() && children[0]->range_left == children[0]->range_right)
-				{
-					children[0]->range_left = width*(children[0]->range_left+1)-1;
-					children[0]->range_right = width*children[0]->range_right;
-				}
-			}
-		}
-	}
-
 	// Replace multirange acces with vector and range access
 	if (type == AST_IDENTIFIER) {
 		if (current_scope.count(str)) {
 			const auto* ref_value = current_scope[str];
-
 			// is this multidimensional array?
-			if (ref_value->is_packed && ref_value->attributes.count(ID::multirange)) {
+			if (ref_value->is_packed && ref_value->type != AST_MEMORY && ref_value->attributes.count(ID::multirange)) {
 				const auto* original_ranges = ref_value->attributes.at(ID::multirange);
 				log_assert(original_ranges);
 				log_assert(original_ranges->type == AST_CONSTANT);
@@ -2061,14 +2039,12 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 						// remove multirange
 						children.erase(children.begin());
 						delete accessed_element_ranges;
-
 						children.insert(children.begin(), simple_range);
 					}
 				}
 			}
 		}
 	}
-
 	// resolve multiranges on memory access
 	if (type == AST_IDENTIFIER && id2ast && id2ast->type == AST_MEMORY && children.size() > 0 && children[0]->type == AST_MULTIRANGE)
 	{
@@ -2116,7 +2092,6 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			children.erase(children.begin());
 		else
 			children[0] = new AstNode(AST_RANGE, index_expr);
-
 
 		did_something = true;
 	}
