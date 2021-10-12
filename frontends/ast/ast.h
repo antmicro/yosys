@@ -161,7 +161,8 @@ namespace AST
 		AST_STRUCT,
 		AST_UNION,
 		AST_STRUCT_ITEM,
-		AST_BIND
+		AST_BIND,
+		AST_DOT
 	};
 
 	struct AstSrcLocType {
@@ -200,6 +201,8 @@ namespace AST
 		double realvalue;
 		// set for IDs typed to an enumeration, not used
 		bool is_enum;
+		// for AST_RANGES
+		bool is_packed;
 
 		// if this is a multirange memory then this vector contains offset and length of each dimension
 		std::vector<int> multirange_dimensions;
@@ -225,6 +228,8 @@ namespace AST
 		AstNode *clone() const;
 		void cloneInto(AstNode *other) const;
 		void delete_children();
+		AstNode* find_child(const std::string& name);
+		AstNode* find_child(AstNodeType type, const std::string& name);
 		~AstNode();
 
 		enum mem2reg_flags
@@ -286,6 +291,8 @@ namespace AST
 
 		// Generate RTLIL for a bind construct
 		std::vector<RTLIL::Binding *> genBindings() const;
+		// Visit each descendant of this node and call the passed function on it
+		void visitEachDescendant(const std::function<void(AST::AstNode*)>& f);
 
 		// used by genRTLIL() for detecting expression width and sign
 		void detectSignWidthWorker(int &width_hint, bool &sign_hint, bool *found_real = NULL);
@@ -304,6 +311,7 @@ namespace AST
 
 		// helper functions for creating AST nodes for constants
 		static AstNode *mkconst_int(uint32_t v, bool is_signed, int width = 32);
+		static AstNode *mkconst_real(double v);
 		static AstNode *mkconst_bits(const std::vector<RTLIL::State> &v, bool is_signed, bool is_unsized);
 		static AstNode *mkconst_bits(const std::vector<RTLIL::State> &v, bool is_signed);
 		static AstNode *mkconst_str(const std::vector<RTLIL::State> &v);
@@ -376,7 +384,7 @@ namespace AST
 	void set_src_attr(RTLIL::AttrObject *obj, const AstNode *ast);
 
 	// struct helper exposed from simplify for genrtlil
-	AstNode *make_struct_member_range(AstNode *node, AstNode *member_node);
+	AstNode *make_struct_member_range(AstNode *node, AstNode *member_node, int move = 0);
 }
 
 namespace AST_INTERNAL
