@@ -178,6 +178,7 @@ std::string AST::type2str(AstNodeType type)
 	X(AST_UNION)
 	X(AST_STRUCT_ITEM)
 	X(AST_BIND)
+	X(AST_DOT)
 #undef X
 	default:
 		log_abort();
@@ -214,6 +215,7 @@ AstNode::AstNode(AstNodeType type, AstNode *child1, AstNode *child2, AstNode *ch
 	is_signed = false;
 	is_string = false;
 	is_enum = false;
+	is_packed = false;
 	is_wand = false;
 	is_wor = false;
 	is_unsized = false;
@@ -275,10 +277,36 @@ void AstNode::delete_children()
 	attributes.clear();
 }
 
+AstNode* AstNode::find_child(const std::string& name)
+{
+	for (auto child : children) {
+		if (child->str == name) {
+			return child;
+		}
+	}
+	return nullptr;
+}
+
+AstNode* AstNode::find_child(AstNodeType type, const std::string& name)
+{
+	auto child = find_child(name);
+	if (child && child->type == type) {
+		return child;
+	}
+	return nullptr;
+}
+
 // AstNode destructor
 AstNode::~AstNode()
 {
 	delete_children();
+}
+
+void AstNode::visitEachDescendant(const std::function<void(AST::AstNode*)>& f) {
+	for (auto child : children) {
+		f(child);
+		child->visitEachDescendant(f);
+	}
 }
 
 // create a nice text representation of the node
@@ -350,6 +378,9 @@ void AstNode::dumpAst(FILE *f, std::string indent) const
 	}
 	if (is_enum) {
 		fprintf(f, " type=enum");
+	}
+	if (is_packed) {
+		fprintf(f, " packed");
 	}
 	fprintf(f, "\n");
 
@@ -763,6 +794,14 @@ AstNode *AstNode::mkconst_int(uint32_t v, bool is_signed, int width)
 	node->range_valid = true;
 	node->range_left = width-1;
 	node->range_right = 0;
+	return node;
+}
+
+// create an AST node for a real constant
+AstNode *AstNode::mkconst_real(double v)
+{
+	AstNode *node = new AstNode(AST_REALVALUE);
+	node->realvalue = v;
 	return node;
 }
 
@@ -1364,15 +1403,6 @@ std::pair<std::string,std::string> AST::split_modport_from_type(std::string name
 
 }
 
-AstNode * AST::find_modport(AstNode *intf, std::string name)
-{
-	for (auto &ch : intf->children)
-		if (ch->type == AST_MODPORT)
-			if (ch->str == name) // Modport found
-				return ch;
-	return NULL;
-}
-
 // Iterate over all wires in an interface and add them as wires in the AST module:
 void AST::explode_interface_port(AstNode *module_ast, RTLIL::Module * intfmodule, std::string intfname, AstNode *modport)
 {
@@ -1460,9 +1490,8 @@ void AstModule::reprocess_module(RTLIL::Design *design, const dict<RTLIL::IdStri
 							RTLIL::Module *intfmodule = design->module(interface_type); // All interfaces should at this point in time (assuming
 							                                                              // reprocess_module is called from the hierarchy pass) be
 							                                                              // present in design->modules_
-							AstModule *ast_module_of_interface = (AstModule*)intfmodule;
 							std::string interface_modport_compare_str = "\\" + interface_modport;
-							AstNode *modport = find_modport(ast_module_of_interface->ast, interface_modport_compare_str); // modport == NULL if no modport
+							AstNode *modport = ast->find_child(AST::AST_MODPORT, interface_modport_compare_str); // modport == NULL if no modport
 							// Iterate over all wires in the interface and add them to the module:
 							explode_interface_port(new_ast, intfmodule, name_port, modport);
 						}
@@ -1538,7 +1567,7 @@ RTLIL::IdString AstModule::derive(RTLIL::Design *design, const dict<RTLIL::IdStr
 				std::string interface_modport = modports.at(intfname).str();
 				AstModule *ast_module_of_interface = (AstModule*)intfmodule;
 				AstNode *ast_node_of_interface = ast_module_of_interface->ast;
-				modport = find_modport(ast_node_of_interface, interface_modport);
+				modport = ast_node_of_interface->find_child(AST::AST_MODPORT, interface_modport);
 			}
 			// Iterate over all wires in the interface and add them to the module:
 			explode_interface_port(new_ast, intfmodule, intfname, modport);
