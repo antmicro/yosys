@@ -1485,8 +1485,10 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			range_left = template_node->range_left;
 			range_right = template_node->range_right;
 			attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
-			for (auto template_child : template_node->children)
-				children.push_back(template_child->clone());
+			for (auto template_child : template_node->children) {
+				if (template_child->type == AST_RANGE)
+					children.push_back(template_child->clone());
+			}
 			did_something = true;
 		}
 		log_assert(!is_custom_type);
