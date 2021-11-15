@@ -1616,6 +1616,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				// add original input/output attribute to resolved wire
 				newNode->is_input = this->is_input;
 				newNode->is_output = this->is_output;
+				newNode->port_id = this->port_id;
 				current_scope[str] = this;
 				goto apply_newNode;
 			}
@@ -1686,7 +1687,8 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 			range_right = template_node->range_right;
 			attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
 			for (auto template_child : template_node->children)
-				children.push_back(template_child->clone());
+				if (template_child->type == AST_RANGE)
+					children.push_back(template_child->clone());
 			did_something = true;
 		}
 		log_assert(!is_custom_type);
