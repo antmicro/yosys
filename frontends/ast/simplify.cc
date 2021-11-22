@@ -517,13 +517,11 @@ static void add_members_to_scope(AstNode *snode, std::string name)
 	// in case later referenced in assignments
 	log_assert(snode->type==AST_STRUCT || snode->type==AST_UNION);
 	for (auto *node : snode->children) {
+		auto member_name = name + "." + node->str;
+		current_scope[member_name] = node;
 		if (node->type != AST_STRUCT_ITEM) {
 			// embedded struct or union
 			add_members_to_scope(node, name + "." + node->str);
-		}
-		else {
-			auto member_name = name + "." + node->str;
-			current_scope[member_name] = node;
 		}
 	}
 }
@@ -1248,6 +1246,13 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 
 	case AST_PARAMETER:
 	case AST_LOCALPARAM:
+		if (children[0]->type == AST_IDENTIFIER && current_scope.count(children[0]->str) > 0) {
+			auto item_node = current_scope[children[0]->str];
+			if (item_node->type == AST_STRUCT || item_node->type == AST_UNION) {
+				attributes[ID::wiretype] = item_node->clone();
+				add_members_to_scope(attributes[ID::wiretype], str);
+			}
+		}
 		while (!children[0]->basic_prep && children[0]->simplify(false, false, false, stage, -1, false, true) == true)
 			did_something = true;
 		children[0]->detectSignWidth(width_hint, sign_hint);
@@ -1925,7 +1930,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 		if (name_has_dot(str, sname)) {
 			if (current_scope.count(str) > 0) {
 				auto item_node = current_scope[str];
-				if (item_node->type == AST_STRUCT_ITEM) {
+				if (item_node->type == AST_STRUCT_ITEM || item_node->type == AST_STRUCT) {
 					// structure member, rewrite this node to reference the packed struct wire
 					auto range = make_struct_member_range(this, item_node);
 					newNode = new AstNode(AST_IDENTIFIER, range);
