@@ -2043,6 +2043,7 @@ bool AstNode::simplify(bool const_fold, bool at_zero, bool in_lvalue, int stage,
 				// replace with wire representing the packed structure
 				newNode = make_packed_struct(template_node, str);
 				newNode->attributes[ID::wiretype] = mkconst_str(resolved_type_node->str);
+				newNode->attributes[ID::wiretype]->id2ast = template_node;
 				newNode->type = type;
 				current_scope[str] = this;
 				// copy param value, it needs to be 1st value
