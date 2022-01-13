@@ -1,7 +1,7 @@
 /*
  *  yosys -- Yosys Open SYnthesis Suite
  *
- *  Copyright (C) 2021 QuickLogic Corp.
+ *  Copyright (C) 2021 Lalit Sharma <lsharma@quicklogic.com>
  *
  *  Permission to use, copy, modify, and/or distribute this software for any
  *  purpose with or without fee is hereby granted, provided that the above
@@ -24,212 +24,390 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
+#define XSTR(val) #val
+#define STR(val) XSTR(val)
+
+#ifndef PASS_NAME
+#define PASS_NAME synth_quicklogic
+#endif
+
 struct SynthQuickLogicPass : public ScriptPass {
 
-	SynthQuickLogicPass() : ScriptPass("synth_quicklogic", "Synthesis for QuickLogic FPGAs") {}
+    SynthQuickLogicPass() : ScriptPass(STR(PASS_NAME), "Synthesis for QuickLogic FPGAs") {}
 
-	void help() override
-	{
-		log("\n");
-		log("   synth_quicklogic [options]\n");
-		log("This command runs synthesis for QuickLogic FPGAs\n");
-		log("\n");
-		log("    -top <module>\n");
-		log("         use the specified module as top module\n");
-		log("\n");
-		log("    -family <family>\n");
-		log("        run synthesis for the specified QuickLogic architecture\n");
-		log("        generate the synthesis netlist for the specified family.\n");
-		log("        supported values:\n");
-		log("        - pp3: PolarPro 3 \n");
-		log("\n");
-		log("    -blif <file>\n");
-		log("        write the design to the specified BLIF file. writing of an output file\n");
-		log("        is omitted if this parameter is not specified.\n");
-		log("\n");
-		log("    -verilog <file>\n");
-		log("        write the design to the specified verilog file. writing of an output file\n");
-		log("        is omitted if this parameter is not specified.\n");
-		log("\n");
-		log("    -abc\n");
-		log("        use old ABC flow, which has generally worse mapping results but is less\n");
-		log("        likely to have bugs.\n");
-		log("\n");
-		log("The following commands are executed by this synthesis command:\n");
-		help_script();
-		log("\n");
-	}
+    void help() override
+    {
+        log("\n");
+        log("   %s [options]\n", STR(PASS_NAME));
+        log("This command runs synthesis for QuickLogic FPGAs\n");
+        log("\n");
+        log("    -top <module>\n");
+        log("         use the specified module as top module\n");
+        log("\n");
+        log("    -family <family>\n");
+        log("        run synthesis for the specified QuickLogic architecture\n");
+        log("        generate the synthesis netlist for the specified family.\n");
+        log("        supported values:\n");
+        log("        - pp3      : pp3 \n");
+        log("        - qlf_k4n8 : qlf_k4n8 \n");
+        log("        - qlf_k6n10: qlf_k6n10 \n");
+        log("        - qlf_k6n10f: qlf_k6n10f \n");
+        log("\n");
+        log("    -no_abc_opt\n");
+        log("        By default most of ABC logic optimization features is\n");
+        log("        enabled. Specifying this switch turns them off.\n");
+        log("\n");
+        log("    -edif <file>\n");
+        log("        write the design to the specified edif file. writing of an output file\n");
+        log("        is omitted if this parameter is not specified.\n");
+        log("\n");
+        log("    -blif <file>\n");
+        log("        write the design to the specified BLIF file. writing of an output file\n");
+        log("        is omitted if this parameter is not specified.\n");
+        log("\n");
+        log("    -verilog <file>\n");
+        log("        write the design to the specified verilog file. writing of an output file\n");
+        log("        is omitted if this parameter is not specified.\n");
+        log("\n");
+        log("    -no_dsp\n");
+        log("        By default use DSP blocks in output netlist.\n");
+        log("        do not use DSP blocks to implement multipliers and associated logic\n");
+        log("\n");
+        log("    -no_adder\n");
+        log("        By default use adder cells in output netlist.\n");
+        log("        Specifying this switch turns it off.\n");
+        log("\n");
+        log("    -no_bram\n");
+        log("        By default use Block RAM in output netlist.\n");
+        log("        Specifying this switch turns it off.\n");
+        log("\n");
+        log("    -no_ff_map\n");
+        log("        By default ff techmap is turned on. Specifying this switch turns it off.\n");
+        log("\n");
+        log("\n");
+        log("The following commands are executed by this synthesis command:\n");
+        help_script();
+        log("\n");
+    }
 
-	string top_opt, blif_file, family, currmodule, verilog_file;
-	bool abc9;
+    string top_opt, edif_file, blif_file, family, currmodule, verilog_file;
+    bool nodsp;
+    bool inferAdder;
+    bool inferBram;
+    bool abcOpt;
+    bool abc9;
+    bool noffmap;
 
-	void clear_flags() override
-	{
-		top_opt = "-auto-top";
-		blif_file = "";
-		verilog_file = "";
-		currmodule = "";
-		family = "pp3";
-		abc9 = true;
-	}
+    void clear_flags() override
+    {
+        top_opt = "-auto-top";
+        edif_file = "";
+        blif_file = "";
+        verilog_file = "";
+        currmodule = "";
+        family = "qlf_k4n8";
+        inferAdder = true;
+        inferBram = true;
+        abcOpt = true;
+        abc9 = true;
+        noffmap = false;
+        nodsp = false;
+    }
 
-	void execute(std::vector<std::string> args, RTLIL::Design *design) override
-	{
-		string run_from, run_to;
-		clear_flags();
+    void execute(std::vector<std::string> args, RTLIL::Design *design) override
+    {
+        string run_from, run_to;
+        clear_flags();
 
-		size_t argidx;
-		for (argidx = 1; argidx < args.size(); argidx++)
-		{
-			if (args[argidx] == "-top" && argidx+1 < args.size()) {
-				top_opt = "-top " + args[++argidx];
-				continue;
-			}
-			if (args[argidx] == "-family" && argidx+1 < args.size()) {
-				family = args[++argidx];
-				continue;
-			}
-			if (args[argidx] == "-blif" && argidx+1 < args.size()) {
-				blif_file = args[++argidx];
-				continue;
-			}
-			if (args[argidx] == "-verilog" && argidx+1 < args.size()) {
-				verilog_file = args[++argidx];
-				continue;
-			}
-			if (args[argidx] == "-abc") {
-				abc9 = false;
-				continue;
-			}
-			break;
-		}
-		extra_args(args, argidx, design);
+        size_t argidx;
+        for (argidx = 1; argidx < args.size(); argidx++) {
+            if (args[argidx] == "-top" && argidx + 1 < args.size()) {
+                top_opt = "-top " + args[++argidx];
+                continue;
+            }
+            if (args[argidx] == "-edif" && argidx + 1 < args.size()) {
+                edif_file = args[++argidx];
+                continue;
+            }
 
-		if (!design->full_selection())
-			log_cmd_error("This command only operates on fully selected designs!\n");
+            if (args[argidx] == "-family" && argidx + 1 < args.size()) {
+                family = args[++argidx];
+                continue;
+            }
+            if (args[argidx] == "-blif" && argidx + 1 < args.size()) {
+                blif_file = args[++argidx];
+                continue;
+            }
+            if (args[argidx] == "-verilog" && argidx + 1 < args.size()) {
+                verilog_file = args[++argidx];
+                continue;
+            }
+            if (args[argidx] == "-no_dsp") {
+                nodsp = true;
+                continue;
+            }
+            if (args[argidx] == "-no_adder") {
+                inferAdder = false;
+                continue;
+            }
+            if (args[argidx] == "-no_bram") {
+                inferBram = false;
+                continue;
+            }
+            if (args[argidx] == "-no_abc_opt") {
+                abcOpt = false;
+                continue;
+            }
+            if (args[argidx] == "-no_abc9") {
+                abc9 = false;
+                continue;
+            }
+            if (args[argidx] == "-no_ff_map") {
+                noffmap = true;
+                continue;
+            }
 
-		if (family != "pp3")
-			log_cmd_error("Invalid family specified: '%s'\n", family.c_str());
+            break;
+        }
+        extra_args(args, argidx, design);
 
-		if (abc9 && design->scratchpad_get_int("abc9.D", 0) == 0) {
-			log_warning("delay target has not been set via SDC or scratchpad; assuming 12 MHz clock.\n");
-			design->scratchpad_set_int("abc9.D", 41667); // 12MHz = 83.33.. ns; divided by two to allow for interconnect delay.
-		}
+        if (!design->full_selection())
+            log_cmd_error("This command only operates on fully selected designs!\n");
 
-		log_header(design, "Executing SYNTH_QUICKLOGIC pass.\n");
-		log_push();
+        if (family != "pp3" && family != "qlf_k4n8" && family != "qlf_k6n10" && family != "qlf_k6n10f")
+            log_cmd_error("Invalid family specified: '%s'\n", family.c_str());
 
-		run_script(design, run_from, run_to);
+        if (family != "pp3") {
+            abc9 = false;
+        }
 
-		log_pop();
-	}
+        if (abc9 && design->scratchpad_get_int("abc9.D", 0) == 0) {
+            log_warning("delay target has not been set via SDC or scratchpad; assuming 12 MHz clock.\n");
+            design->scratchpad_set_int("abc9.D", 41667); // 12MHz = 83.33.. ns; divided by two to allow for interconnect delay.
+        }
 
-	void script() override
-	{
-		if (check_label("begin")) {
-			run(stringf("read_verilog -lib -specify +/quicklogic/cells_sim.v +/quicklogic/%s_cells_sim.v", family.c_str()));
-			run("read_verilog -lib -specify +/quicklogic/lut_sim.v");
-			run(stringf("hierarchy -check %s", help_mode ? "-top <top>" : top_opt.c_str()));
-		}
+        log_header(design, "Executing SYNTH_QUICKLOGIC pass.\n");
+        log_push();
 
-		if (check_label("coarse")) {
-			run("proc");
-			run("flatten");
-			run("tribuf -logic");
-			run("deminout");
-			run("opt_expr");
-			run("opt_clean");
-			run("check");
-			run("opt -nodffe -nosdff");
-			run("fsm");
-			run("opt");
-			run("wreduce");
-			run("peepopt");
-			run("opt_clean");
-			run("share");
-			run("techmap -map +/cmp2lut.v -D LUT_WIDTH=4");
-			run("opt_expr");
-			run("opt_clean");
-			run("alumacc");
-			run("pmuxtree");
-			run("opt");
-			run("memory -nomap");
-			run("opt_clean");
-		}
+        run_script(design, run_from, run_to);
 
-		if (check_label("map_ffram")) {
-			run("opt -fast -mux_undef -undriven -fine");
-			run("memory_map -iattr -attr !ram_block -attr !rom_block -attr logic_block "
-				"-attr syn_ramstyle=auto -attr syn_ramstyle=registers "
-				"-attr syn_romstyle=auto -attr syn_romstyle=logic");
-			run("opt -undriven -fine");
-		}
+        log_pop();
+    }
 
-		if (check_label("map_gates")) {
-			run("techmap");
-			run("opt -fast");
-			run("muxcover -mux8 -mux4");
-		}
+    void script() override
+    {
+        if (check_label("begin")) {
+            std::string readVelArgs;
+            readVelArgs = " +/quicklogic/" + family + "/cells_sim.v";
 
-		if (check_label("map_ffs")) {
-			run("opt_expr");
-			run("dfflegalize -cell $_DFFSRE_PPPP_ 0 -cell $_DLATCH_?_ x");
+            // Use -nomem2reg here to prevent Yosys from complaining about
+            // some block ram cell models. After all the only part of the cells
+            // library required here is cell port definitions plus specify blocks.
+            run("read_verilog -lib -specify -nomem2reg +/quicklogic/common/cells_sim.v" + readVelArgs);
+            run(stringf("hierarchy -check %s", help_mode ? "-top <top>" : top_opt.c_str()));
+        }
 
-			run(stringf("techmap -map +/quicklogic/%s_cells_map.v -map +/quicklogic/%s_ffs_map.v", family.c_str(), family.c_str()));
+        if (check_label("prepare")) {
+            run("proc");
+            run("flatten");
+            if (family == "pp3") {
+                run("tribuf -logic");
+            }
+            run("deminout");
+            run("opt_expr");
+            run("opt_clean");
+        }
 
-			run("opt_expr -mux_undef");
-		}
+        std::string noDFFArgs;
+        if (family == "qlf_k4n8") {
+            noDFFArgs = " -nodffe -nosdff";
+        }
 
-		if (check_label("map_luts")) {
-			run(stringf("techmap -map +/quicklogic/%s_latches_map.v", family.c_str()));
-			if (abc9) {
-				run("read_verilog -lib -specify -icells +/quicklogic/abc9_model.v");
-				run("techmap -map +/quicklogic/abc9_map.v");
-				run("abc9 -maxlut 4 -dff");
-				run("techmap -map +/quicklogic/abc9_unmap.v");
-			} else {
-				run("abc -luts 1,2,2,4 -dress");
-			}
-			run("clean");
-		}
+        if (check_label("coarse")) {
+            run("check");
+            run("opt -nodffe -nosdff");
+            run("fsm");
+            run("opt" + noDFFArgs);
+            run("wreduce");
+            run("peepopt");
+            run("opt_clean");
+            run("share");
 
-		if (check_label("map_cells")) {
-			run(stringf("techmap -map +/quicklogic/%s_lut_map.v", family.c_str()));
-			run("clean");
-		}
+            if (help_mode || (!nodsp && family == "qlf_k6n10")) {
+                run("memory_dff");
+                run("wreduce t:$mul");
+                run("techmap -map +/mul2dsp.v -map +/quicklogic/" + family +
+                      "/dsp_map.v -D DSP_A_MAXWIDTH=16 -D DSP_B_MAXWIDTH=16 "
+                      "-D DSP_A_MINWIDTH=2 -D DSP_B_MINWIDTH=2 -D DSP_Y_MINWIDTH=11 "
+                      "-D DSP_NAME=$__MUL16X16",
+                    "(if -no_dsp)");
+                run("select a:mul2dsp", "              (if -no_dsp)");
+                run("setattr -unset mul2dsp", "        (if -no_dsp)");
+                run("opt_expr -fine", "                (if -no_dsp)");
+                run("wreduce", "                       (if -no_dsp)");
+                run("select -clear", "                 (if -no_dsp)");
+                run("ql_dsp", "                        (if -no_dsp)");
+                run("chtype -set $mul t:$__soft_mul", "(if -no_dsp)");
+            }
 
-		if (check_label("check")) {
-			run("autoname");
-			run("hierarchy -check");
-			run("stat");
-			run("check -noinit");
-		}
+            run("techmap -map +/cmp2lut.v -D LUT_WIDTH=4");
+            run("opt_expr");
+            run("opt_clean");
+            run("alumacc");
+            run("pmuxtree");
+            run("opt" + noDFFArgs);
+            run("memory -nomap");
+            run("opt_clean");
+        }
 
-		if (check_label("iomap")) {
-			run("clkbufmap -inpad ckpad Q:P");
-			run("iopadmap -bits -outpad outpad A:P -inpad inpad Q:P -tinoutpad bipad EN:Q:A:P A:top");
-		}
+        if (check_label("map_bram", "(skip if -no_bram)") && (family == "qlf_k6n10" || family == "qlf_k6n10f" || family == "pp3") && inferBram) {
+            run("memory_bram -rules +/quicklogic/" + family + "/brams.txt");
+            if (family == "pp3") {
+                run("pp3_braminit");
+            }
+            run("techmap -map +/quicklogic/" + family + "/brams_map.v");
+        }
 
-		if (check_label("finalize")) {
-			run("setundef -zero -params -undriven");
-			run("hilomap -hicell logic_1 A -locell logic_0 A -singleton A:top");
-			run("opt_clean -purge");
-			run("check");
-			run("blackbox =A:whitebox");
-		}
+        if (check_label("map_ffram")) {
+            run("opt -fast -mux_undef -undriven -fine" + noDFFArgs);
+            run("memory_map -iattr -attr !ram_block -attr !rom_block -attr logic_block "
+                "-attr syn_ramstyle=auto -attr syn_ramstyle=registers "
+                "-attr syn_romstyle=auto -attr syn_romstyle=logic");
+            run("opt -undriven -fine" + noDFFArgs);
+        }
 
-		if (check_label("blif")) {
-			if (!blif_file.empty() || help_mode) {
-				run(stringf("write_blif -attr -param %s %s", top_opt.c_str(), blif_file.c_str()));
-			}
-		}
+        if (check_label("map_gates")) {
+            if (inferAdder && (family == "qlf_k4n8" || family == "qlf_k6n10" || family == "qlf_k6n10f")) {
+                run("techmap -map +/techmap.v -map +/quicklogic/" + family + "/arith_map.v");
+            } else {
+                run("techmap");
+            }
+            run("opt -fast" + noDFFArgs);
+            if (family == "pp3") {
+                run("muxcover -mux8 -mux4");
+            }
+            run("opt_expr");
+            run("opt_merge");
+            run("opt_clean");
+            run("opt" + noDFFArgs);
+        }
 
-		if (check_label("verilog")) {
-			if (!verilog_file.empty()) {
-				run("write_verilog -noattr -nohex " + verilog_file);
-			}
-		}
-	}
+        if (check_label("map_ffs")) {
+            run("opt_expr");
+            if (family == "qlf_k4n8") {
+                run("shregmap -minlen 8 -maxlen 8");
+                run("dfflegalize -cell $_DFF_P_ 0 -cell $_DFF_P??_ 0 -cell $_DFF_N_ 0 -cell $_DFF_N??_ 0 -cell $_DFFSR_???_ 0");
+            } else if (family == "qlf_k6n10") {
+                run("dfflegalize -cell $_DFF_P_ 0 -cell $_DFF_PP?_ 0 -cell $_DFFE_PP?P_ 0 -cell $_DFFSR_PPP_ 0 -cell $_DFFSRE_PPPP_ 0 -cell "
+                    "$_DLATCHSR_PPP_ 0");
+                //    In case we add clock inversion in the future.
+                //    run("dfflegalize -cell $_DFF_?_ 0 -cell $_DFF_?P?_ 0 -cell $_DFFE_?P?P_ 0 -cell $_DFFSR_?PP_ 0 -cell $_DFFSRE_?PPP_ 0 -cell
+                //    $_DLATCH_SRPPP_ 0");
+            } else if (family == "qlf_k6n10f") {
+                run("shregmap -minlen 8 -maxlen 20");
+                run("dfflegalize -cell $_DFF_?_ 0 -cell $_DFF_???_ 0 -cell $_DFFE_????_ 0 -cell $_DFFSR_???_ 0 -cell $_DFFSRE_????_ 0 -cell "
+                    "$_DLATCHSR_PPP_ 0");
+            } else if (family == "pp3") {
+                run("dfflegalize -cell $_DFFSRE_PPPP_ 0 -cell $_DLATCH_?_ x");
+                run("techmap -map +/quicklogic/" + family + "/cells_map.v");
+            }
+            std::string techMapArgs = " -map +/techmap.v -map +/quicklogic/" + family + "/ffs_map.v";
+            if (!noffmap) {
+                run("techmap " + techMapArgs);
+            }
+            if (family == "pp3") {
+                run("opt_expr -mux_undef");
+            }
+            run("opt_merge");
+            run("opt_clean");
+            run("opt" + noDFFArgs);
+        }
+
+        if (check_label("map_luts")) {
+            if (abcOpt) {
+                if (family == "qlf_k6n10" || family == "qlf_k6n10f") {
+                    run("abc -lut 6 ");
+                } else if (family == "qlf_k4n8") {
+                    run("abc -lut 4 ");
+                } else if (family == "pp3") {
+                    run("techmap -map +/quicklogic/" + family + "/latches_map.v");
+                    if (abc9) {
+                        run("read_verilog -lib -specify -icells +/quicklogic/" + family + "/abc9_model.v");
+                        run("techmap -map +/quicklogic/" + family + "/abc9_map.v");
+                        run("abc9 -maxlut 4 -dff");
+                        run("techmap -map +/quicklogic/" + family + "/abc9_unmap.v");
+                    } else {
+                        std::string lutDefs = "+/quicklogic/" + family + "/lutdefs.txt";
+                        rewrite_filename(lutDefs);
+
+                        std::string abcArgs = "+read_lut," + lutDefs +
+                                              ";"
+                                              "strash;ifraig;scorr;dc2;dretime;strash;dch,-f;if;mfs2;" // Common Yosys ABC script
+                                              "sweep;eliminate;if;mfs;lutpack;"                        // Optimization script
+                                              "dress";                                                 // "dress" to preserve names
+
+                        run("abc -script " + abcArgs);
+                    }
+                }
+            }
+            run("clean");
+            run("opt_lut");
+        }
+
+        if (check_label("map_cells") && (family == "qlf_k6n10" || family == "pp3")) {
+            std::string techMapArgs;
+            techMapArgs = "-map +/quicklogic/" + family + "/lut_map.v";
+            run("techmap " + techMapArgs);
+            run("clean");
+        }
+
+        if (check_label("check")) {
+            run("autoname");
+            run("hierarchy -check");
+            run("stat");
+            run("check -noinit");
+        }
+
+        if (check_label("iomap") && family == "pp3") {
+            run("clkbufmap -inpad ckpad Q:P");
+            run("iopadmap -bits -outpad outpad A:P -inpad inpad Q:P -tinoutpad bipad EN:Q:A:P A:top");
+        }
+
+        if (check_label("finalize")) {
+            if (family == "pp3") {
+                run("setundef -zero -params -undriven");
+            }
+            if (family == "pp3" || (check_label("edif") && (!edif_file.empty()))) {
+                run("hilomap -hicell logic_1 a -locell logic_0 a -singleton A:top");
+            }
+            run("opt_clean -purge");
+            run("check");
+            run("blackbox =A:whitebox");
+        }
+
+        if (check_label("blif")) {
+            if (!blif_file.empty()) {
+                if (inferAdder) {
+                    run(stringf("write_blif -param %s", help_mode ? "<file-name>" : blif_file.c_str()));
+                } else {
+                    run(stringf("write_blif %s", help_mode ? "<file-name>" : blif_file.c_str()));
+                }
+            }
+        }
+
+        if (check_label("edif") && (!edif_file.empty())) {
+            run("splitnets -ports -format ()");
+            run("quicklogic_eqn");
+
+            run(stringf("write_ql_edif -nogndvcc -attrprop -pvector par %s %s", this->currmodule.c_str(), edif_file.c_str()));
+        }
+
+        if (check_label("verilog")) {
+            if (!verilog_file.empty()) {
+                run("write_verilog -noattr -nohex " + verilog_file);
+            }
+        }
+    }
 
 } SynthQuicklogicPass;
 
