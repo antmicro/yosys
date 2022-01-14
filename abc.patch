@@ -1,0 +1,16 @@
+diff --git a/src/base/cmd/cmdLoad.c b/src/base/cmd/cmdLoad.c
+index accd9440..7b55a42a 100644
+--- a/src/base/cmd/cmdLoad.c
++++ b/src/base/cmd/cmdLoad.c
+@@ -165,7 +165,10 @@ void Load_Init( Abc_Frame_t * pAbc )
+     Vec_Ptr_t * vFileNames;
+     char * pName, * pStop;
+     int i;
+-    vFileNames = CmdCollectFileNames();
++    // FIXME: The function below causes segfault on win32 and the files
++    // that it tires to find are not used in most cases hence it is
++    // commented out.
++    vFileNames = NULL; //CmdCollectFileNames();
+     if ( vFileNames == NULL )
+         return;
+     Vec_PtrForEachEntry( char *, vFileNames, pName, i )
