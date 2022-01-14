@@ -370,7 +370,7 @@ struct SynthQuickLogicPass : public ScriptPass {
 
         if (check_label("iomap") && family == "pp3") {
             run("clkbufmap -inpad ckpad Q:P");
-            run("iopadmap -bits -outpad outpad A:P -inpad inpad Q:P -tinoutpad bipad EN:Q:A:P A:top");
+            run("iopadmap -bits -outpad outpad A:P -inpad inpad Q:P -toutpad bipad EN:A:P -tinoutpad bipad EN:Q:A:P A:top");
         }
 
         if (check_label("finalize")) {
