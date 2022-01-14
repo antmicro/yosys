@@ -8,15 +8,16 @@ echo "Running syntax check on arch sim models"
 for arch in ../../techlibs/*; do
 	find $arch -name cells_sim.v | while read path; do
 		arch_name=$(basename -- $arch)
+        path_name=$(dirname -- $path)
 		if [ "${defines[$arch_name]}" ]; then
 			for def in ${defines[$arch_name]}; do
 				echo -n "Test $path -D$def ->"
-				iverilog -t null -I$arch -D$def -DNO_ICE40_DEFAULT_ASSIGNMENTS $path
+				iverilog -t null -I$arch -I$path_name -D$def -DNO_ICE40_DEFAULT_ASSIGNMENTS $path
 				echo " ok"
 			done
 		else
 			echo -n "Test $path ->"
-			iverilog -t null -I$arch $path
+			iverilog -t null -I$arch -I$path_name $path
 			echo " ok"
 		fi
 	done
