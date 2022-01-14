@@ -227,7 +227,7 @@ module qlal3_ram_512x32_cell (
   input         RAM_P1_RD_EN,
   input         RAM_RME_af,
   input  [ 3:0] RAM_RM_af,
-  input         RAM_TEST1_af,
+  input         RAM_TEST1_af
 );
 endmodule
 
