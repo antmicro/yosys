@@ -1,4 +1,5 @@
 OBJS += techlibs/nexus/synth_nexus.o
+OBJS += techlibs/nexus/nexus_dsp.o
 
 $(eval $(call add_share_file,share/nexus,techlibs/nexus/cells_map.v))
 $(eval $(call add_share_file,share/nexus,techlibs/nexus/cells_sim.v))
