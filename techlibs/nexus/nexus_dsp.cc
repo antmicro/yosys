@@ -115,7 +115,7 @@ struct NexusDsp : public Pass {
     // ..........................................
 
     NexusDsp() :
-        Pass("nexus_dsp", "Does stuff with Nexus DSPs"),
+        Pass("nexus_dsp", "Integrates flip-flop into DSP blocks of the Nexus arch"),
 
         m_DspTypes({
             RTLIL::escape_id("MULT36X36"),
@@ -137,8 +137,22 @@ struct NexusDsp : public Pass {
 
     void help () override {
         log("\n");
-        log("Help me! ...");
+        log("    nexus_dsp [selection]\n");
         log("\n");
+        log("Integrates flip-flops with DSP blocks in the Nexus architecture\n");
+        log("and enables their internal registers. The pass takes care not to\n");
+        log("mix conflicting flip-flop types/configurations.\n");
+        log("\n");
+        log("Recognized DSP cell types:\n");
+
+        for (const auto& name : m_DspTypes) {
+            log("    %s\n", name.c_str());
+        }
+        log("Recognized flip-flop cell types:\n");
+
+        for (const auto& name : m_FlopTypes) {
+            log("    %s\n", name.c_str());
+        }
     }
 
     void execute(std::vector<std::string> a_Args, RTLIL::Design *a_Design) override
@@ -291,9 +305,9 @@ struct NexusDsp : public Pass {
                 // Get sinks(s)
                 auto sinks = getSinks(CellPin(cell, RTLIL::escape_id("Z"), i));
 
-                // More than one sink
-                // TODO: Possible handle case when a DSP drivers two parallel
-                // flip-flops
+                // More than one sink, abort
+                // TODO: Possible handle case when a DSP drivers two or more
+                // parallel flip-flops
                 if (sinks.size() > 1) {
                     flops.clear();
                     types.clear();
