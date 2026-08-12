@@ -522,6 +522,7 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 		auto cell_name = cell->name;
 		auto cell_connections = cell->connections();
 		std::string src = cell->get_src_attribute();
+		std::vector<std::string> hdlname = cell->get_hdlname_attribute();
 
 		module->remove(cell);
 
@@ -529,6 +530,7 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 		RTLIL::Cell *new_cell = module->addCell(cell_name, cm.cell_name);
 
 		new_cell->set_src_attribute(src);
+		new_cell->set_hdlname_attribute(hdlname);
 
 		bool has_q = false, has_qn = false;
 		for (auto &port : cm.ports) {
