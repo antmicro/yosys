@@ -4,7 +4,7 @@ on:
   pull_request:
   merge_group:
   push:
-    branches: [ main ]
+    branches: [ mgan/hdlname-fix-pr ]
   workflow_dispatch:
 
 jobs:
